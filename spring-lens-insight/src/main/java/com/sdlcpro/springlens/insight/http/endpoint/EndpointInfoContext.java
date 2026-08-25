@@ -5,8 +5,9 @@ import com.sdlcpro.springlens.insight.http.HttpUriProvider;
 import com.sdlcpro.springlens.insight.support.provider.ClassProvider;
 import com.sdlcpro.springlens.model.http.HttpRequestMethod;
 import com.sdlcpro.springlens.model.http.endpoint.HandlerType;
+import com.sdlcpro.springlens.util.DefensiveCopies;
 
-import java.util.EnumSet;
+import java.util.Set;
 
 /**
  * A package-private context evaluation record that acts as a unified adapter
@@ -21,7 +22,7 @@ import java.util.EnumSet;
 record EndpointInfoContext(
         Class<?> clazz,
         String uri,
-        EnumSet<HttpRequestMethod> methods,
+        Set<HttpRequestMethod> methods,
         HandlerType handlerType
 ) implements ClassProvider, HttpUriProvider, HttpRequestMethodProvider, HandlerTypeProvider {
 
@@ -30,9 +31,7 @@ record EndpointInfoContext(
      * copying and non-null handling for the HTTP methods set to maintain immutability.
      */
     EndpointInfoContext {
-        methods = (methods != null && !methods.isEmpty())
-                ? EnumSet.copyOf(methods)
-                : EnumSet.noneOf(HttpRequestMethod.class);
+        methods = DefensiveCopies.immutableEnumSetOrEmpty(methods);
     }
 
     /**
@@ -54,11 +53,11 @@ record EndpointInfoContext(
     /**
      * Returns an unmodifiable view of the HTTP request methods supported by this endpoint.
      *
-     * @return a copy version of EnumSet of {@link HttpRequestMethod}s
+     * @return the Set of {@link HttpRequestMethod}s
      */
     @Override
-    public EnumSet<HttpRequestMethod> getHttpRequestMethods() {
-        return EnumSet.copyOf(this.methods);
+    public Set<HttpRequestMethod> getHttpRequestMethods() {
+        return this.methods;
     }
 
     /**

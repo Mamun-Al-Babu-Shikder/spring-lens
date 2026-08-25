@@ -2,16 +2,15 @@ package com.sdlcpro.springlens.insight.bean;
 
 import com.sdlcpro.springlens.matcher.Matcher;
 import com.sdlcpro.springlens.model.bean.BeanRole;
+import com.sdlcpro.springlens.util.DefensiveCopies;
 
-import java.util.EnumSet;
+import java.util.Set;
 
 public class BeanRoleMatcher<T extends BeanRoleProvider> implements Matcher<T> {
-    private final EnumSet<BeanRole> beanRoles;
+    private final Set<BeanRole> beanRoles;
 
-    public BeanRoleMatcher(EnumSet<BeanRole> beanRoles) {
-        this.beanRoles = beanRoles != null
-                ? EnumSet.copyOf(beanRoles)
-                : EnumSet.noneOf(BeanRole.class);
+    public BeanRoleMatcher(Set<BeanRole> beanRoles) {
+        this.beanRoles = DefensiveCopies.immutableEnumSetOrEmpty(beanRoles);
     }
 
     @Override

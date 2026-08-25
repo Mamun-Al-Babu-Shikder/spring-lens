@@ -2,9 +2,10 @@ package com.sdlcpro.springlens.insight.http.endpoint;
 
 import com.sdlcpro.springlens.matcher.Matcher;
 import com.sdlcpro.springlens.model.http.endpoint.HandlerType;
+import com.sdlcpro.springlens.util.DefensiveCopies;
 import org.springframework.util.CollectionUtils;
 
-import java.util.EnumSet;
+import java.util.Collection;
 import java.util.Set;
 
 /**
@@ -18,15 +19,15 @@ import java.util.Set;
  * in a type-safe manner.</p>
  *
  * <p>The configured target set is defensively copied into an immutable
- * {@link EnumSet} at construction time. A {@code null} or empty input set
+ * {@link Set} at construction time. A {@code null} or empty input set
  * yields an empty matching set, which causes every evaluation to fail.</p>
  *
  * @param <T> the type of context being matched; must expose its
  *            {@link HandlerType} via {@link HandlerTypeProvider}
- * @since 1.0.0
  * @see HandlerTypeProvider
  * @see HandlerType
  * @see Matcher
+ * @since 1.0.0
  */
 public class HandlerTypeMatcher<T extends HandlerTypeProvider> implements Matcher<T> {
 
@@ -37,18 +38,16 @@ public class HandlerTypeMatcher<T extends HandlerTypeProvider> implements Matche
      * contained in the given set.
      *
      * <p>When {@code handlerTypes} is {@code null} or empty, an empty
-     * {@link EnumSet} is used and {@link #matches} will always return
+     * {@link Set} is used and {@link #matches} will always return
      * {@code false}. Otherwise the set is copied via
-     * {@link EnumSet#copyOf(java.util.Collection)} to guarantee immutability
+     * {@link DefensiveCopies#immutableEnumSetOrEmpty(Collection)} )} to guarantee immutability
      * of the matcher's internal state.</p>
      *
      * @param handlerTypes the handler types to match against; may be
      *                     {@code null} or empty
      */
     public HandlerTypeMatcher(Set<HandlerType> handlerTypes) {
-        this.handlerTypes = CollectionUtils.isEmpty(handlerTypes)
-                ? EnumSet.noneOf(HandlerType.class)
-                : EnumSet.copyOf(handlerTypes);
+        this.handlerTypes = DefensiveCopies.immutableEnumSetOrEmpty(handlerTypes);
     }
 
     /**
@@ -63,7 +62,7 @@ public class HandlerTypeMatcher<T extends HandlerTypeProvider> implements Matche
      * @param context the evaluation context providing a {@link HandlerType};
      *                may be {@code null}
      * @return {@code true} if the context's handler type is accepted by this
-     *         matcher; {@code false} otherwise
+     * matcher; {@code false} otherwise
      */
     @Override
     public boolean matches(T context) {

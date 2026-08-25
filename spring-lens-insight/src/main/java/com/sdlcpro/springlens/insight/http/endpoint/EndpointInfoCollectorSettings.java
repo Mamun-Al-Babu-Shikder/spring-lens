@@ -2,8 +2,8 @@ package com.sdlcpro.springlens.insight.http.endpoint;
 
 import com.sdlcpro.springlens.model.http.HttpRequestMethod;
 import com.sdlcpro.springlens.model.http.endpoint.HandlerType;
+import com.sdlcpro.springlens.util.DefensiveCopies;
 
-import java.util.EnumSet;
 import java.util.Set;
 
 /**
@@ -35,24 +35,16 @@ import java.util.Set;
 public record EndpointInfoCollectorSettings(
         boolean includeToolInternal,
         Set<String> excludeUriPatterns,
-        EnumSet<HttpRequestMethod> excludeMethods,
-        EnumSet<HandlerType> excludeHandlerTypes
+        Set<HttpRequestMethod> excludeMethods,
+        Set<HandlerType> excludeHandlerTypes
 ) {
 
     /**
      * Creates immutable collector settings.
      */
     public EndpointInfoCollectorSettings {
-        excludeUriPatterns = excludeUriPatterns == null
-                ? Set.of()
-                : Set.copyOf(excludeUriPatterns);
-
-        excludeMethods = excludeMethods == null
-                ? EnumSet.noneOf(HttpRequestMethod.class)
-                : EnumSet.copyOf(excludeMethods);
-
-        excludeHandlerTypes = excludeHandlerTypes == null
-                ? EnumSet.noneOf(HandlerType.class)
-                : EnumSet.copyOf(excludeHandlerTypes);
+        excludeUriPatterns = DefensiveCopies.immutableSetOrEmpty(excludeUriPatterns);
+        excludeMethods = DefensiveCopies.immutableEnumSetOrEmpty(excludeMethods);
+        excludeHandlerTypes = DefensiveCopies.immutableEnumSetOrEmpty(excludeHandlerTypes);
     }
 }

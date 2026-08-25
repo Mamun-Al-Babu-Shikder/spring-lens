@@ -2,8 +2,9 @@ package com.sdlcpro.springlens.insight.http;
 
 import com.sdlcpro.springlens.matcher.Matcher;
 import com.sdlcpro.springlens.model.http.HttpRequestMethod;
+import com.sdlcpro.springlens.util.DefensiveCopies;
 
-import java.util.EnumSet;
+import java.util.Set;
 
 /**
  * A concrete {@link Matcher} implementation that evaluates whether candidate HTTP request methods
@@ -30,21 +31,19 @@ public final class HttpRequestMethodMatcher<T extends HttpRequestMethodProvider>
     /**
      * The immutable set of HTTP request methods that this matcher will match against.
      */
-    private final EnumSet<HttpRequestMethod> httpRequestMethods;
+    private final Set<HttpRequestMethod> httpRequestMethods;
 
     /**
      * Constructs a new {@code HttpRequestMethodMatcher} with the specified target HTTP methods.
      *
-     * <p>The provided set is defensively copied using {@link EnumSet#copyOf(EnumSet)} to ensure
+     * <p>The provided set is defensively copied using {@link DefensiveCopies} to ensure
      * internal immutability. If the provided set is {@code null}, an empty set is used, which
      * results in this matcher always returning {@code false} (since no methods will match).
      *
      * @param httpRequestMethods the target HTTP request methods to match against; may be {@code null}
      */
-    public HttpRequestMethodMatcher(EnumSet<HttpRequestMethod> httpRequestMethods) {
-        this.httpRequestMethods = (httpRequestMethods != null)
-                ? EnumSet.copyOf(httpRequestMethods)
-                : EnumSet.noneOf(HttpRequestMethod.class);
+    public HttpRequestMethodMatcher(Set<HttpRequestMethod> httpRequestMethods) {
+        this.httpRequestMethods = DefensiveCopies.immutableEnumSetOrEmpty(httpRequestMethods);
     }
 
     /**
@@ -64,7 +63,7 @@ public final class HttpRequestMethodMatcher<T extends HttpRequestMethodProvider>
      *
      * @param context the evaluation context providing the candidate HTTP methods; may be {@code null}
      * @return {@code true} if any candidate HTTP method matches a configured target method;
-     *         {@code false} otherwise
+     * {@code false} otherwise
      */
     @Override
     public boolean matches(T context) {

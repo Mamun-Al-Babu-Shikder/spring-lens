@@ -2,10 +2,10 @@ package com.sdlcpro.springlens.util;
 
 import java.util.*;
 
-public final class DefensiveCopies
-{
+public final class DefensiveCopies {
+
     private DefensiveCopies() {
-        throw new UnsupportedOperationException("CollectionSanitizer is an utility class and cannot be instantiated");
+        throw new UnsupportedOperationException("DefensiveCopies is an utility class and cannot be instantiated");
     }
 
     public static <T> List<T> listOrEmpty(Collection<? extends T> source) {
@@ -52,9 +52,15 @@ public final class DefensiveCopies
                 : Map.copyOf(source);
     }
 
-    public static <E extends Enum<E>> Set<E> immutableEnumSetOrEmpty(Collection<E> source, Class<E> elementType) {
+    public static <E extends Enum<E>> Set<E> immutableEnumSetOrEmpty(Collection<E> source) {
         return source == null || source.isEmpty()
                 ? Set.of()
                 : Collections.unmodifiableSet(EnumSet.copyOf(source));
+    }
+
+    public static <K extends Enum<K>, V> Map<K, V> immutableEnumMapOrEmpty(Map<K, ? extends V> source) {
+        return source == null || source.isEmpty()
+                ? Map.of()
+                : Map.copyOf(new EnumMap<K, V>(source));
     }
 }

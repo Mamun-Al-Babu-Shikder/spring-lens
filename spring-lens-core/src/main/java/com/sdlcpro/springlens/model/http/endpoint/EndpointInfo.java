@@ -1,9 +1,9 @@
 package com.sdlcpro.springlens.model.http.endpoint;
 
 import com.sdlcpro.springlens.model.http.HttpRequestMethod;
+import com.sdlcpro.springlens.util.DefensiveCopies;
 import com.sdlcpro.springlens.util.Preconditions;
 
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
@@ -14,21 +14,21 @@ import java.util.Set;
  * telemetry engine, including route path, supported HTTP methods,
  * media types, handler information, and method signature details.
  *
- * @param id unique endpoint identifier
- * @param path canonical endpoint path
- * @param httpMethods supported HTTP methods
- * @param consumes supported request media types
- * @param produces supported response media types
- * @param handlerClassName fully qualified handler class name
+ * @param id                unique endpoint identifier
+ * @param path              canonical endpoint path
+ * @param httpMethods       supported HTTP methods
+ * @param consumes          supported request media types
+ * @param produces          supported response media types
+ * @param handlerClassName  fully qualified handler class name
  * @param handlerMethodName handler method name
- * @param methodParameters ordered method parameter representations
- * @param returnType handler return type
- * @param handlerType handler classification
+ * @param methodParameters  ordered method parameter representations
+ * @param returnType        handler return type
+ * @param handlerType       handler classification
  */
 public record EndpointInfo(
         int id,
         String path,
-        EnumSet<HttpRequestMethod> httpMethods,
+        Set<HttpRequestMethod> httpMethods,
         Set<String> consumes,
         Set<String> produces,
         String handlerClassName,
@@ -75,9 +75,9 @@ public record EndpointInfo(
                 "EndpointInfo handlerType must not be null"
         );
 
-        httpMethods = EnumSet.copyOf(httpMethods);
-        consumes = consumes == null ? Set.of() : Set.copyOf(consumes);
-        produces = produces == null ? Set.of() : Set.copyOf(produces);
-        methodParameters = methodParameters == null ? List.of() : List.copyOf(methodParameters);
+        httpMethods = DefensiveCopies.immutableEnumSetOrEmpty(httpMethods);
+        consumes = DefensiveCopies.immutableSetOrEmpty(consumes);
+        produces = DefensiveCopies.immutableSetOrEmpty(produces);
+        methodParameters = DefensiveCopies.immutableListOrEmpty(methodParameters);
     }
 }

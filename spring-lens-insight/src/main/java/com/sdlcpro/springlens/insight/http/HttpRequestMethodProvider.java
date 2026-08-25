@@ -2,7 +2,7 @@ package com.sdlcpro.springlens.insight.http;
 
 import com.sdlcpro.springlens.model.http.HttpRequestMethod;
 
-import java.util.EnumSet;
+import java.util.Set;
 
 /**
  * A functional provider interface that exposes the set of {@link HttpRequestMethod}
@@ -27,8 +27,8 @@ public interface HttpRequestMethodProvider {
     /**
      * Returns the set of HTTP request methods supported by the target mapping.
      *
-     * @return the EnumSet of supported {@link HttpRequestMethod} values; never
+     * @return the Set of supported {@link HttpRequestMethod} values; never
      * {@code null}, though it may be empty when no methods are declared
      */
-    EnumSet<HttpRequestMethod> getHttpRequestMethods();
+    Set<HttpRequestMethod> getHttpRequestMethods();
 }

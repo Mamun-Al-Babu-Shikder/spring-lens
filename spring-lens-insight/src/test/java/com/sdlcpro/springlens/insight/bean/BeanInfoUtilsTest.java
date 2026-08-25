@@ -98,4 +98,34 @@ class BeanInfoUtilsTest {
         var proxiedBean = factory.getProxy();
         assertThat(BeanInfoUtils.resolveBeanProxyType(proxiedBean)).isEqualTo(ProxyType.CGLIB);
     }
+
+    @Test
+    void createCollectionMatcherExcludesToolInternalComponentsWhenIncludeToolInternalIsFalse() {
+        BeanInfoCollectorSettings settings = mock(BeanInfoCollectorSettings.class);
+        when(settings.includeToolInternal()).thenReturn(false);
+
+        var matcher = BeanInfoUtils.createCollectionMatcher(settings);
+        BeanInfoCollectionContext context = new BeanInfoCollectionContext(
+                BeanRole.ROLE_APPLICATION,
+                InternalComponent.class::getName,
+                () -> InternalComponent.class
+        );
+
+        assertThat(matcher.matches(context)).isFalse();
+    }
+
+    @Test
+    void createCollectionMatcherIncludesToolInternalComponentsWhenIncludeToolInternalIsTrue() {
+        BeanInfoCollectorSettings settings = mock(BeanInfoCollectorSettings.class);
+        when(settings.includeToolInternal()).thenReturn(true);
+
+        var matcher = BeanInfoUtils.createCollectionMatcher(settings);
+        BeanInfoCollectionContext context = new BeanInfoCollectionContext(
+                BeanRole.ROLE_APPLICATION,
+                InternalComponent.class::getName,
+                () -> InternalComponent.class
+        );
+
+        assertThat(matcher.matches(context)).isTrue();
+    }
 }

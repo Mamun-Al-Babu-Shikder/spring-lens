@@ -104,8 +104,8 @@ public class HttpRequestCollectorSettingsTest {
                 Set.of()
         );
 
-        settings.excludeMethods()
-                .add(HttpRequestMethod.POST);
+        assertThatThrownBy(()-> settings.excludeMethods().add(HttpRequestMethod.POST))
+                .isInstanceOf(UnsupportedOperationException.class);
 
         assertThat(settings.excludeMethods())
                 .containsExactly(HttpRequestMethod.GET);
