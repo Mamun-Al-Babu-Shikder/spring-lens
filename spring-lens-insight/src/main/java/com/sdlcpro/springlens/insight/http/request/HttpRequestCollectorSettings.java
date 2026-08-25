@@ -5,7 +5,8 @@ import com.sdlcpro.springlens.model.http.HttpRequestMethod;
 import java.util.EnumSet;
 import java.util.Set;
 
-import static com.sdlcpro.springlens.util.DefensiveCopies.emptyIfNull;
+import static com.sdlcpro.springlens.util.DefensiveCopies.immutableSetOrEmpty;
+import static com.sdlcpro.springlens.util.DefensiveCopies.enumSetOrEmpty;
 
 
 /**
@@ -52,13 +53,13 @@ public record HttpRequestCollectorSettings(
      */
     public HttpRequestCollectorSettings
     {
-        includeUriPatterns = emptyIfNull(includeUriPatterns);
-        excludeUriPatterns = emptyIfNull(excludeUriPatterns);
-        maskableHeaders = emptyIfNull(maskableHeaders);
-        maskableParams = emptyIfNull(maskableParams);
+        includeUriPatterns = immutableSetOrEmpty(includeUriPatterns);
+        excludeUriPatterns = immutableSetOrEmpty(excludeUriPatterns);
+        maskableHeaders = immutableSetOrEmpty(maskableHeaders);
+        maskableParams = immutableSetOrEmpty(maskableParams);
 
         // EnumSet : null-safe defensive copy.
-        excludeMethods = emptyIfNull(excludeMethods, HttpRequestMethod.class);
+        excludeMethods = enumSetOrEmpty(excludeMethods, HttpRequestMethod.class);
 
         if (maxBodyLength < 0) {
             throw new IllegalArgumentException("maxBodyLength must be a positive integer cannot be negative");

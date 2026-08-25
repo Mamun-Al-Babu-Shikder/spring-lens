@@ -1,9 +1,6 @@
 package com.sdlcpro.springlens.util;
 
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public final class DefensiveCopies
 {
@@ -11,19 +8,53 @@ public final class DefensiveCopies
         throw new UnsupportedOperationException("CollectionSanitizer is an utility class and cannot be instantiated");
     }
 
-    public static <K, V> Map<K, V> emptyIfNull(Map<? extends K, ? extends V> map) {
-        return (map == null) ? Map.of() : Map.copyOf(map);
+    public static <T> List<T> listOrEmpty(Collection<? extends T> source) {
+        return source == null
+                ? new ArrayList<>()
+                : new ArrayList<>(source);
     }
 
-    public static <K>Set<K> emptyIfNull(Set<? extends K> set) {
-        return (set == null) ? Set.of() : Set.copyOf(set);
+    public static <T> Set<T> setOrEmpty(Collection<? extends T> source) {
+        return source == null
+                ? new HashSet<>()
+                : new HashSet<>(source);
     }
 
-    public static <K> List<K> emptyIfNull(List<? extends K> list) {
-        return (list == null) ? List.of() : List.copyOf(list);
+    public static <K, V> Map<K, V> mapOrEmpty(Map<? extends K, ? extends V> source) {
+        return source == null
+                ? new HashMap<>()
+                : new HashMap<>(source);
     }
 
-    public static <E extends Enum<E>> EnumSet<E> emptyIfNull(EnumSet<E> enumSet, Class<E> enumClass) {
-        return (enumSet == null || enumSet.isEmpty()) ? EnumSet.noneOf(enumClass) : EnumSet.copyOf(enumSet);
+    public static <E extends Enum<E>> EnumSet<E> enumSetOrEmpty(Collection<E> source, Class<E> elementType) {
+        if (source == null || source.isEmpty()) {
+            return EnumSet.noneOf(elementType);
+        }
+
+        return EnumSet.copyOf(source);
+    }
+
+    public static <T> List<T> immutableListOrEmpty(Collection<? extends T> source) {
+        return source == null
+                ? List.of()
+                : List.copyOf(source);
+    }
+
+    public static <T> Set<T> immutableSetOrEmpty(Collection<? extends T> source) {
+        return source == null
+                ? Set.of()
+                : Set.copyOf(source);
+    }
+
+    public static <K, V> Map<K, V> immutableMapOrEmpty(Map<? extends K, ? extends V> source) {
+        return source == null
+                ? Map.of()
+                : Map.copyOf(source);
+    }
+
+    public static <E extends Enum<E>> Set<E> immutableEnumSetOrEmpty(Collection<E> source, Class<E> elementType) {
+        return source == null || source.isEmpty()
+                ? Set.of()
+                : Collections.unmodifiableSet(EnumSet.copyOf(source));
     }
 }
