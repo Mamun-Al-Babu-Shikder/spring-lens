@@ -5,6 +5,8 @@ import com.sdlcpro.springlens.model.bean.instance.BeanInstanceInfo;
 import com.sdlcpro.springlens.model.bean.instance.BeanInstanceProxyInfo;
 import com.sdlcpro.springlens.repository.PageableRepository;
 
+import java.util.Optional;
+
 /**
  * Manages persistence for {@link BeanInstanceInfo}, by context ID and bean name.
  */
@@ -16,5 +18,5 @@ public interface BeanInstanceInfoRepository extends PageableRepository<BeanInsta
      * @param key context ID + bean name identifying the instance
      * @return proxy info, or null if no matching instance exists
      */
-    BeanInstanceProxyInfo findProxyInfoById(BeanInfoCompositeKey key);
+    Optional<BeanInstanceProxyInfo> findProxyInfoById(BeanInfoCompositeKey key);
 }

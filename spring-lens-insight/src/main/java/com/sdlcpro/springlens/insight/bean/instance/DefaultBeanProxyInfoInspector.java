@@ -1,6 +1,7 @@
 package com.sdlcpro.springlens.insight.bean.instance;
 
 import com.sdlcpro.springlens.annotation.SpringLensInternalComponent;
+import com.sdlcpro.springlens.insight.bean.BeanInfoUtils;
 import com.sdlcpro.springlens.inspector.BeanProxyInfoInspector;
 import com.sdlcpro.springlens.model.bean.ProxyType;
 import com.sdlcpro.springlens.model.bean.instance.BeanInstanceProxyInfo;
@@ -57,12 +58,14 @@ public class DefaultBeanProxyInfoInspector implements BeanProxyInfoInspector {
         }
 
         String targetClass = AopProxyUtils.ultimateTargetClass(bean).getTypeName();
+        ProxyType proxyType = BeanInfoUtils.resolveBeanProxyType(bean);
+
         return new BeanInstanceProxyInfo(
                 targetClass,
                 List.copyOf(advices),
                 List.copyOf(proxiedInterfaces),
                 advised.isFrozen(),
-                ProxyType.UNKNOWN
+                proxyType
         );
     }
 }
