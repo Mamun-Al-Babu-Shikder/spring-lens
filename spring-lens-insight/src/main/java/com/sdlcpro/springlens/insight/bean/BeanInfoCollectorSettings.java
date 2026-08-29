@@ -7,6 +7,7 @@ import static com.sdlcpro.springlens.util.DefensiveCopies.immutableSetOrEmpty;
 public record BeanInfoCollectorSettings(
         boolean includeInfraRole,
         boolean includeToolInternal,
+        boolean includeFrameworkInternal,
         Set<String> excludePackagePatterns,
         Set<String> excludeClasses
 ) {

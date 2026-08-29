@@ -16,7 +16,7 @@ class BeanInfoCollectorSettingsTest {
         Set<String> classes = new HashSet<>(Set.of("com.example.Foo"));
 
         BeanInfoCollectorSettings settings =
-                new BeanInfoCollectorSettings(true, false, packages, classes);
+                new BeanInfoCollectorSettings(true, false, false, packages, classes);
 
         packages.add("com.example.hacked");
         classes.add("com.example.Injected");
@@ -30,7 +30,7 @@ class BeanInfoCollectorSettingsTest {
     @Test
     void internalSetsAreImmutable() {
         BeanInfoCollectorSettings settings = new BeanInfoCollectorSettings(
-                true, true, Set.of("com.example"), Set.of("com.example.Foo"));
+                true, true, true, Set.of("com.example"), Set.of("com.example.Foo"));
 
         assertThatThrownBy(() -> settings.excludePackagePatterns().add("x"))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -42,7 +42,7 @@ class BeanInfoCollectorSettingsTest {
     @Test
     void nullSetsAreNormalizedToEmptySet() {
         BeanInfoCollectorSettings settings =
-                new BeanInfoCollectorSettings(false, false, null, null);
+                new BeanInfoCollectorSettings(false, false, false, null, null);
 
         assertThat(settings.excludePackagePatterns()).isEmpty();
         assertThat(settings.excludeClasses()).isEmpty();
@@ -51,7 +51,7 @@ class BeanInfoCollectorSettingsTest {
     @Test
     void booleanFlagsAreStoredAsIs() {
         BeanInfoCollectorSettings settings =
-                new BeanInfoCollectorSettings(true, false, Set.of(), Set.of());
+                new BeanInfoCollectorSettings(true, false, false, Set.of(), Set.of());
 
         assertThat(settings.includeInfraRole()).isTrue();
         assertThat(settings.includeToolInternal()).isFalse();
@@ -60,9 +60,9 @@ class BeanInfoCollectorSettingsTest {
     @Test
     void equalsAndHashCodeWorkAsValueObject() {
         BeanInfoCollectorSettings a = new BeanInfoCollectorSettings(
-                true, false, Set.of("p1"), Set.of("c1"));
+                true, false, false, Set.of("p1"), Set.of("c1"));
         BeanInfoCollectorSettings b = new BeanInfoCollectorSettings(
-                true, false, Set.of("p1"), Set.of("c1"));
+                true, false, false, Set.of("p1"), Set.of("c1"));
 
         assertThat(a).isEqualTo(b).hasSameHashCodeAs(b);
     }
@@ -70,7 +70,7 @@ class BeanInfoCollectorSettingsTest {
     @Test
     void alreadyImmutableSetDoesNotBreakCompactConstructor() {
         BeanInfoCollectorSettings settings =
-                new BeanInfoCollectorSettings(true, true, Set.of(), Set.of());
+                new BeanInfoCollectorSettings(true, true, true, Set.of(), Set.of());
 
         assertThat(settings.excludePackagePatterns()).isEmpty();
         assertThat(settings.excludeClasses()).isEmpty();

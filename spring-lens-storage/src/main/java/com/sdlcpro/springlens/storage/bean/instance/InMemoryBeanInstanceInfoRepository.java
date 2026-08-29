@@ -2,7 +2,7 @@ package com.sdlcpro.springlens.storage.bean.instance;
 
 import com.sdlcpro.springlens.annotation.SpringLensInternalComponent;
 import com.sdlcpro.springlens.exception.DataScopeMismatchException;
-import com.sdlcpro.springlens.inspector.BeanProxyInfoInspector;
+import com.sdlcpro.springlens.inspector.bean.BeanProxyInfoInspector;
 import com.sdlcpro.springlens.model.bean.BeanInfoCompositeKey;
 import com.sdlcpro.springlens.model.bean.instance.BeanInstanceInfo;
 import com.sdlcpro.springlens.model.bean.instance.BeanInstanceProxyInfo;
@@ -116,10 +116,7 @@ public class InMemoryBeanInstanceInfoRepository implements BeanInstanceInfoRepos
                         .formatted(SCOPE_SINGLETON, instanceInfo.scope()));
             }
 
-            return this.beanProxyInfoInspector.inspectBeanInstanceProxyInfo(
-                    instanceInfo.contextId(),
-                    instanceInfo.beanName()
-            );
+            return this.beanProxyInfoInspector.inspectBy(key);
         });
     }
 }

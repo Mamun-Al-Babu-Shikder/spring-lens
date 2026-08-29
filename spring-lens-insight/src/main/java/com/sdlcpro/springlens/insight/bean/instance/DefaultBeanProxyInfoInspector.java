@@ -2,7 +2,8 @@ package com.sdlcpro.springlens.insight.bean.instance;
 
 import com.sdlcpro.springlens.annotation.SpringLensInternalComponent;
 import com.sdlcpro.springlens.insight.bean.BeanInfoUtils;
-import com.sdlcpro.springlens.inspector.BeanProxyInfoInspector;
+import com.sdlcpro.springlens.inspector.bean.BeanProxyInfoInspector;
+import com.sdlcpro.springlens.model.bean.BeanInfoCompositeKey;
 import com.sdlcpro.springlens.model.bean.ProxyType;
 import com.sdlcpro.springlens.model.bean.instance.BeanInstanceProxyInfo;
 import com.sdlcpro.springlens.util.Preconditions;
@@ -24,9 +25,11 @@ public class DefaultBeanProxyInfoInspector implements BeanProxyInfoInspector {
     }
 
     @Override
-    public BeanInstanceProxyInfo inspectBeanInstanceProxyInfo(String contextId, String beanName) {
-        Preconditions.notNull(beanName, "The contextId must not be null");
-        Preconditions.notNull(beanName, "The beanName must not be null");
+    public BeanInstanceProxyInfo inspectBy(BeanInfoCompositeKey key) {
+        Preconditions.notNull(key, "The BeanInfoCompositeKey must not be null");
+
+        String contextId = key.contextId();
+        String beanName = key.beanName();
 
         ApplicationContext appContext = this.context;
         while (appContext != null) {

@@ -58,6 +58,7 @@ public class SpringLensBeanProperties {
     public static class Include {
         private boolean roleInfra = false;
         private boolean toolInternal = false;
+        private boolean frameworkInternal = false;
 
         public boolean isRoleInfra() {
             return roleInfra;
@@ -73,6 +74,14 @@ public class SpringLensBeanProperties {
 
         public void setToolInternal(boolean toolInternal) {
             this.toolInternal = toolInternal;
+        }
+
+        public boolean isFrameworkInternal() {
+            return frameworkInternal;
+        }
+
+        public void setFrameworkInternal(boolean frameworkInternal) {
+            this.frameworkInternal = frameworkInternal;
         }
     }
 

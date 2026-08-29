@@ -35,6 +35,7 @@ public record ConditionEvaluationInfo(
      */
 
     public ConditionEvaluationInfo {
+        Preconditions.notNull(contextId, "The value of contextId must not be bull");
         Preconditions.notNull(source, "The value of source must not be null");
         Preconditions.notNull(outcome, "The value of outcome must not be null");
         matches = immutableListOrEmpty(matches);

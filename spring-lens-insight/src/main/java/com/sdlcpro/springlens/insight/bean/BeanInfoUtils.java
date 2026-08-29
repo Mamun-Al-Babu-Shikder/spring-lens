@@ -12,6 +12,11 @@ import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 
+import java.util.Set;
+
+import static com.sdlcpro.springlens.constant.SpringLensConstants.SPRING_FRAMEWORK_BASE_PACKAGE_PATTERNS;
+import static com.sdlcpro.springlens.constant.SpringLensConstants.SPRING_BOOT_BASE_PACKAGE_PATTERN;
+
 /**
  * Utility methods for inspecting Spring bean metadata, resolving runtime
  * class details, mapping Spring bean roles, and determining whether a
@@ -138,6 +143,11 @@ public final class BeanInfoUtils {
 
         if (!settings.includeToolInternal()) {
             matcher.addExcludeMatcher(new ToolInternalComponentMatcher<>());
+        }
+
+        if (!settings.includeFrameworkInternal()) {
+            matcher.addExcludeMatcher(new PackageMatcher<>(SPRING_FRAMEWORK_BASE_PACKAGE_PATTERNS));
+            matcher.addExcludeMatcher(new PackageMatcher<>(Set.of(SPRING_BOOT_BASE_PACKAGE_PATTERN)));
         }
 
         return matcher;

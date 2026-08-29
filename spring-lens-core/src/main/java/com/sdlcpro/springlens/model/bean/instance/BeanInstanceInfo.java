@@ -10,6 +10,7 @@ public record BeanInstanceInfo(
         String beanName,
         String type,
         String scope,
+        boolean hasDefinition,
         Instant createdAt,
         long initDurationNanos
 ) {

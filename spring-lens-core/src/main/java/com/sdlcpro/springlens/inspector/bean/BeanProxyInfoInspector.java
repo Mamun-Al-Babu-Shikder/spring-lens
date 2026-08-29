@@ -1,5 +1,6 @@
-package com.sdlcpro.springlens.inspector;
+package com.sdlcpro.springlens.inspector.bean;
 
+import com.sdlcpro.springlens.model.bean.BeanInfoCompositeKey;
 import com.sdlcpro.springlens.model.bean.instance.BeanInstanceProxyInfo;
 
 /**
@@ -10,10 +11,9 @@ public interface BeanProxyInfoInspector {
     /**
      * Inspects the specified bean and extracts its proxy metadata.
      *
-     * @param contextId the id of the application context
-     * @param beanName  the name of the Spring bean to inspect
+     * @param key the {@link BeanInfoCompositeKey} with components contextId and beanName
      * @return proxy information for the bean, or {@code null} if the bean
      * does not exist or is not proxied
      */
-    BeanInstanceProxyInfo inspectBeanInstanceProxyInfo(String contextId, String beanName);
+    BeanInstanceProxyInfo inspectBy(BeanInfoCompositeKey key);
 }

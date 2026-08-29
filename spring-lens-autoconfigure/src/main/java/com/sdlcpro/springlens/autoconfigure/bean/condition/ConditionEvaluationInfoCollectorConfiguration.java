@@ -9,6 +9,8 @@ import com.sdlcpro.springlens.model.bean.condition.ConditionEvaluationInfo;
 import com.sdlcpro.springlens.model.bean.condition.ConditionMatch;
 import com.sdlcpro.springlens.model.bean.condition.ConditionOutcome;
 import com.sdlcpro.springlens.util.ClassInspector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.autoconfigure.condition.ConditionEvaluationReport;
@@ -28,6 +30,7 @@ import java.util.Map;
 @Configuration(proxyBeanMethods = false)
 @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 class ConditionEvaluationInfoCollectorConfiguration {
+    private static final Logger logger = LoggerFactory.getLogger(ConditionEvaluationInfoCollectorConfiguration.class);
 
     @Bean
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
@@ -63,9 +66,17 @@ class ConditionEvaluationInfoCollectorConfiguration {
             var conditionEvaluationInfos = new LinkedList<ConditionEvaluationInfo>();
             for (Map.Entry<String, ConditionEvaluationReport.ConditionAndOutcomes> entry : outcomeMap.entrySet()) {
                 String source = entry.getKey();
-                ConditionEvaluationReport.ConditionAndOutcomes conditionAndOutcomes = entry.getValue();
-                var conditionEvaluationInfo = createConditionEvaluationInfo(contextId, source, conditionAndOutcomes);
-                conditionEvaluationInfos.add(conditionEvaluationInfo);
+                try {
+                    ConditionEvaluationReport.ConditionAndOutcomes conditionAndOutcomes = entry.getValue();
+                    var conditionEvaluationInfo = createConditionEvaluationInfo(contextId, source, conditionAndOutcomes);
+                    conditionEvaluationInfos.add(conditionEvaluationInfo);
+                } catch (Exception ex) {
+                    logger.debug("Filed to gather condition evaluation info fro source '{}' in context '{}'",
+                            entry.getKey(),
+                            context,
+                            ex
+                    );
+                }
             }
 
             return conditionEvaluationInfos;

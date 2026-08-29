@@ -29,6 +29,7 @@ class BeanDefinitionInfoCollectorConfiguration {
         var settings = new BeanInfoCollectorSettings(
                 include.isRoleInfra(),
                 include.isToolInternal(),
+                include.isFrameworkInternal(),
                 exclude.getPackagePatterns(),
                 exclude.getClasses()
         );

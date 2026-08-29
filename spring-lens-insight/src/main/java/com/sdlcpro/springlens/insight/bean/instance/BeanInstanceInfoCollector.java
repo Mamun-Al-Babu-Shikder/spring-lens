@@ -5,6 +5,7 @@ import com.sdlcpro.springlens.insight.bean.BeanInfoCollectionContext;
 import com.sdlcpro.springlens.insight.bean.BeanInfoCollectorSettings;
 import com.sdlcpro.springlens.listener.bean.BeanInstanceInfoCollectListener;
 import com.sdlcpro.springlens.matcher.CompositeMatcher;
+import com.sdlcpro.springlens.model.bean.BeanRole;
 import com.sdlcpro.springlens.model.bean.instance.BeanInstanceInfo;
 import com.sdlcpro.springlens.time.AnchoredClock;
 import com.sdlcpro.springlens.util.Preconditions;
@@ -28,6 +29,7 @@ public final class BeanInstanceInfoCollector implements BeanPostProcessor {
 
     private static final String INCLUDE_ROLE_INFRA_PROPERTY = "spring.lens.bean.include.role-infra";
     private static final String INCLUDE_TOOL_INTERNAL_PROPERTY = "spring.lens.bean.include.tool-internal";
+    private static final String INCLUDE_FRAMEWORK_INTERNAL_PROPERTY = "spring.lens.bean.include.framework-internal";
     private static final String EXCLUDE_PACKAGE_PATTERN_PROPERTY = "spring.lens.bean.exclude.package-patterns";
     private static final String EXCLUDE_CLASSES_PROPERTY = "spring.lens.bean.exclude.classes";
     private static final BeanInstanceInfoEventStream BEAN_INSTANCE_INFO_EVENT_STREAM;
@@ -55,17 +57,22 @@ public final class BeanInstanceInfoCollector implements BeanPostProcessor {
         try {
             boolean includeInfraRole = env.getProperty(INCLUDE_ROLE_INFRA_PROPERTY, boolean.class, false);
             boolean includeToolInternal = env.getProperty(INCLUDE_TOOL_INTERNAL_PROPERTY, boolean.class, false);
+            boolean includeFrameworkInternal = env.getProperty(INCLUDE_FRAMEWORK_INTERNAL_PROPERTY, boolean.class, false);
             Set<String> excludePackagePattern = env.getProperty(EXCLUDE_PACKAGE_PATTERN_PROPERTY, Set.class, Set.of());
             Set<String> excludeClasses = env.getProperty(EXCLUDE_CLASSES_PROPERTY, Set.class, Set.of());
-            return new BeanInfoCollectorSettings(includeInfraRole, includeToolInternal, excludePackagePattern, excludeClasses);
+            return new BeanInfoCollectorSettings(includeInfraRole, includeToolInternal, includeFrameworkInternal, excludePackagePattern, excludeClasses);
         } catch (Exception ex) {
             throw new IllegalArgumentException("Invalid property value found to instantiate BeanInfoCollectorSettings", ex);
         }
     }
 
     private boolean isEligibleToCollectInfo(Object bean, String beanName) {
+        BeanRole beanRole = context.containsBeanDefinition(beanName)
+                ? resolveBeanRole(context.getBeanFactory(), beanName)
+                : BeanRole.UNKNOWN;
+
         var beanInstanceContext = new BeanInfoCollectionContext(
-                resolveBeanRole(context.getBeanFactory(), beanName),
+                beanRole,
                 () -> resolveRuntimeBeanType(bean),
                 () -> resolveRuntimeClass(bean)
         );
@@ -76,16 +83,24 @@ public final class BeanInstanceInfoCollector implements BeanPostProcessor {
     @Override
     public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
         try {
+            boolean hasDefinition = context.containsBeanDefinition(beanName);
+            String scope = hasDefinition ? resolveBeanScope(this.context.getBeanFactory(), beanName) : "unknown";
+
             if (this.isEligibleToCollectInfo(bean, beanName)) {
                 String key = beanNamePrefix.concat(beanName);
                 var builder = BeanInstanceInfoBuilder.init(this.contextId, beanName)
                         .type(resolveRuntimeBeanType(bean))
-                        .scope(resolveBeanScope(this.context.getBeanFactory(), beanName));
+                        .scope(scope)
+                        .hasDefinition(hasDefinition);
 
                 this.beanInstanceInfoBuilderMap.put(key, builder);
             }
         } catch (Exception ex) {
-            logger.warn("Failed to initialized the track the bean '{}' instance info", beanName, ex);
+            logger.debug("Failed to initialized the tracking of bean instance info for beanName '{}' in context '{}'",
+                    beanName,
+                    this.contextId,
+                    ex
+            );
         }
 
         return bean;
@@ -97,7 +112,11 @@ public final class BeanInstanceInfoCollector implements BeanPostProcessor {
             this.subscribeIfListenerBean(bean);
             this.buildAndPublishBeanInstanceInfo(beanName);
         } catch (Exception ex) {
-            logger.warn("Failed to keep track the bean '{}' instance info", beanName, ex);
+            logger.debug("Failed to keep track the bean instance info for beanName '{}' in context '{}'",
+                    beanName,
+                    this.contextId,
+                    ex
+            );
         } finally {
             String key = beanNamePrefix.concat(beanName);
             this.beanInstanceInfoBuilderMap.remove(key);
@@ -127,6 +146,7 @@ public final class BeanInstanceInfoCollector implements BeanPostProcessor {
         private final AnchoredClock clock;
         private String type;
         private String scope;
+        private boolean hasDefinition;
 
         private BeanInstanceInfoBuilder(String contextId, String beanName) {
             this.contextId = contextId;
@@ -148,14 +168,20 @@ public final class BeanInstanceInfoCollector implements BeanPostProcessor {
             return this;
         }
 
+        public BeanInstanceInfoBuilder hasDefinition(boolean hasDefinition) {
+            this.hasDefinition = hasDefinition;
+            return this;
+        }
+
         public BeanInstanceInfo build() {
             Instant createdAt = this.clock.getStartTime();
             long initDurationNanos = this.clock.getElapsedNanos();
             return new BeanInstanceInfo(
-                    contextId,
-                    beanName,
-                    type,
-                    scope,
+                    this.contextId,
+                    this.beanName,
+                    this.type,
+                    this.scope,
+                    this.hasDefinition,
                     createdAt,
                     initDurationNanos
             );
