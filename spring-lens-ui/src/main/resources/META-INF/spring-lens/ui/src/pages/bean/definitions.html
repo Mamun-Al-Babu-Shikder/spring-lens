@@ -129,10 +129,6 @@
                         <select id="bean-definition-filter-scope"
                             class="text-xs font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-md px-3 py-2 outline-none hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer">
                             <option value="">Scope: All</option>
-                            <option value="singleton">Singleton</option>
-                            <option value="prototype">Prototype</option>
-                            <option value="session">Session</option>
-                            <option value="request">Request</option>
                         </select>
                         <select id="bean-definition-filter-role"
                             class="text-xs font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-md px-3 py-2 outline-none hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer">
@@ -248,150 +244,8 @@
     </div>
 
     <!-- Right Sidebar - Bean Details -->
-    <div class="w-[320px] bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl shadow-sm flex flex-col flex-shrink-0 sticky top-0 transition-colors duration-300"
-        style="height: calc(100vh - 120px);" id="def-details-sidebar">
-        <div class="p-5 border-b border-gray-100 dark:border-slate-800 flex items-start justify-between">
-            <h3 class="font-bold text-sm text-gray-800 dark:text-white">Bean Details</h3>
-            <button data-action="close-sidebar"
-                class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
-                id="def-close-sidebar">
-                <span class="material-symbols-outlined text-[18px]">close</span>
-            </button>
-        </div>
-
-        <div class="p-5 pb-4 border-b border-gray-100 dark:border-slate-800 bg-gray-50/30 dark:bg-slate-800/10">
-            <div class="flex items-start gap-3 mb-4">
-                <div class="w-10 h-10 rounded-lg bg-green-50 dark:bg-success/10 text-success flex items-center justify-center border border-success/10 dark:border-success/20 shadow-sm flex-shrink-0 mt-0.5"
-                    id="def-sidebar-icon-container">
-                    <span class="material-symbols-outlined" id="def-sidebar-icon">database</span>
-                </div>
-                <div class="min-w-0 flex-1 max-h-28 overflow-y-auto custom-scrollbar pr-1">
-                    <div class="font-bold text-sm text-gray-800 dark:text-gray-100 break-words leading-tight"
-                        id="def-sidebar-name">-
-                    </div>
-                    <div class="text-[11px] text-gray-500 dark:text-gray-400 font-mono break-all leading-normal mt-1"
-                        title="" id="def-sidebar-type">-</div>
-                </div>
-            </div>
-
-            <div
-                class="grid grid-cols-3 gap-2 bg-white dark:bg-slate-900 p-3 rounded-lg border border-gray-100 dark:border-slate-800 shadow-sm">
-                <div>
-                    <div class="text-[10px] text-gray-400 dark:text-gray-500 font-medium mb-1">Scope</div>
-                    <div class="text-xs font-bold text-gray-800 dark:text-gray-100 truncate" id="def-sidebar-scope">-
-                    </div>
-                </div>
-                <div>
-                    <div class="text-[10px] text-gray-400 dark:text-gray-500 font-medium mb-1">Role</div>
-                    <div class="text-xs font-bold text-gray-800 dark:text-gray-100 truncate" id="def-sidebar-role">-
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="flex border-b border-gray-100 dark:border-slate-800 px-2" id="def-sidebar-tabs">
-            <button data-action="switch-tab"
-                class="flex-1 py-3 text-xs font-bold text-primary dark:text-purple-400 border-b-2 border-primary text-center tab-btn"
-                data-tab="properties" id="def-tab-properties">Properties</button>
-            <button data-action="switch-tab"
-                class="flex-1 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 text-center tab-btn"
-                data-tab="dependencies" id="def-tab-dependencies">Dependencies</button>
-            <button data-action="switch-tab"
-                class="flex-1 py-3 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 text-center tab-btn"
-                data-tab="dependents" id="def-tab-dependents">Dependents</button>
-        </div>
-
-        <div class="flex-1 overflow-y-auto custom-scrollbar p-5" id="def-sidebar-content">
-            <!-- Tab Pane: Properties -->
-            <div id="def-pane-properties" class="tab-pane space-y-6">
-                <div>
-                    <h4 class="text-[11px] font-bold text-gray-800 dark:text-white mb-3">Basic Info</h4>
-                    <div class="space-y-2.5">
-                        <div class="flex justify-between items-center text-xs">
-                            <span class="text-gray-500 dark:text-gray-400">Primary Bean</span>
-                            <span class="font-bold text-gray-800 dark:text-gray-200"
-                                id="def-sidebar-prop-primary"></span>
-                        </div>
-                        <div class="flex justify-between items-center text-xs">
-                            <span class="text-gray-500 dark:text-gray-400">Lazy Initialized</span>
-                            <span class="font-bold text-gray-800 dark:text-gray-200" id="def-sidebar-prop-lazy"></span>
-                        </div>
-                        <div class="flex justify-between items-center text-xs">
-                            <span class="text-gray-500 dark:text-gray-400">Autowired Candidate</span>
-                            <span class="font-bold text-gray-800 dark:text-gray-200"
-                                id="def-sidebar-prop-autowired"></span>
-                        </div>
-                        <div class="flex justify-between items-center text-xs">
-                            <span class="text-gray-500 dark:text-gray-400">Context ID</span>
-                            <span class="font-bold text-gray-800 dark:text-gray-200 font-mono text-[10px]"
-                                id="def-sidebar-prop-context">-</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    class="bg-gray-50 dark:bg-slate-800/40 border border-gray-100 dark:border-slate-800 rounded-lg p-3">
-                    <h4 class="text-[11px] font-bold text-gray-800 dark:text-white mb-2">Factory Details</h4>
-                    <div class="space-y-2">
-                        <div>
-                            <span class="text-[10px] text-gray-500 dark:text-gray-400 block mb-0.5">Factory Bean</span>
-                            <span class="text-[10px] font-mono text-gray-800 dark:text-gray-300 break-words"
-                                id="def-sidebar-factory-bean">-</span>
-                        </div>
-                        <div>
-                            <span class="text-[10px] text-gray-500 dark:text-gray-400 block mb-0.5">Factory
-                                Method</span>
-                            <span class="text-xs font-bold text-gray-800 dark:text-gray-200"
-                                id="def-sidebar-factory-method">-</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <h4 class="text-[11px] font-bold text-gray-800 dark:text-white mb-3">Lifecycle</h4>
-                    <div class="space-y-2.5">
-                        <div class="flex justify-between items-center text-xs">
-                            <span class="text-gray-500 dark:text-gray-400">Init Method</span>
-                            <span class="font-bold text-gray-800 dark:text-gray-200 font-mono text-[10px]"
-                                id="def-sidebar-init-method">-</span>
-                        </div>
-                        <div class="flex justify-between items-center text-xs">
-                            <span class="text-gray-500 dark:text-gray-400">Destroy Method</span>
-                            <span class="font-bold text-gray-800 dark:text-gray-200 font-mono text-[10px]"
-                                id="def-sidebar-destroy-method">-</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tab Pane: Dependencies -->
-            <div id="def-pane-dependencies" class="tab-pane space-y-3 hidden">
-                <h4 class="text-[11px] font-bold text-gray-800 dark:text-white mb-2">Dependencies (<span
-                        id="def-sidebar-deps-count">0</span>)</h4>
-                <div class="space-y-1 divide-y divide-gray-50 dark:divide-slate-800 max-h-[350px] overflow-y-auto custom-scrollbar"
-                    id="def-sidebar-deps-list">
-                    <!-- Dynamic list of dependencies -->
-                </div>
-            </div>
-
-            <!-- Tab Pane: Dependents -->
-            <div id="def-pane-dependents" class="tab-pane space-y-3 hidden">
-                <h4 class="text-[11px] font-bold text-gray-800 dark:text-white mb-2">Dependents (<span
-                        id="def-sidebar-dependents-count">0</span>)</h4>
-                <div class="space-y-1 divide-y divide-gray-50 dark:divide-slate-800 max-h-[350px] overflow-y-auto custom-scrollbar"
-                    id="def-sidebar-dependents-list">
-                    <!-- Dynamic list of dependents -->
-                </div>
-            </div>
-        </div>
-
-        <div class="p-4 border-t border-gray-100 dark:border-slate-800 mt-auto bg-white dark:bg-slate-900">
-            <button data-action="view-graph"
-                class="w-full py-2 border border-primary text-primary hover:text-white rounded-md text-xs font-bold flex items-center justify-center gap-2 hover:bg-primary dark:hover:bg-primary/80 transition-all cursor-pointer"
-                id="def-view-graph-btn">
-                <span class="material-symbols-outlined text-[16px]">account_tree</span> View Bean Graph
-            </button>
-        </div>
+    <div class="w-[340px] bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl shadow-sm flex flex-col flex-shrink-0 sticky top-0 transition-colors duration-300 hidden"
+        style="height: calc(100vh - 120px); display: none;" id="def-details-sidebar">
     </div>
 </div>
 
@@ -496,3 +350,112 @@
         </div>
     </div>
 </div>
+
+<!-- Reusable Bean Definition Page Templates -->
+<template id="tpl-bean-definition-row">
+    <tr data-action="select-bean"
+        class="hover:bg-gray-50 dark:hover:bg-slate-800/40 cursor-pointer transition-colors bean-row">
+        <td class="px-5 py-3">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px]" data-field="icon"></span>
+                <span class="font-medium text-gray-800 dark:text-white truncate max-w-[150px]" data-field="name"></span>
+            </div>
+        </td>
+        <td class="px-5 py-3 font-mono text-[11px] text-gray-500 dark:text-gray-400 truncate max-w-[200px]"
+            data-field="type"></td>
+        <td class="px-5 py-3">
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide border"
+                data-field="scope"></span>
+        </td>
+        <td class="px-5 py-3 text-gray-600 dark:text-gray-300" data-field="role"></td>
+        <td class="px-5 py-3 text-center" data-field="primary"></td>
+        <td class="px-5 py-3 text-center" data-field="lazy"></td>
+        <td class="px-5 py-3 font-mono text-[11px] text-gray-500 dark:text-gray-400" data-field="context"></td>
+        <td class="px-5 py-3 text-right">
+            <button data-action="select-bean"
+                class="px-3 py-1 bg-primary/10 hover:bg-primary/20 text-primary dark:text-purple-300 rounded-md text-xs font-semibold transition-colors cursor-pointer btn-bean-view animate-none inline-flex items-center gap-1"
+                data-field="view-btn">
+                <span class="material-symbols-outlined text-[14px]">visibility</span> View
+            </button>
+        </td>
+    </tr>
+</template>
+
+<template id="tpl-dep-list-item">
+    <div data-action="select-dependency"
+        class="def-sidebar-item-click flex items-center justify-between py-2 hover:bg-gray-50 dark:hover:bg-slate-800/50 px-2 rounded-md transition-colors cursor-pointer">
+        <div class="flex items-center gap-2 min-w-0">
+            <span class="w-2 h-2 rounded-full flex-shrink-0" data-field="dot"></span>
+            <span class="font-medium text-gray-700 dark:text-gray-300 font-mono text-[11px] truncate"
+                data-field="name"></span>
+        </div>
+        <span class="text-gray-400 dark:text-gray-500">
+            <span class="material-symbols-outlined text-[16px]">east</span>
+        </span>
+    </div>
+</template>
+
+<template id="tpl-suggestion-item">
+    <div
+        class="suggestion-item p-2 hover:bg-gray-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors border-b border-gray-50 dark:border-slate-800/50 last:border-b-0">
+        <strong class="text-xs font-semibold text-gray-700 dark:text-gray-300 block" data-field="name"></strong>
+    </div>
+</template>
+
+<template id="tpl-context-list-item">
+    <div class="flex items-center gap-2">
+        <span class="text-xs font-medium text-gray-700 dark:text-gray-300 max-w-[120px] truncate"
+            data-field="contextId"></span>
+        <div class="flex-1 h-1.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div class="h-full rounded-full transition-all duration-300" data-field="bar"></div>
+        </div>
+        <span class="text-[10px] text-gray-400 dark:text-gray-500 font-semibold text-right whitespace-nowrap"
+            data-field="pct"></span>
+    </div>
+</template>
+
+<template id="tpl-chart-legend-item">
+    <div class="flex items-center gap-1.5 truncate">
+        <div class="w-1.5 h-1.5 rounded-full flex-shrink-0" data-field="dot"></div>
+        <span class="text-[10px] text-gray-500 dark:text-gray-400 truncate" data-field="label"></span>
+    </div>
+</template>
+
+<template id="tpl-bean-table-loading">
+    <tr>
+        <td colspan="8" class="px-5 py-12 text-center text-gray-400">
+            <div class="flex flex-col items-center justify-center gap-2">
+                <span class="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent"></span>
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Loading bean definitions...</span>
+            </div>
+        </td>
+    </tr>
+</template>
+
+<template id="tpl-bean-table-error">
+    <tr>
+        <td colspan="8" class="px-5 py-8 text-center text-red-500 dark:text-red-400">
+            <div class="flex items-center justify-center gap-2 text-sm font-semibold">
+                <span class="material-symbols-outlined text-lg">warning</span>
+                <span>Failed to fetch table data: <span data-field="errorMessage"></span></span>
+            </div>
+        </td>
+    </tr>
+</template>
+
+<template id="tpl-bean-table-empty">
+    <tr>
+        <td colspan="8" class="px-5 py-8 text-center text-gray-400">
+            No beans found matching the active filters or search query.
+        </td>
+    </tr>
+</template>
+
+<template id="tpl-icon-check">
+    <span class="material-symbols-outlined text-[18px] text-emerald-500 font-variation-fill"
+        style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</template>
+
+<template id="tpl-icon-uncheck">
+    <span class="material-symbols-outlined text-[18px] text-gray-300 dark:text-slate-600">radio_button_unchecked</span>
+</template>

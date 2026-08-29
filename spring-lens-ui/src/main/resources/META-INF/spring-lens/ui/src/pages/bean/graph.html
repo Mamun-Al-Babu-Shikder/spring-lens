@@ -147,149 +147,24 @@
         <aside
             class="w-[340px] bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl shadow-sm flex flex-col flex-shrink-0 transition-all duration-300 overflow-hidden"
             id="details-sidebar" style="display: none;">
-
-            <!-- Header -->
-            <div class="p-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between">
-                <h3 class="font-bold text-sm text-gray-800 dark:text-white">Bean Details</h3>
-                <button
-                    class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
-                    id="btn-close-sidebar">
-                    <span class="material-symbols-outlined text-[18px]">close</span>
-                </button>
-            </div>
-
-            <!-- Hero Section: Yellow Icon Box, Name, Type, 3-Column Stats -->
-            <div class="p-4 pb-3 border-b border-gray-100 dark:border-slate-800 bg-gray-50/30 dark:bg-slate-800/10">
-                <div class="flex items-start gap-3 mb-3">
-                    <div class="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-200/60 dark:border-amber-900/40 shadow-sm flex-shrink-0 mt-0.5"
-                        id="sidebar-icon-container">
-                        <span class="material-symbols-outlined text-[20px]" id="sidebar-icon">schema</span>
-                    </div>
-                    <div class="min-w-0 flex-1 max-h-24 overflow-y-auto custom-scrollbar pr-1">
-                        <div class="font-bold text-xs text-gray-800 dark:text-gray-100 break-words leading-tight"
-                            id="detail-bean-name">-
-                        </div>
-                        <div class="text-[11px] text-gray-500 dark:text-gray-400 font-mono break-all leading-normal mt-1"
-                            id="detail-bean-type">-</div>
-                    </div>
-                </div>
-
-                <div
-                    class="grid grid-cols-3 gap-1.5 bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-gray-100 dark:border-slate-800 shadow-sm">
-                    <div>
-                        <div class="text-[10px] text-gray-400 dark:text-gray-500 font-medium mb-0.5">Scope</div>
-                        <div class="text-xs font-bold text-gray-800 dark:text-gray-100 truncate" id="detail-bean-scope">
-                            -
-                        </div>
-                    </div>
-                    <div>
-                        <div class="text-[10px] text-gray-400 dark:text-gray-500 font-medium mb-0.5">Role</div>
-                        <div class="text-xs font-bold text-gray-800 dark:text-gray-100 truncate" id="detail-bean-role">
-                            Application
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Sidebar Tabs -->
-            <div class="flex border-b border-gray-100 dark:border-slate-800 px-1" id="sidebar-tabs">
-                <button
-                    class="flex-1 py-2.5 text-xs font-bold text-primary dark:text-purple-400 border-b-2 border-primary text-center tab-btn cursor-pointer"
-                    data-tab="properties" id="tab-properties">Properties</button>
-                <button
-                    class="flex-1 py-2.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 text-center tab-btn cursor-pointer"
-                    data-tab="dependencies" id="tab-dependencies">Dependencies (<span
-                        id="detail-deps-count">0</span>)</button>
-                <button
-                    class="flex-1 py-2.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 text-center tab-btn cursor-pointer"
-                    data-tab="dependents" id="tab-dependents">Dependents (<span
-                        id="detail-dependents-count">0</span>)</button>
-            </div>
-
-            <!-- Scrollable Content Area -->
-            <div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-4" id="sidebar-content">
-                <!-- Tab Pane: Properties -->
-                <div id="pane-properties" class="tab-pane space-y-4">
-                    <!-- Basic Info Section -->
-                    <div>
-                        <h4 class="text-[11px] font-bold text-gray-800 dark:text-white mb-2">Basic Info</h4>
-                        <div class="space-y-2">
-                            <div class="flex justify-between items-center text-xs">
-                                <span class="text-gray-500 dark:text-gray-400">Primary Bean</span>
-                                <span class="font-bold text-gray-800 dark:text-gray-200"
-                                    id="detail-prop-primary">FALSE</span>
-                            </div>
-                            <div class="flex justify-between items-center text-xs">
-                                <span class="text-gray-500 dark:text-gray-400">Lazy Initialized</span>
-                                <span class="font-bold text-gray-800 dark:text-gray-200"
-                                    id="detail-prop-lazy">FALSE</span>
-                            </div>
-                            <div class="flex justify-between items-center text-xs">
-                                <span class="text-gray-500 dark:text-gray-400">Autowired Candidate</span>
-                                <span class="font-bold text-gray-800 dark:text-gray-200"
-                                    id="detail-prop-autowired">TRUE</span>
-                            </div>
-                            <div class="flex justify-between items-center text-xs">
-                                <span class="text-gray-500 dark:text-gray-400">Context ID</span>
-                                <span class="font-bold text-gray-800 dark:text-gray-200 font-mono text-[10px]"
-                                    id="detail-prop-context">-</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Factory Details Section -->
-                    <div
-                        class="bg-gray-50/70 dark:bg-slate-800/40 border border-gray-100 dark:border-slate-800 rounded-lg p-3 space-y-2.5">
-                        <h4 class="text-[11px] font-bold text-gray-800 dark:text-white">Factory Details</h4>
-                        <div class="space-y-2">
-                            <div>
-                                <span class="text-[10px] text-gray-500 dark:text-gray-400 block mb-0.5">Factory
-                                    Bean</span>
-                                <span
-                                    class="text-[10px] font-mono text-gray-800 dark:text-gray-300 break-all leading-normal"
-                                    id="detail-factory-bean">-</span>
-                            </div>
-                            <div>
-                                <span class="text-[10px] text-gray-500 dark:text-gray-400 block mb-0.5">Factory
-                                    Method</span>
-                                <span class="text-xs font-bold text-gray-800 dark:text-gray-200"
-                                    id="detail-factory-method">-</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Lifecycle Section -->
-                    <div>
-                        <h4 class="text-[11px] font-bold text-gray-800 dark:text-white mb-2">Lifecycle</h4>
-                        <div class="space-y-2">
-                            <div class="flex justify-between items-center text-xs">
-                                <span class="text-gray-500 dark:text-gray-400">Init Method</span>
-                                <span class="font-bold text-gray-800 dark:text-gray-200 font-mono text-[10px]"
-                                    id="detail-init-method">-</span>
-                            </div>
-                            <div class="flex justify-between items-center text-xs">
-                                <span class="text-gray-500 dark:text-gray-400">Destroy Method</span>
-                                <span class="font-bold text-gray-800 dark:text-gray-200 font-mono text-[10px]"
-                                    id="detail-destroy-method">-</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tab Pane: Dependencies -->
-                <div id="pane-dependencies" class="tab-pane hidden space-y-2">
-                    <div id="detail-deps-list" class="divide-y divide-gray-50 dark:divide-slate-800 text-xs">
-                        <!-- Dynamically populated -->
-                    </div>
-                </div>
-
-                <!-- Tab Pane: Dependents -->
-                <div id="pane-dependents" class="tab-pane hidden space-y-2">
-                    <div id="detail-dependents-list" class="divide-y divide-gray-50 dark:divide-slate-800 text-xs">
-                        <!-- Dynamically populated -->
-                    </div>
-                </div>
-            </div>
         </aside>
     </div>
 </div>
+
+<template id="tpl-graph-dep-empty">
+    <div class="text-gray-400 text-xs py-2 px-1" data-field="message"></div>
+</template>
+
+<template id="tpl-graph-dep-item">
+    <div class="flex items-center gap-2 py-2 px-2 text-xs border-b border-gray-50 dark:border-slate-800/60 last:border-b-0">
+        <span class="w-2 h-2 rounded-full flex-shrink-0" data-field="dot"></span>
+        <span class="font-mono text-[11px] text-gray-700 dark:text-gray-300 break-all" data-field="name"></span>
+    </div>
+</template>
+
+<template id="tpl-suggestion-item">
+    <div
+        class="suggestion-item p-2 hover:bg-gray-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors border-b border-gray-50 dark:border-slate-800/50 last:border-b-0">
+        <strong class="text-xs font-semibold text-gray-700 dark:text-gray-300 block" data-field="name"></strong>
+    </div>
+</template>

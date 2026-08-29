@@ -1,10 +1,8 @@
 import Route from './src/route/route.js';
-import DashboardController from './src/controller/dashboard/dashboard-controller.js';
 import BeanDefinitions from './src/controller/bean/definition-controller.js';
 import InstanceController from './src/controller/bean/instance-controller.js';
-import {
-    DependencyGraphController
-} from './src/controller/bean/dependency-graph-controller.js';
+import DashboardController from './src/controller/dashboard/dashboard-controller.js';
+import GraphController from './src/controller/bean/graph-controller.js';
 
 $(document).ready(() => {
 
@@ -12,19 +10,33 @@ $(document).ready(() => {
     const pathname = window.location.pathname;
 
     const CONTEXT_PATH = pathname.split('/spring-lens/ui')[0];
-    const API_BASE_URL = origin + CONTEXT_PATH + '/spring-lens/api/beans/definitions';
+    const API_BASE_URL = origin + CONTEXT_PATH + '/spring-lens/api/beans';
 
     const ENDPOINTS = {
-        SEARCH_BEAN: API_BASE_URL + "/find",
+        BEAN_DEFINITION: API_BASE_URL + "/definitions",
+        SEARCH_BEAN_DEFINITION: API_BASE_URL + "/definitions/find",
+        SUMMARY_BEAN_DEFINITION: API_BASE_URL + "/summary",
+        BEAN_INSTANCE: API_BASE_URL + "/instances",
+        SEARCH_BEAN_INSTANCE: API_BASE_URL + "/instances/find",
         GRAPH_DEPENDENCIES: API_BASE_URL + "/dependencies",
-        BEAN_DEFINITION_API_URL: API_BASE_URL,
-        SUMMARY_BEAN_DEFINITION: API_BASE_URL + "/summary"
     }
 
+    let definitions = "http://localhost:8083/spring-lens/api/beans/definitions";
+    let definitionsSummary = "http://localhost:8083/spring-lens/api/beans/definitions/summary";
+    let graphDependencies = "http://localhost:8083/spring-lens/api/beans/definitions/dependencies";
+    let findDependencies = "http://localhost:8083/spring-lens/api/beans/definitions/find";
+    let beansInstances = "http://localhost:8083/spring-lens/api/beans/instances";
+    let findBeanInstances = "http://localhost:8083/spring-lens/api/beans/instances/find";
+
     const dashboard = new DashboardController();
-    const beanTimeline = new InstanceController();
-    const beanDefinitions = new BeanDefinitions(ENDPOINTS.BEAN_DEFINITION_API_URL, ENDPOINTS.SUMMARY_BEAN_DEFINITION);
-    const beanDependencyGraph = new DependencyGraphController(ENDPOINTS.GRAPH_DEPENDENCIES, ENDPOINTS.SEARCH_BEAN);
+    const beanDefinitions = new BeanDefinitions(definitions, definitionsSummary, findDependencies);
+    const beanDependencyGraph = new GraphController(graphDependencies, findDependencies);
+    const beanInstance = new InstanceController(beansInstances, findBeanInstances);
+
+    // const dashboard = new DashboardController();
+    // const beanInstance = new InstanceController(ENDPOINTS.BEAN_INSTANCE, ENDPOINTS.SEARCH_BEAN_INSTANCE);
+    // const beanDefinitions = new BeanDefinitions(ENDPOINTS.BEAN_DEFINITION, ENDPOINTS.SUMMARY_BEAN_DEFINITION, ENDPOINTS.SEARCH_BEAN_DEFINITION );
+    // const beanDependencyGraph = new GraphController(ENDPOINTS.GRAPH_DEPENDENCIES, ENDPOINTS.SEARCH_BEAN_DEFINITION);
 
     // Configure routes and instantiate Route
     const appRouter = new Route({
@@ -53,8 +65,8 @@ $(document).ready(() => {
             },
             'timeline': {
                 template: 'bean/instance',
-                onEnter: () => beanTimeline.enter(),
-                onLeave: () => beanTimeline.leave()
+                onEnter: () => beanInstance.enter(),
+                onLeave: () => beanInstance.leave()
             },
         }
     });

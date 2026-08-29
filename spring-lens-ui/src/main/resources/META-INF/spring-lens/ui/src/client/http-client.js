@@ -6,7 +6,9 @@ class HttpClient {
     async get(endpointUrl) {
         const response = await fetch(endpointUrl);
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            const error = new Error(`HTTP ${response.status}: ${response.statusText}`);
+            error.status = response.status;
+            throw error;
         }
         return await response.json();
     }
@@ -16,7 +18,9 @@ class HttpClient {
         const response = await fetch(requestUrl);
 
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            const error = new Error(`HTTP ${response.status}: ${response.statusText}`);
+            error.status = response.status;
+            throw error;
         }
         return await response.json();
     }
