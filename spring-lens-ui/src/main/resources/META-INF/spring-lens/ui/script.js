@@ -3,6 +3,7 @@ import BeanDefinitions from './src/controller/bean/definition-controller.js';
 import InstanceController from './src/controller/bean/instance-controller.js';
 import DashboardController from './src/controller/dashboard/dashboard-controller.js';
 import GraphController from './src/controller/bean/graph-controller.js';
+import ConditionalEvaluationController from './src/controller/bean/conditional-evalugation-controller.js';
 
 $(document).ready(() => {
 
@@ -13,12 +14,14 @@ $(document).ready(() => {
     const API_BASE_URL = origin + CONTEXT_PATH + '/spring-lens/api/beans';
 
     const ENDPOINTS = {
-        BEAN_DEFINITION: API_BASE_URL + "/definitions",
-        SEARCH_BEAN_DEFINITION: API_BASE_URL + "/definitions/find",
-        SUMMARY_BEAN_DEFINITION: API_BASE_URL + "/summary",
-        BEAN_INSTANCE: API_BASE_URL + "/instances",
-        SEARCH_BEAN_INSTANCE: API_BASE_URL + "/instances/find",
-        GRAPH_DEPENDENCIES: API_BASE_URL + "/dependencies",
+        SUMMARY_BEAN_DEFINITION     : API_BASE_URL + "/summary",
+        BEAN_DEFINITION             : API_BASE_URL + "/definitions",
+        SEARCH_BEAN_DEFINITION      : API_BASE_URL + "/definitions/find",
+        BEAN_INSTANCE               : API_BASE_URL + "/instances",
+        SEARCH_BEAN_INSTANCE        : API_BASE_URL + "/instances/find",
+        CONDITIONAL_REPORTS         : API_BASE_URL + "/conditions",
+        SEARCH_CONDITIONAL_REPORTS  : API_BASE_URL + "/conditions/find",
+        GRAPH_DEPENDENCIES          : API_BASE_URL + "/dependencies",
     }
 
     let definitions = "http://localhost:8083/spring-lens/api/beans/definitions";
@@ -27,11 +30,14 @@ $(document).ready(() => {
     let findDependencies = "http://localhost:8083/spring-lens/api/beans/definitions/find";
     let beansInstances = "http://localhost:8083/spring-lens/api/beans/instances";
     let findBeanInstances = "http://localhost:8083/spring-lens/api/beans/instances/find";
+    let beansConditions = "http://localhost:8083/spring-lens/api/beans/conditions";
+    let searchBeanConditions = "http://localhost:8083/spring-lens/api/beans/conditions/find";
 
     const dashboard = new DashboardController();
     const beanDefinitions = new BeanDefinitions(definitions, definitionsSummary, findDependencies);
     const beanDependencyGraph = new GraphController(graphDependencies, findDependencies);
     const beanInstance = new InstanceController(beansInstances, findBeanInstances);
+    const conditionEvaluation = new ConditionalEvaluationController(beansConditions, searchBeanConditions);
 
     // const dashboard = new DashboardController();
     // const beanInstance = new InstanceController(ENDPOINTS.BEAN_INSTANCE, ENDPOINTS.SEARCH_BEAN_INSTANCE);
@@ -60,8 +66,13 @@ $(document).ready(() => {
             },
             'conditions': {
                 template: 'bean/condition-reports',
-                onEnter: () => beanDefinitions.enter(),
-                onLeave: () => beanDefinitions.leave()
+                onEnter: () => conditionEvaluation.enter(),
+                onLeave: () => conditionEvaluation.leave()
+            },
+            'beans': {
+                template: 'bean/beans',
+                onEnter: () => { },
+                onLeave: () => { }
             },
             'timeline': {
                 template: 'bean/instance',

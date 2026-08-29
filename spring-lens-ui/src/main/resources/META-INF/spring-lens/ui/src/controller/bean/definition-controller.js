@@ -86,6 +86,12 @@ export default class BeanDefinitionsController {
             ]);
 
             this._initSidebar();
+
+            if (window.pendingSelectBean) {
+                const { beanName, contextId } = window.pendingSelectBean;
+                window.pendingSelectBean = null;
+                await this.selectBean(beanName, contextId);
+            }
         } catch (error) {
             console.error('Error entering BeanDefinitions view:', error);
         }

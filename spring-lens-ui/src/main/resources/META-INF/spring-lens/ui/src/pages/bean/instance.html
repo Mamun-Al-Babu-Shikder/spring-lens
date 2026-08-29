@@ -9,13 +9,16 @@
         </div>
     </div>
     <div class="flex items-center gap-3">
-        <button id="time-btn-refresh" data-action="refresh-data"
-            class="w-8 h-8 flex items-center justify-center border border-gray-200 dark:border-slate-700 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 bg-white dark:bg-slate-900 shadow-sm transition-colors cursor-pointer">
-            <span class="material-symbols-outlined text-[18px]">refresh</span>
+        <!-- Refresh button -->
+        <button id="time-btn-refresh" data-action="refresh-data" title="Refresh bean timeline"
+                class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800 shadow-sm transition-colors cursor-pointer">
+            <span class="material-symbols-outlined text-[18px]">refresh</span> Refresh
         </button>
-        <button id="time-btn-download" data-action="download-report"
-            class="w-8 h-8 flex items-center justify-center border border-gray-200 dark:border-slate-700 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 bg-white dark:bg-slate-900 shadow-sm transition-colors cursor-pointer">
-            <span class="material-symbols-outlined text-[18px]">download</span>
+
+        <!-- Export button -->
+        <button id="time-btn-download" data-action="download-report" title="Export bean timeline"
+                class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800 shadow-sm transition-colors cursor-pointer">
+            <span class="material-symbols-outlined text-[16px]">file_download</span> Export
         </button>
     </div>
 </header>
@@ -230,6 +233,15 @@
                     <span class="font-mono text-gray-800 dark:text-gray-200 font-semibold uppercase" id="time-sidebar-scope-badge" data-field="scope">-</span>
                 </div>
             </div>
+        </div>
+
+        <!-- Sidebar Footer Action -->
+        <div class="p-4 border-t border-gray-100 dark:border-slate-800 mt-auto bg-white dark:bg-slate-900 hidden" id="time-sidebar-footer">
+            <button data-action="view-bean-details"
+                class="w-full py-2 border border-primary text-primary hover:text-white rounded-md text-xs font-bold flex items-center justify-center gap-2 hover:bg-primary dark:hover:bg-primary/80 transition-all cursor-pointer"
+                id="time-btn-view-details" value="">
+                <span class="material-symbols-outlined text-[16px]">visibility</span> View Bean Details
+            </button>
         </div>
     </div>
 </div>

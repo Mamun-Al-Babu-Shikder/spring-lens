@@ -1,58 +1,321 @@
-<header class="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-8 py-4 flex items-center justify-between z-10 flex-shrink-0 h-[72px] transition-colors duration-300">
+<!-- Topbar -->
+<header
+    class="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-8 py-4 flex items-center justify-between z-10 flex-shrink-0 h-[72px] transition-colors duration-300">
     <div>
-        <h1 class="text-xl font-bold text-gray-800 dark:text-white">Condition Reports</h1>
-        <div class="text-xs text-gray-500 dark:text-gray-400 font-medium flex items-center gap-1">
-            SpringLens <span class="material-symbols-outlined text-[14px]">chevron_right</span> Beans <span class="material-symbols-outlined text-[14px]">chevron_right</span> Condition Reports
+        <div class="flex items-center gap-2">
+            <h1 class="text-xl font-bold text-gray-800 dark:text-white">Auto-configuration Condition Evaluation</h1>
+            <span class="material-symbols-outlined text-[18px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-help"
+                title="Evaluation results of Spring Boot auto-configuration conditions">info</span>
         </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400 font-normal mt-0.5">See why auto-configuration classes were either applied or skipped.</p>
     </div>
     <div class="flex items-center gap-3">
-        <button class="w-8 h-8 flex items-center justify-center border border-gray-200 dark:border-slate-700 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 bg-white dark:bg-slate-900 shadow-sm cursor-pointer">
-            <span class="material-symbols-outlined text-[18px]">refresh</span>
+        <button id="condition-btn-refresh" data-action="refresh-data"
+                class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800 shadow-sm transition-colors cursor-pointer"
+                title="Refresh evaluations">
+            <span class="material-symbols-outlined text-[16px]">refresh</span> Refresh
         </button>
+
+        <!-- Search input -->
+        <div class="relative flex items-center">
+            <span class="material-symbols-outlined absolute left-3 text-gray-400 dark:text-gray-500 text-[18px]">search</span>
+            <input type="text" id="condition-search-input" placeholder="Search auto-configurations..."
+                class="pl-9 pr-4 py-1.5 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all w-64" />
+        </div>
     </div>
 </header>
 
 <div class="flex-1 overflow-auto custom-scrollbar p-6 flex flex-col gap-6">
-    <div class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl shadow-sm p-6 flex flex-col gap-4 transition-colors duration-300">
-        <h2 class="text-base font-bold text-gray-800 dark:text-white">Spring Boot Autoconfiguration Condition Evaluation</h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400">View evaluation results of Spring @Conditional annotations such as @ConditionalOnClass, @ConditionalOnMissingBean, and more.</p>
-        
-        <!-- Search and filters -->
-        <div class="flex gap-3 items-center">
-            <div class="relative flex-1 max-w-sm">
-                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 text-[18px]">search</span>
-                <input type="text" placeholder="Filter conditions..." class="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 text-gray-850 dark:text-gray-100 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all">
+    <!-- 4 KPI Metric Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Card 1: Total Configurations -->
+        <div class="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm flex items-center justify-between transition-colors duration-300">
+            <div>
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Total Configurations</span>
+                <div class="text-2xl font-bold text-gray-800 dark:text-white mt-1 mb-0.5" id="condition-kpi-total">-</div>
+                <span class="text-[11px] text-gray-400 dark:text-gray-500 font-medium">All evaluated classes</span>
             </div>
-            <select class="text-xs font-medium text-gray-600 dark:text-gray-300 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-md px-3 py-2 outline-none hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer">
-                <option>Status: All</option>
-                <option>Matched</option>
-                <option>Not Matched</option>
-            </select>
+            <div class="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-100 dark:border-emerald-800/40 shadow-sm flex-shrink-0">
+                <span class="material-symbols-outlined text-[22px]">layers</span>
+            </div>
         </div>
 
-        <!-- Autoconfig list -->
-        <div class="divide-y divide-gray-150 dark:divide-slate-800 border border-gray-200 dark:border-slate-800 rounded-lg overflow-hidden mt-2">
-            <div class="p-4 bg-gray-50/50 dark:bg-slate-800/20 flex justify-between items-start gap-4 text-sm">
-                <div>
-                    <h3 class="font-bold text-gray-800 dark:text-gray-100 font-mono text-xs">DataSourceAutoConfiguration</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Matched: @ConditionalOnClass found HikariDataSource.</p>
+        <!-- Card 2: Matched -->
+        <div class="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm flex items-center justify-between transition-colors duration-300">
+            <div>
+                <span class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Matched</span>
+                <div class="flex items-baseline gap-2 mt-1 mb-0.5">
+                    <span class="text-2xl font-bold text-gray-800 dark:text-white" id="condition-kpi-matched-count">-</span>
+                    <span class="text-xs text-gray-400 dark:text-gray-400 font-normal" id="condition-kpi-matched-pct">-</span>
                 </div>
-                <span class="px-2 py-0.5 rounded bg-success-light dark:bg-success/15 text-success dark:text-success text-[10px] font-bold border border-success/10 dark:border-success/20">MATCHED</span>
+                <span class="text-[11px] text-gray-400 dark:text-gray-500 font-medium">Auto-configurations applied</span>
             </div>
-            <div class="p-4 bg-gray-50/50 dark:bg-slate-800/20 flex justify-between items-start gap-4 text-sm">
-                <div>
-                    <h3 class="font-bold text-gray-800 dark:text-gray-100 font-mono text-xs">MongoAutoConfiguration</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Not Matched: @ConditionalOnClass did not find MongoClient class.</p>
-                </div>
-                <span class="px-2 py-0.5 rounded bg-red-50 dark:bg-red-950/20 text-red-650 dark:text-red-400 text-[10px] font-bold border border-red-100 dark:border-red-950/30">NOT MATCHED</span>
+            <div class="w-11 h-11 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-200 dark:border-emerald-800/40 shadow-sm flex-shrink-0">
+                <span class="material-symbols-outlined text-[22px]">check</span>
             </div>
-            <div class="p-4 bg-gray-50/50 dark:bg-slate-800/20 flex justify-between items-start gap-4 text-sm">
-                <div>
-                    <h3 class="font-bold text-gray-800 dark:text-gray-100 font-mono text-xs">RedisAutoConfiguration</h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Not Matched: @ConditionalOnClass did not find RedisOperations class.</p>
+        </div>
+
+        <!-- Card 3: Did Not Match -->
+        <div class="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm flex items-center justify-between transition-colors duration-300">
+            <div>
+                <span class="text-xs font-semibold text-red-600 dark:text-red-400">Did Not Match</span>
+                <div class="flex items-baseline gap-2 mt-1 mb-0.5">
+                    <span class="text-2xl font-bold text-gray-800 dark:text-white" id="condition-kpi-unmatched-count">-</span>
+                    <span class="text-xs text-gray-400 dark:text-gray-400 font-normal" id="condition-kpi-unmatched-pct">-</span>
                 </div>
-                <span class="px-2 py-0.5 rounded bg-red-50 dark:bg-red-950/20 text-red-650 dark:text-red-400 text-[10px] font-bold border border-red-100 dark:border-red-950/30">NOT MATCHED</span>
+                <span class="text-[11px] text-gray-400 dark:text-gray-500 font-medium">Auto-configurations skipped</span>
+            </div>
+            <div class="w-11 h-11 rounded-full bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 flex items-center justify-center border border-red-200 dark:border-red-800/40 shadow-sm flex-shrink-0">
+                <span class="material-symbols-outlined text-[22px]">close</span>
+            </div>
+        </div>
+
+        <!-- Card 4: Conditions -->
+        <div class="bg-white dark:bg-slate-900 p-5 rounded-xl border border-gray-200 dark:border-slate-800 shadow-sm flex items-center justify-between transition-colors duration-300">
+            <div>
+                <span class="text-xs font-semibold text-blue-600 dark:text-blue-400">Conditions</span>
+                <div class="text-2xl font-bold text-gray-800 dark:text-white mt-1 mb-0.5" id="condition-kpi-conditions-total">-</div>
+                <span class="text-[11px] text-gray-400 dark:text-gray-500 font-medium">Total conditions evaluated</span>
+            </div>
+            <div class="w-11 h-11 rounded-full bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-200 dark:border-blue-800/40 shadow-sm flex-shrink-0">
+                <span class="material-symbols-outlined text-[22px]">data_object</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Table Container -->
+    <div class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl shadow-sm flex flex-col transition-colors duration-300 overflow-hidden">
+        <!-- Filter Tabs & Group Control Bar -->
+        <div class="flex items-center justify-between border-b border-gray-200 dark:border-slate-800 px-6">
+            <!-- Left Tabs -->
+            <div class="flex items-center gap-2" id="condition-tabs-container">
+                <button data-action="filter-outcome" data-outcome="" id="condition-tab-all"
+                    class="px-4 py-3.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 border-b-2 border-emerald-500 transition-colors flex items-center gap-1.5 cursor-pointer">
+                    All (<span id="condition-count-all">0</span>)
+                </button>
+                <button data-action="filter-outcome" data-outcome="MATCHED" id="condition-tab-matched"
+                    class="px-4 py-3.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 border-b-2 border-transparent transition-colors flex items-center gap-1.5 cursor-pointer">
+                    <span class="material-symbols-outlined text-[16px] text-emerald-500">check_circle</span>
+                    Matched (<span id="condition-count-matched">0</span>)
+                </button>
+                <button data-action="filter-outcome" data-outcome="NOT_MATCHED" id="condition-tab-unmatched"
+                    class="px-4 py-3.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 border-b-2 border-transparent transition-colors flex items-center gap-1.5 cursor-pointer">
+                    <span class="material-symbols-outlined text-[16px] text-red-500">cancel</span>
+                    Did Not Match (<span id="condition-count-unmatched">0</span>)
+                </button>
+            </div>
+
+            <!-- Right Controls: Page Size & Group By Dropdown -->
+            <div class="flex items-center gap-4">
+                <!-- Page size selector -->
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs text-gray-500 dark:text-gray-400">Show:</span>
+                    <select id="condition-page-size"
+                        class="text-xs font-medium text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-lg px-2.5 py-1.5 outline-none hover:bg-gray-100 dark:hover:bg-slate-800 cursor-pointer transition-colors">
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+
+                <!-- Group By -->
+                <div class="flex items-center gap-1.5">
+                    <span class="text-xs text-gray-500 dark:text-gray-400">Group by:</span>
+                    <select id="condition-group-by"
+                        class="text-xs font-medium text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-lg px-3 py-1.5 outline-none hover:bg-gray-100 dark:hover:bg-slate-800 cursor-pointer transition-colors">
+                        <option value="none">None</option>
+                        <option value="package">Package</option>
+                        <option value="status">Status</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table Structure -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[800px]">
+                <thead>
+                    <tr class="border-b border-gray-100 dark:border-slate-800/80 bg-gray-50/50 dark:bg-slate-800/30 text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider select-none">
+                        <th class="px-6 py-3.5">Auto-configuration Class</th>
+                        <th class="px-4 py-3.5">Status</th>
+                        <th class="px-4 py-3.5 w-48">Conditions</th>
+                        <th class="px-4 py-3.5">Outcome / Details</th>
+                        <th class="px-4 py-3.5 w-12 text-right"></th>
+                    </tr>
+                </thead>
+                <tbody id="condition-table-body" class="divide-y divide-gray-100 dark:divide-slate-800/60 text-xs">
+                    <!-- Populated dynamically -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Footer -->
+        <div class="px-6 py-3.5 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900">
+            <div class="text-xs text-gray-500 dark:text-gray-400" id="condition-pagination-info">Showing 0 to 0 of 0 results</div>
+            <div class="flex items-center gap-1.5" id="condition-pagination-buttons">
+                <!-- Populated dynamically via Pagination -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Expanded Row Detail Panel -->
+    <div id="condition-detail-panel"
+        class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl shadow-sm p-6 flex flex-col gap-6 transition-colors duration-300 hidden">
+        <!-- Expanded Card Header -->
+        <div class="flex items-start justify-between">
+            <div>
+                <div class="flex items-center gap-3">
+                    <h3 class="text-base font-bold font-mono" id="condition-detail-class-name">-</h3>
+                    <span id="condition-detail-status-badge" class="px-2.5 py-0.5 rounded-full text-xs font-medium">
+                        -
+                    </span>
+                    <span id="condition-detail-context-badge" class="px-2 py-0.5 rounded bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400 text-[11px] font-mono">
+                        -
+                    </span>
+                </div>
+                <div class="text-xs text-gray-500 dark:text-gray-400 font-mono mt-1" id="condition-detail-package-name">-</div>
+            </div>
+            <button data-action="close-detail" id="condition-btn-close-detail"
+                class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                title="Close details">
+                <span class="material-symbols-outlined text-[20px]">close</span>
+            </button>
+        </div>
+
+        <!-- 2-Column Grid: Left Details & Right Condition Outcomes -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+            <!-- Left Column: Diagnostic Summary -->
+            <div class="flex flex-col">
+                <h4 class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-4">Evaluation Summary</h4>
+
+                <!-- Reason Icon & Label -->
+                <div class="flex items-center gap-2 text-xs font-medium mb-3" id="condition-detail-reason-container">
+                    <span class="material-symbols-outlined text-[18px]" id="condition-detail-reason-icon"></span>
+                    <span id="condition-detail-reason-text" class="text-gray-800 dark:text-gray-200"></span>
+                </div>
+
+                <!-- Code / Requirement Box -->
+                <div class="bg-gray-50 dark:bg-slate-950/80 border border-gray-200 dark:border-slate-800/90 rounded-lg p-4 font-mono text-xs space-y-2">
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400">Auto-configuration: </span>
+                        <span class="text-gray-800 dark:text-gray-200 font-semibold break-all" id="condition-detail-source-full">-</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500 dark:text-gray-400">Context ID: </span>
+                        <span class="text-gray-700 dark:text-gray-300 font-medium" id="condition-detail-context-id">-</span>
+                    </div>
+                    <div id="condition-detail-reason-box" class="pt-2 border-t border-gray-200/60 dark:border-slate-800/60">
+                        <span class="text-gray-500 dark:text-gray-400 block mb-1">Diagnostic Detail:</span>
+                        <p class="text-gray-700 dark:text-gray-300 break-words leading-relaxed whitespace-pre-wrap" id="condition-detail-diagnostic-msg">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Condition Outcomes List -->
+            <div class="flex flex-col">
+                <div class="flex items-center justify-between mb-4">
+                    <h4 class="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Condition Outcomes</h4>
+                    <span class="text-xs font-mono text-gray-500 dark:text-gray-400" id="condition-detail-matches-count">0 conditions</span>
+                </div>
+                
+                <div class="space-y-3 max-h-[380px] overflow-y-auto custom-scrollbar pr-1" id="condition-detail-matches-list">
+                    <!-- Populated dynamically -->
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Reusable UI Templates -->
+<template id="tpl-condition-row">
+    <tr class="hover:bg-gray-50/70 dark:hover:bg-slate-800/40 transition-colors cursor-pointer condition-row" data-action="select-condition">
+        <td class="px-6 py-4">
+            <div class="font-semibold text-sm text-gray-900 dark:text-gray-100 break-words" data-field="className"></div>
+            <div class="text-[11px] text-gray-500 dark:text-gray-400 font-mono mt-0.5 break-all" data-field="packageName"></div>
+        </td>
+        <td class="px-4 py-4 whitespace-nowrap">
+            <span class="px-2.5 py-1 rounded-full text-xs font-medium border inline-flex items-center gap-1" data-field="statusBadge"></span>
+        </td>
+        <td class="px-4 py-4">
+            <div class="flex flex-col gap-1.5 w-36">
+                <span class="font-mono text-xs text-gray-700 dark:text-gray-300 font-semibold" data-field="conditionRatio"></span>
+                <div class="h-1.5 w-full bg-gray-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div class="h-full rounded-full transition-all duration-300" data-field="progressBar"></div>
+                </div>
+            </div>
+        </td>
+        <td class="px-4 py-4">
+            <div class="flex items-center gap-2 min-w-0 max-w-md">
+                <span class="w-2 h-2 rounded-full flex-shrink-0" data-field="outcomeDot"></span>
+                <span class="text-xs truncate" data-field="outcomeSummary"></span>
+            </div>
+        </td>
+        <td class="px-4 py-4 text-right whitespace-nowrap">
+            <span class="material-symbols-outlined text-[18px] text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-transform" data-field="expandIcon">keyboard_arrow_right</span>
+        </td>
+    </tr>
+</template>
+
+<template id="tpl-condition-group-header">
+    <tr class="bg-gray-100/70 dark:bg-slate-800/60 font-semibold text-xs text-gray-700 dark:text-gray-300 select-none">
+        <td colspan="5" class="px-6 py-2.5">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-[16px] text-gray-500 dark:text-gray-400" data-field="groupIcon">folder</span>
+                <span data-field="groupTitle" class="font-mono"></span>
+                <span class="px-2 py-0.5 text-[10px] rounded-full bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-gray-300 font-normal" data-field="groupCount"></span>
+            </div>
+        </td>
+    </tr>
+</template>
+
+<template id="tpl-condition-match-item">
+    <div class="flex items-start justify-between gap-4 p-3 rounded-lg border border-gray-100 dark:border-slate-800/80 bg-gray-50/40 dark:bg-slate-950/40">
+        <div class="flex items-start gap-2.5 min-w-0">
+            <span class="material-symbols-outlined text-[18px] flex-shrink-0 mt-0.5" data-field="matchIcon"></span>
+            <div class="min-w-0">
+                <div class="text-xs font-bold text-gray-800 dark:text-gray-200 font-mono" data-field="conditionName"></div>
+                <div class="text-[11px] text-gray-600 dark:text-gray-400 font-mono break-words mt-0.5 leading-relaxed" data-field="matchMessage"></div>
+            </div>
+        </div>
+        <span class="text-xs font-semibold font-mono whitespace-nowrap px-2 py-0.5 rounded" data-field="matchStatusBadge"></span>
+    </div>
+</template>
+
+<template id="tpl-condition-loading">
+    <tr>
+        <td colspan="5" class="py-16 text-center text-gray-400">
+            <div class="flex flex-col items-center justify-center gap-2">
+                <span class="animate-spin rounded-full h-7 w-7 border-2 border-emerald-500 border-t-transparent"></span>
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Loading condition evaluations...</span>
+            </div>
+        </td>
+    </tr>
+</template>
+
+<template id="tpl-condition-empty">
+    <tr>
+        <td colspan="5" class="py-12 text-center text-gray-400">
+            <div class="flex flex-col items-center justify-center gap-1.5">
+                <span class="material-symbols-outlined text-[36px] text-gray-300 dark:text-gray-600">rule</span>
+                <p class="text-xs font-medium text-gray-600 dark:text-gray-400" data-field="emptyMessage">No condition evaluations found</p>
+                <span class="text-[11px] text-gray-400 dark:text-gray-500">Try adjusting your search query or filters</span>
+            </div>
+        </td>
+    </tr>
+</template>
+
+<template id="tpl-condition-error">
+    <tr>
+        <td colspan="5" class="py-12 text-center text-red-500 dark:text-red-400">
+            <div class="flex flex-col items-center justify-center gap-2 text-xs font-semibold">
+                <span class="material-symbols-outlined text-2xl">warning</span>
+                <span data-field="errorMessage">Failed to load condition evaluations</span>
+                <button data-action="refresh-data"
+                    class="mt-2 px-3 py-1.5 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded text-xs font-medium hover:bg-red-100 dark:hover:bg-red-900/40 cursor-pointer transition-colors">
+                    Try Again
+                </button>
+            </div>
+        </td>
+    </tr>
+</template>

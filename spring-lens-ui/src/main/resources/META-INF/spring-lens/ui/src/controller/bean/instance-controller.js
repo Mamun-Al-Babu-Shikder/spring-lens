@@ -375,7 +375,7 @@ export default class InstanceController {
     renderSidebarDetails(instance) {
         if (!instance) return;
 
-        const {beanName, type, scope, initDurationNanos, relativeStartMs, contextId, createdAt} = instance;
+        const {beanName, type, scope, initDurationNanos, relativeStartMs, contextId, createdAt, hasDefinition} = instance;
 
         const data = {
             name: GraphTreeBuilder._displayName(beanName),
@@ -395,6 +395,28 @@ export default class InstanceController {
                     $(el).text(data[field]);
                 }
             });
+
+        const $footer = $('#time-sidebar-footer');
+        const $viewBtn = $('#time-btn-view-details');
+
+        if (hasDefinition) {
+            const combinedValue = `${contextId}:${beanName}`;
+            $viewBtn
+                .val(combinedValue)
+                .attr('value', combinedValue)
+                .attr('data-context-id', contextId || '')
+                .attr('data-bean-name', beanName || '')
+                .attr('data-bean-id', combinedValue);
+            $footer.removeClass('hidden').show();
+        } else {
+            $viewBtn
+                .val('')
+                .attr('value', '')
+                .removeAttr('data-context-id')
+                .removeAttr('data-bean-name')
+                .removeAttr('data-bean-id');
+            $footer.addClass('hidden').hide();
+        }
     }
 
     initEvents() {
@@ -420,7 +442,8 @@ export default class InstanceController {
             'prev-page': () => this._handlePrevPage(),
             'next-page': () => this._handleNextPage(),
             'close-sidebar': () => this._handleCloseSidebar(),
-            'download-report': () => this._downloadReport()
+            'download-report': () => this._downloadReport(),
+            'view-bean-details': ($target) => this._handleViewBeanDetails($target)
         };
 
         // Filter change router mapped by element ID
@@ -534,10 +557,23 @@ export default class InstanceController {
 
     _handleCloseSidebar() {
         $('#time-details-sidebar').addClass('hidden').hide();
+        $('#time-sidebar-footer').addClass('hidden').hide();
+        $('#time-btn-view-details').val('').attr('value', '');
         this.selectedBeanName = null;
         this.selectedContextId = null;
         this.selectedBeanInstance = null;
         $('.time-row').removeClass(CLASSES.rowActive);
+    }
+
+    _handleViewBeanDetails($target) {
+        const value = $target.val() || $target.attr('value') || '';
+        const contextId = $target.data('context-id') || this.selectedContextId || (value.includes(':') ? value.split(':')[0] : '');
+        const beanName = $target.data('bean-name') || this.selectedBeanName || (value.includes(':') ? value.split(':')[1] : value);
+
+        if (beanName) {
+            window.pendingSelectBean = { beanName, contextId };
+            window.location.hash = '#/definitions';
+        }
     }
 
     _on(target, event, delegateOrHandler, maybeHandler) {
