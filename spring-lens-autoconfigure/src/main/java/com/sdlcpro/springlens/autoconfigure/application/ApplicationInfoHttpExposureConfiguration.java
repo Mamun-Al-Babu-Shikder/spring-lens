@@ -18,7 +18,7 @@ import static org.springframework.boot.autoconfigure.condition.ConditionalOnWebA
 @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 @ConditionalOnWebApplication(type = Type.SERVLET)
 @ConditionalOnClass({ApplicationInfoRestController.class})
-public class ApplicationInfoHttpExposureConfiguration {
+class ApplicationInfoHttpExposureConfiguration {
 
     @Bean
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
