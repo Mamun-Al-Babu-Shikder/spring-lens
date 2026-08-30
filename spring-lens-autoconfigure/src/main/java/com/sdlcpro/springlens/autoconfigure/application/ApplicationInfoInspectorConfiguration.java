@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Role;
 @SpringLensInternalComponent
 @Configuration(proxyBeanMethods = false)
 @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-public class ApplicationInfoInspectorConfiguration {
+class ApplicationInfoInspectorConfiguration {
 
     @Bean
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
