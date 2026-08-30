@@ -14,16 +14,18 @@ $(document).ready(() => {
     const API_BASE_URL = origin + CONTEXT_PATH + '/spring-lens/api/beans';
 
     const ENDPOINTS = {
-        SUMMARY_BEAN_DEFINITION     : API_BASE_URL + "/summary",
-        BEAN_DEFINITION             : API_BASE_URL + "/definitions",
-        SEARCH_BEAN_DEFINITION      : API_BASE_URL + "/definitions/find",
-        BEAN_INSTANCE               : API_BASE_URL + "/instances",
-        SEARCH_BEAN_INSTANCE        : API_BASE_URL + "/instances/find",
-        CONDITIONAL_REPORTS         : API_BASE_URL + "/conditions",
-        SEARCH_CONDITIONAL_REPORTS  : API_BASE_URL + "/conditions/find",
-        GRAPH_DEPENDENCIES          : API_BASE_URL + "/dependencies",
+        APPLICATION_INFO: origin + CONTEXT_PATH + '/spring-lens/api/application',
+        SUMMARY_BEAN_DEFINITION: API_BASE_URL + "/summary",
+        BEAN_DEFINITION: API_BASE_URL + "/definitions",
+        SEARCH_BEAN_DEFINITION: API_BASE_URL + "/definitions/find",
+        BEAN_INSTANCE: API_BASE_URL + "/instances",
+        SEARCH_BEAN_INSTANCE: API_BASE_URL + "/instances/find",
+        CONDITIONAL_REPORTS: API_BASE_URL + "/conditions",
+        SEARCH_CONDITIONAL_REPORTS: API_BASE_URL + "/conditions/find",
+        GRAPH_DEPENDENCIES: API_BASE_URL + "/dependencies",
     }
 
+    let applicationInfo = "http://localhost:8083/spring-lens/api/application";
     let definitions = "http://localhost:8083/spring-lens/api/beans/definitions";
     let definitionsSummary = "http://localhost:8083/spring-lens/api/beans/definitions/summary";
     let graphDependencies = "http://localhost:8083/spring-lens/api/beans/definitions/dependencies";
@@ -33,16 +35,17 @@ $(document).ready(() => {
     let beansConditions = "http://localhost:8083/spring-lens/api/beans/conditions";
     let searchBeanConditions = "http://localhost:8083/spring-lens/api/beans/conditions/find";
 
-    const dashboard = new DashboardController();
+    const dashboard = new DashboardController(ENDPOINTS);
     const beanDefinitions = new BeanDefinitions(definitions, definitionsSummary, findDependencies);
     const beanDependencyGraph = new GraphController(graphDependencies, findDependencies);
     const beanInstance = new InstanceController(beansInstances, findBeanInstances);
     const conditionEvaluation = new ConditionalEvaluationController(beansConditions, searchBeanConditions);
 
-    // const dashboard = new DashboardController();
+    // const dashboard = new DashboardController(ENDPOINTS);
     // const beanInstance = new InstanceController(ENDPOINTS.BEAN_INSTANCE, ENDPOINTS.SEARCH_BEAN_INSTANCE);
     // const beanDefinitions = new BeanDefinitions(ENDPOINTS.BEAN_DEFINITION, ENDPOINTS.SUMMARY_BEAN_DEFINITION, ENDPOINTS.SEARCH_BEAN_DEFINITION );
     // const beanDependencyGraph = new GraphController(ENDPOINTS.GRAPH_DEPENDENCIES, ENDPOINTS.SEARCH_BEAN_DEFINITION);
+    // const conditionEvaluation = new ConditionalEvaluationController(ENDPOINTS.CONDITIONAL_REPORTS, ENDPOINTS.SEARCH_CONDITIONAL_REPORTS);
 
     // Configure routes and instantiate Route
     const appRouter = new Route({

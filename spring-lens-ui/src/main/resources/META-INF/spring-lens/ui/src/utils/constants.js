@@ -63,7 +63,7 @@ export const BEAN_TYPE_RULES = [
     { keywords: ['scheduler', 'task'], icon: 'schedule', color: '#06b6d4' },
     { keywords: ['mapper'], icon: 'transform', color: '#a855f7' },
     { keywords: ['client'], icon: 'hub', color: '#f43f5e' },
-    { keywords: ['template'], icon: 'layout', color: '#3b82f6' },
+    { keywords: ['template'], icon: 'dashboard', color: '#3b82f6' },
     { keywords: ['filter'], icon: 'filter_list', color: '#64748b' },
     { keywords: ['converter', 'serializer'], icon: 'swap_horiz', color: '#8b5cf6' },
     { keywords: ['factory'], icon: 'factory', color: '#f59e0b' },

@@ -40,7 +40,15 @@ export default class InstanceController {
 
     async enter() {
         try {
+            const storedBean = sessionStorage.getItem('springlens_selected_bean');
+            if (storedBean) {
+                this.searchQuery = storedBean;
+                sessionStorage.removeItem('springlens_selected_bean');
+            }
             this.initEvents();
+            if (this.searchQuery) {
+                $('#time-search-input').val(this.searchQuery);
+            }
             await this.fetchInstanceData();
         } catch (error) {
             console.error('Error in InstanceController enter:', error);
