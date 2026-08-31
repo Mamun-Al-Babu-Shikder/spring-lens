@@ -4,6 +4,8 @@ import com.sdlcpro.springlens.util.Preconditions;
 
 import java.util.List;
 
+import static com.sdlcpro.springlens.util.DefensiveCopies.immutableListOrEmpty;
+
 public record BeanDependency(
         String contextId,
         String beanName,
@@ -11,6 +13,6 @@ public record BeanDependency(
     public BeanDependency {
         Preconditions.hasText(contextId, "Context id must not be blank");
         Preconditions.hasText(beanName, "Bean name must not be blank");
-        dependencies = dependencies == null ? List.of() : List.copyOf(dependencies);
+        dependencies = immutableListOrEmpty(dependencies);
     }
 }

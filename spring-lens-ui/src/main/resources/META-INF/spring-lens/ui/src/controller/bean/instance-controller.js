@@ -1,606 +1,872 @@
-import { GraphTreeBuilder } from '../../builder/graph-tree-builder.js';
+import httpClient from '../../client/http-client.js';
+import GraphTreeBuilder from '../../builder/graph-tree-builder.js';
+import beanDataStore from '../../storage/bean-data-store.js';
+import {
+    CLASSES, DURATION_BAR_RULES, capitalize, resolveBeanMetadata, downloadJson,
+    TemplateEngine, QueryParam, Pagination
+} from '../../utils/index.js';
 
 export default class InstanceController {
-    constructor() {
+    constructor(beanInstanceApi, beanInstanceFindApi, beanDefinitionFindApi) {
 
-        this.beans = []; // Raw beans
-        this.solvedBeans = []; // Solved timeline bean objects
-        this.filteredBeans = []; // Filtered/sorted timeline bean objects
+        this.activeModalTab = 'properties';
+        this.instances = [];
+        this.filteredInstances = [];
+        this.selectedBeanInstance = null;
 
-        // Pagination & filters state
         this.currentPage = 1;
         this.pageSize = 15;
         this.searchQuery = '';
-        this.minDuration = 0;
-        this.sortBy = 'start'; // 'start', 'duration', 'name'
+        this.scopeFilter = '';
+        this.minDurationMs = 0;
+        this.sortBy = 'createdAt';
+        this.sortDir = 'ASC';
         this.selectedBeanName = null;
+        this.selectedContextId = null;
 
-        // Visual constants
-        this.maxTime = 1000; // Resolved total timeline time in ms
+        this.paginationState = {
+            totalElements: 0,
+            totalPages: 1,
+            pageNumber: 0,
+            pageSize: 15,
+            isFirstPage: true,
+            isLastPage: true
+        };
+
+        this.maxTimeMs = 100;
+        this._searchDebounceTimer = null;
+        this.beanInstanceApi = beanInstanceApi;
+        this.beanInstanceFindApi = beanInstanceFindApi;
+        this.beanDefinitionFindApi = beanDefinitionFindApi;
     }
 
-    async enter() {
+    async enter(params) {
         try {
-            // Simulate / resolve startup timeline
-            this.solveTimeline();
+            // 1. Reset filter state to clean defaults
+            this._resetFilterState();
+            this._handleCloseSidebar(true);
 
-            // Populate filters and UI elements
-            this.applyFiltersAndRender();
+            const queryParams = QueryParam.parse(params);
+            const targetBean = QueryParam.get(queryParams, 'search', 'bean');
+            const targetContextId = QueryParam.get(queryParams, 'contextId', 'context');
+            const scope = queryParams.get('scope');
+
+            if (targetBean) {
+                this.searchQuery = targetBean;
+                $('#time-search-input').val(targetBean);
+            }
+            if (scope) {
+                this.scopeFilter = scope;
+                $('#time-filter-scope').val(scope);
+            }
+
             this.initEvents();
+            await this.fetchInstanceData();
 
-            // Auto-select slowest bean by default to populate sidebar
-            if (this.solvedBeans.length > 0) {
-                const sortedBySlowest = [...this.solvedBeans].sort((a, b) => b.duration - a.duration);
-                this.selectBean(sortedBySlowest[0].beanName);
+            if (targetBean && this.instances && this.instances.length > 0) {
+                const match = this.instances.find(i => i.beanName === targetBean) || this.instances[0];
+                if (match) {
+                    await this.selectBean(targetContextId || match.contextId, match.beanName);
+                }
             }
         } catch (error) {
             console.error('Error in InstanceController enter:', error);
         }
     }
 
-    leave() {
-        // Cleanup event listeners if needed
-        $('#time-search-input').off('input');
-        $('#time-filter-duration').off('change');
-        $('#time-sort-by').off('change');
-        $('#time-filter-size').off('change');
-        $('#time-btn-reset-filters').off('click');
-        $('#time-gantt-body').off('click', '.time-row');
-        $('#time-close-sidebar').off('click');
-        $('#time-sidebar-tree-container').off('click', '.tree-node-click');
-        $('#time-btn-refresh').off('click');
+    /**
+     * Fetches bean instance page data from backend REST API (/instances).
+     */
+    async fetchInstanceData() {
+        this.renderLoadingState();
+
+        const queryParams = this._buildApiQueryParams();
+
+        try {
+            const responseData = await httpClient.getWithQuery(
+                this.beanInstanceApi,
+                queryParams.toString()
+            );
+
+            this.processPaginatedResponse(responseData);
+            this.computeTimelineMetrics();
+            this.applyLocalFilters();
+
+            this.renderInstanceSummary();
+            this.renderGridHeaderAndLines();
+            this.renderGanttRows();
+            this.renderPagination();
+        } catch (error) {
+            console.error('Error fetching bean instance data:', error);
+            this.renderErrorState(error.message);
+        }
+    }
+
+    _buildApiQueryParams() {
+        return QueryParam.build({
+            pageNumber: this.currentPage - 1,
+            pageSize: this.pageSize,
+            search: this.searchQuery,
+            scope: this.scopeFilter,
+            sortBy: this.sortBy,
+            sortDir: this.sortDir
+        });
+    }
+
+    processPaginatedResponse(responseData) {
+        const content = Array.isArray(responseData?.content) ? responseData.content : [];
+        this.instances = content;
+        beanDataStore.addBeans(content);
+
+        const totalElements = responseData?.totalElements ?? content.length;
+        const totalPages = Math.max(1, responseData?.totalPages ?? 1);
+        const pageNumber = responseData?.pageNumber ?? 0;
+        const pageSize = responseData?.pageSize ?? this.pageSize;
+
+        this.paginationState = {
+            totalElements,
+            totalPages,
+            pageNumber,
+            pageSize,
+            isFirstPage: responseData?.first ?? (pageNumber === 0),
+            isLastPage: responseData?.last ?? (pageNumber >= totalPages - 1)
+        };
     }
 
     /**
-     * Solves the startup timeline using a deterministic topological simulation based on dependencies.
+     * Parses ISO timestamp string into millisecond accuracy (with microsecond fraction support).
      */
-    solveTimeline() {
-        const solved = new Map();
-        const visiting = new Set();
-        const beansMap = window.allBeansMap || new Map();
+    parseIsoToMs(isoStr) {
+        if (!isoStr || typeof isoStr !== 'string') return 0;
 
-        // Seeded random helper to keep durations consistent for a given bean name
-        const seedRandom = (str) => {
-            let hash = 0;
-            for (let i = 0; i < str.length; i++) {
-                hash = str.charCodeAt(i) + ((hash << 5) - hash);
-            }
-            const x = Math.sin(hash++) * 10000;
-            return x - Math.floor(x);
-        };
+        // Matches fractional seconds (.123456) and captures everything before and after
+        const match = isoStr.match(/^(.*?)(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/);
+        if (!match) return 0;
 
-        const getBeanDuration = (beanName, type) => {
-            const nameLower = (beanName || '').toLowerCase();
-            const typeLower = (type || '').toLowerCase();
+        const [, base, fractionStr, tz = ''] = match;
+        const baseMs = Date.parse(`${base}${tz}`);
 
-            // Database and Factories are slow
-            if (typeLower.includes('entitymanagerfactory') || typeLower.includes('localcontainerentitymanagerfactorybean')) {
-                return 180 + (seedRandom(beanName) * 120); // 180ms - 300ms
-            }
-            if (typeLower.includes('datasource') || nameLower.includes('datasource')) {
-                return 80 + (seedRandom(beanName) * 60); // 80ms - 140ms
-            }
-            if (typeLower.includes('connectionfactory') || nameLower.includes('connectionfactory')) {
-                return 50 + (seedRandom(beanName) * 40); // 50ms - 90ms
-            }
-            if (typeLower.includes('environment') || nameLower.includes('environment') || typeLower.includes('property') || nameLower.includes('property')) {
-                return 8 + (seedRandom(beanName) * 16); // 8ms - 24ms
-            }
-            if (typeLower.includes('repository') || nameLower.includes('repository') || typeLower.includes('mapper') || nameLower.includes('mapper')) {
-                return 3 + (seedRandom(beanName) * 8); // 3ms - 11ms
-            }
-            if (typeLower.includes('controller') || nameLower.includes('controller') || typeLower.includes('resource') || nameLower.includes('resource')) {
-                return 2 + (seedRandom(beanName) * 6); // 2ms - 8ms
-            }
-            if (typeLower.includes('service') || nameLower.includes('service')) {
-                return 1 + (seedRandom(beanName) * 5); // 1ms - 6ms
-            }
-            // Standard small beans
-            return 0.5 + (seedRandom(beanName) * 2.5); // 0.5ms - 3ms
-        };
+        if (Number.isNaN(baseMs)) return 0;
 
-        const solve = (beanName) => {
-            if (solved.has(beanName)) return solved.get(beanName);
-            if (visiting.has(beanName)) {
-                // Circular dependency detected, break cycle
-                return { start: 10, duration: 1, end: 11, isCycle: true };
-            }
-
-            visiting.add(beanName);
-            const bean = beansMap.get(beanName);
-
-            let maxDepEnd = 5; // Base offset to simulate boot start latency
-
-            if (bean && bean.dependencies && bean.dependencies.length > 0) {
-                for (const dep of bean.dependencies) {
-                    if (beansMap.has(dep)) {
-                        const depInfo = solve(dep);
-                        if (depInfo.end > maxDepEnd) {
-                            maxDepEnd = depInfo.end;
-                        }
-                    }
-                }
-            }
-
-            const duration = getBeanDuration(beanName, bean ? bean.type : '');
-
-            // Add a tiny random gap to represent thread schedules if it has no dependencies
-            const start = maxDepEnd + (bean && bean.dependencies && bean.dependencies.length > 0 ? 0.2 : seedRandom(beanName) * 3);
-            const end = start + duration;
-
-            const result = {
-                beanName,
-                displayName: GraphTreeBuilder._displayName(beanName),
-                type: bean ? bean.type : 'N/A',
-                start,
-                duration,
-                end,
-                isCycle: false,
-                dependencies: bean ? bean.dependencies : []
-            };
-
-            visiting.delete(beanName);
-            solved.set(beanName, result);
-            return result;
-        };
-
-        // Solve all beans
-        this.beans.forEach(bean => solve(bean.beanName));
-        this.solvedBeans = Array.from(solved.values());
-
-        // Find maximum end time to set absolute layout scale
-        const endTimes = this.solvedBeans.map(b => b.end);
-        this.maxTime = endTimes.length > 0 ? Math.max(...endTimes) + 20 : 1000;
-
-        // Render KPI dashboard metrics
-        this.renderKPIs();
+        const fractionalMs = fractionStr ? parseFloat(fractionStr) * 1000 : 0;
+        return baseMs + fractionalMs;
     }
 
-    renderKPIs() {
-        const totalStartup = Math.round(this.maxTime);
-        $('#time-kpi-total').text(`${totalStartup.toLocaleString()} ms`);
+    /**
+     * Formats nanoseconds into readable time string (ns, µs, ms, s).
+     */
+    formatDuration(nanos) {
+        if (nanos === undefined || nanos === null) return '0 ms';
+        if (nanos >= 1_000_000_000) return (nanos / 1e9).toFixed(2) + ' s';
+        if (nanos >= 1_000_000) return (nanos / 1e6).toFixed(2) + ' ms';
+        if (nanos >= 1_000) return (nanos / 1e3).toFixed(2) + ' µs';
+        return nanos + ' ns';
+    }
 
-        // Find slowest
-        let slowest = { duration: 0, displayName: 'None' };
-        let heavyCount = 0;
+    computeTimelineMetrics() {
+        if (this.instances.length === 0) {
+            this.maxTimeMs = 100;
+            return;
+        }
 
-        this.solvedBeans.forEach(b => {
-            if (b.duration > slowest.duration) {
-                slowest = b;
-            }
-            if (b.duration > 50) {
-                heavyCount++;
+        const timestamps = this.instances.map(inst => this.parseIsoToMs(inst.createdAt));
+        const minCreatedMs = Math.min(...timestamps);
+
+        let maxEndOffsetMs = 0;
+
+        this.instances.forEach(inst => {
+            const createdMs = this.parseIsoToMs(inst.createdAt);
+            const initDurationMs = (inst.initDurationNanos || 0) / 1e6;
+            const relativeStartMs = Math.max(0, createdMs - minCreatedMs);
+            const relativeEndMs = relativeStartMs + initDurationMs;
+
+            inst.relativeStartMs = relativeStartMs;
+            inst.initDurationMs = initDurationMs;
+            inst.relativeEndMs = relativeEndMs;
+
+            if (relativeEndMs > maxEndOffsetMs) {
+                maxEndOffsetMs = relativeEndMs;
             }
         });
 
-        $('#time-kpi-slowest-name').text(slowest.displayName);
-        $('#time-kpi-slowest-val').text(`${Math.round(slowest.duration)} ms`);
+        this.maxTimeMs = maxEndOffsetMs > 0 ? maxEndOffsetMs * 1.05 : 100;
+    }
 
+    applyLocalFilters() {
+        if (this.minDurationMs > 0) {
+            this.filteredInstances = this.instances.filter(inst => inst.initDurationMs >= this.minDurationMs);
+        } else {
+            this.filteredInstances = [...this.instances];
+        }
+    }
+
+    renderInstanceSummary() {
+        let totalDurationMs = 0;
+        let heavyCount = 0;
+        let slowest = null;
+
+        for (const inst of (this.instances || [])) {
+            const ms = inst.initDurationMs || 0;
+            const nanos = inst.initDurationNanos || 0;
+
+            totalDurationMs += ms;
+            if (ms >= 50) heavyCount++;
+            if (!slowest || nanos > (slowest.initDurationNanos || 0)) {
+                slowest = inst;
+            }
+        }
+
+        const totalElements = this.paginationState?.totalElements || this.instances?.length || 0;
+        const heavyPct = totalElements > 0 ? ((heavyCount / totalElements) * 100).toFixed(1) : '0';
+
+        // Update KPI UI
+        $('#time-kpi-total').text(this.formatDuration(totalDurationMs * 1e6));
+        $('#time-kpi-slowest-name').text(slowest ? GraphTreeBuilder._displayName(slowest.beanName) : 'None');
+        $('#time-kpi-slowest-val').text(slowest ? this.formatDuration(slowest.initDurationNanos) : '0 ms');
         $('#time-kpi-heavy').text(heavyCount);
-        const heavyPct = this.solvedBeans.length > 0 ? ((heavyCount / this.solvedBeans.length) * 100).toFixed(1) : '0';
-        $('#time-kpi-heavy-pct').text(`${heavyPct}% of all bean definitions`);
+        $('#time-kpi-heavy-pct').text(`${heavyPct}% of total instances`);
     }
 
-    applyFiltersAndRender() {
-        // 1. Search text filter
-        let result = this.solvedBeans;
-        if (this.searchQuery) {
-            const q = this.searchQuery.toLowerCase();
-            result = result.filter(b =>
-                b.displayName.toLowerCase().includes(q) ||
-                b.beanName.toLowerCase().includes(q) ||
-                b.type.toLowerCase().includes(q)
-            );
-        }
-
-        // 2. Minimum duration filter
-        if (this.minDuration > 0) {
-            result = result.filter(b => b.duration >= this.minDuration);
-        }
-
-        // 3. Sorting
-        if (this.sortBy === 'start') {
-            result.sort((a, b) => a.start - b.start);
-        } else if (this.sortBy === 'duration') {
-            result.sort((a, b) => b.duration - a.duration);
-        } else if (this.sortBy === 'name') {
-            result.sort((a, b) => a.displayName.localeCompare(b.displayName));
-        }
-
-        this.filteredBeans = result;
-        this.currentPage = 1;
-
-        this.renderGridHeaderAndLines();
-        this.renderGanttRows();
-        this.renderPagination();
-    }
-
-    /**
-     * Renders time scales dynamically in the header grid and vertical overlay lines.
-     */
     renderGridHeaderAndLines() {
         const $header = $('#time-grid-header');
         const $lines = $('#time-grid-lines');
-        if ($header.length === 0 || $lines.length === 0) return;
+        if (!$header.length || !$lines.length) return;
 
         $header.empty();
         $lines.empty();
 
         const numIntervals = 6;
-        const intervalTime = this.maxTime / numIntervals;
+        const maxTime = this.maxTimeMs || 0;
+        const headerFrag = document.createDocumentFragment();
+        const linesFrag = document.createDocumentFragment();
 
         for (let i = 0; i <= numIntervals; i++) {
-            const timeVal = Math.round(i * intervalTime);
-            const leftPct = (timeVal / this.maxTime) * 100;
+            const leftPct = (i / numIntervals) * 100;
+            const timeVal = ((i * maxTime) / numIntervals).toFixed(1);
 
-            // Header label
-            $header.append(`
-                <span class="absolute text-[10px] font-mono text-gray-400 -translate-x-1/2" style="left: ${leftPct}%; top: 12px;">
-                    ${timeVal}ms
-                </span>
-            `);
+            const markerClone = TemplateEngine.clone('tpl-time-grid-marker');
+            if (markerClone?.firstElementChild) {
+                $(markerClone.firstElementChild)
+                    .css('left', `${leftPct}%`)
+                    .text(`${timeVal}ms`);
+                headerFrag.appendChild(markerClone);
+            }
 
-            // Vertical helper line (excluding start and end boundaries for neatness)
             if (i > 0 && i < numIntervals) {
-                $lines.append(`
-                    <div class="absolute h-full border-l border-dashed border-gray-100" style="left: ${leftPct}%"></div>
-                `);
+                const lineClone = TemplateEngine.clone('tpl-time-grid-line');
+                if (lineClone?.firstElementChild) {
+                    $(lineClone.firstElementChild).css('left', `${leftPct}%`);
+                    linesFrag.appendChild(lineClone);
+                }
             }
         }
+
+        $header.append(headerFrag);
+        $lines.append(linesFrag);
     }
 
     renderGanttRows() {
         const $container = $('#time-rows-container');
-        if ($container.length === 0) return;
+        if (!$container.length) return;
 
         $container.empty();
 
-        const startIdx = (this.currentPage - 1) * this.pageSize;
-        const endIdx = Math.min(startIdx + this.pageSize, this.filteredBeans.length);
-        const pageBeans = this.filteredBeans.slice(startIdx, endIdx);
-
-        if (pageBeans.length === 0) {
-            $container.html(`
-                <div class="py-12 text-center text-gray-400">
-                    <span class="material-symbols-outlined text-[36px] mb-2 text-gray-300">hourglass_empty</span>
-                    <p class="text-xs">No beans found matching the filter criteria</p>
-                </div>
-            `);
+        if (!this.filteredInstances?.length) {
+            const emptyClone = TemplateEngine.clone('tpl-time-empty');
+            if (emptyClone) $container.append(emptyClone);
             return;
         }
 
-        pageBeans.forEach(bean => {
-            const leftPct = (bean.start / this.maxTime) * 100;
-            const widthPct = (bean.duration / this.maxTime) * 100;
+        const fragment = document.createDocumentFragment();
 
-            // Determine color palette based on duration
-            let barColor = 'bg-primary hover:bg-primary/95'; // Standard: purple
-            if (bean.duration > 150) {
-                barColor = 'bg-red-500 hover:bg-red-600'; // EntityManagerFactory: red
-            } else if (bean.duration > 50) {
-                barColor = 'bg-orange-500 hover:bg-orange-600'; // DataSource: orange
-            } else if (bean.duration > 10) {
-                barColor = 'bg-blue-500 hover:bg-blue-600'; // Properties/Mappers: blue
-            }
+        for (const inst of this.filteredInstances) {
+            const rowNode = this._createGanttRowNode(inst);
+            if (rowNode) fragment.appendChild(rowNode);
+        }
 
-            const isSelected = this.selectedBeanName === bean.beanName;
-            const activeRowClass = isSelected ? 'bg-primary-light/40 dark:bg-primary/20 font-semibold' : '';
-            const activeBorderClass = isSelected ? 'border-l-4 border-primary' : '';
+        $container.append(fragment);
+    }
 
-            $container.append(`
-                <div class="flex items-center h-12 hover:bg-gray-50/70 dark:hover:bg-slate-800/40 transition-colors cursor-pointer time-row ${activeRowClass} ${activeBorderClass}" data-bean-name="${bean.beanName}">
-                    <!-- Left side: Bean name info -->
-                    <div class="w-1/3 min-w-[280px] max-w-[360px] pl-5 flex flex-col justify-center min-w-0 pr-4 border-r border-gray-100/50 dark:border-slate-800/50 h-full">
-                        <span class="text-xs font-semibold text-gray-800 dark:text-white truncate" title="${bean.beanName}">${bean.displayName}</span>
-                        <span class="text-[10px] text-gray-400 dark:text-gray-500 font-mono truncate mt-0.5" title="${bean.type}">${bean.type}</span>
-                    </div>
+    _createGanttRowNode(inst) {
+        const clone = TemplateEngine.clone('tpl-time-row');
+        if (!clone?.firstElementChild) return null;
 
-                    <!-- Right side: Gantt Visual Bar -->
-                    <div class="flex-1 h-full relative flex items-center pr-5">
-                        <div class="absolute h-6 rounded-full transition-all duration-300 flex items-center justify-end px-2 text-[9px] font-mono font-bold text-white shadow-sm ${barColor}"
-                             style="left: ${leftPct}%; width: ${Math.max(widthPct, 1.2)}%;"
-                             title="Started: ${Math.round(bean.start)}ms | Duration: ${Math.round(bean.duration)}ms">
-                             ${bean.duration > 25 ? `${Math.round(bean.duration)}ms` : ''}
-                        </div>
-                        ${bean.duration <= 25 ? `
-                            <span class="absolute text-[9px] font-mono font-bold text-gray-500 dark:text-gray-400 transition-all duration-300" style="left: calc(${leftPct}% + ${widthPct}% + 6px);">
-                                ${Math.round(bean.duration)}ms
-                            </span>
-                        ` : ''}
-                    </div>
-                </div>
-            `);
+        const $row = $(clone.firstElementChild);
+        const { beanName, contextId, initDurationMs = 0, relativeStartMs = 0, scope, type } = inst;
+
+        // Selection styling
+        const isSelected = (this.selectedBeanName === beanName)
+            && (this.selectedContextId === contextId);
+
+        if (isSelected) {
+            $row.addClass(CLASSES.rowActive);
+        }
+
+        $row.attr({
+            'data-context-id': contextId,
+            'data-bean-name': beanName,
         });
 
-        // Apply Left Border indicators dynamically to matches
-        if (this.selectedBeanName) {
-            $('.time-row').removeClass('border-l-4 border-primary');
-            $('.time-row').filter((idx, element) => {
-                return $(element).attr('data-bean-name') === this.selectedBeanName;
-            }).addClass('border-l-4 border-primary');
+        // Content bindings
+        $row.find('[data-field="displayName"]')
+            .text(GraphTreeBuilder._displayName(beanName))
+            .attr('title', beanName);
+        $row.find('[data-field="scope"]').text(scope || 'singleton');
+        $row.find('[data-field="type"]').text(type || 'N/A').attr('title', type || '');
+
+        // Positioning and Bar styling
+        const maxTime = this.maxTimeMs || 1;
+        const leftPct = (relativeStartMs / maxTime) * 100;
+        const widthPct = Math.max((initDurationMs / maxTime) * 100, 1.2);
+        const formattedDuration = this.formatDuration(inst.initDurationNanos);
+
+        const $bar = $row.find('[data-field="bar"]');
+        $bar.addClass(this.getBarColor(initDurationMs))
+            .css({ left: `${leftPct}%`, width: `${widthPct}%` })
+            .attr('title', `Start Offset: ${relativeStartMs.toFixed(2)}ms | Duration: ${formattedDuration}`);
+
+        // Duration label positioning (inside bar if > 20ms, otherwise adjacent)
+        if (initDurationMs > 20) {
+            $bar.text(formattedDuration);
+        } else {
+            $row.find('[data-field="extLabel"]')
+                .removeClass('hidden')
+                .css('left', `calc(${leftPct}% + ${widthPct}% + 6px)`)
+                .text(formattedDuration);
         }
+
+        return clone;
+    }
+
+    getBarColor(durationMs) {
+        const match = DURATION_BAR_RULES.find(rule => durationMs > rule.minDurationMs);
+        return match ? match.classes : 'bg-primary hover:bg-primary/95';
     }
 
     renderPagination() {
-        const total = this.filteredBeans.length;
-        const startIndex = total === 0 ? 0 : (this.currentPage - 1) * this.pageSize + 1;
-        const endIndex = Math.min(startIndex + this.pageSize - 1, total);
+        const { totalElements, pageNumber, pageSize } = this.paginationState;
 
-        $('#time-pagination-info').text(`Showing ${startIndex} to ${endIndex} of ${total.toLocaleString()} beans`);
+        const infoText = Pagination.formatInfoText(totalElements, pageNumber, pageSize, 'beans');
+        $('#time-pagination-info').text(infoText);
 
-        const $buttons = $('#time-pagination-buttons');
-        if ($buttons.length === 0) return;
-
-        $buttons.empty();
-        const totalPages = Math.max(1, Math.ceil(total / this.pageSize));
-
-        // Prev page button
-        $buttons.append(`
-            <button class="w-7 h-7 flex items-center justify-center rounded text-xs border border-gray-200 dark:border-slate-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 font-medium btn-prev" ${this.currentPage === 1 ? 'disabled style="opacity: 0.5;"' : ''}>
-                <span class="material-symbols-outlined text-[16px]">chevron_left</span>
-            </button>
-        `);
-
-        // Numeric buttons
-        const startPage = Math.max(1, this.currentPage - 2);
-        const endPage = Math.min(totalPages, startPage + 4);
-
-        for (let i = startPage; i <= endPage; i++) {
-            const isActive = i === this.currentPage;
-            const activeClass = isActive ? 'text-white bg-primary font-bold' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 border border-gray-200 dark:border-slate-800';
-            $buttons.append(`
-                <button class="w-7 h-7 flex items-center justify-center rounded text-xs btn-page ${activeClass}" data-page="${i}">
-                    ${i}
-                </button>
-            `);
-        }
-
-        // Next page button
-        $buttons.append(`
-            <button class="w-7 h-7 flex items-center justify-center rounded text-xs border border-gray-200 dark:border-slate-800 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 font-medium btn-next" ${this.currentPage === totalPages ? 'disabled style="opacity: 0.5;"' : ''}>
-                <span class="material-symbols-outlined text-[16px]">chevron_right</span>
-            </button>
-        `);
+        Pagination.renderPaginationButtons($('#time-pagination-buttons'), this.paginationState);
     }
 
-    selectBean(beanName) {
-        this.selectedBeanName = beanName;
+    renderLoadingState() {
+        const $container = $('#time-rows-container');
+        if (!$container.length) return;
+        const clone = TemplateEngine.clone('tpl-time-loading');
+        if (clone) $container.empty().append(clone);
+    }
 
-        // Apply active row styling highlights
-        $('.time-row').removeClass('bg-primary-light/40 dark:bg-primary/20 border-l-4 border-primary font-semibold');
-        $('.time-row').filter((idx, element) => {
-            return $(element).attr('data-bean-name') === beanName;
-        }).addClass('bg-primary-light/40 dark:bg-primary/20 border-l-4 border-primary font-semibold');
-
-        const bean = this.solvedBeans.find(b => b.beanName === beanName);
-        if (!bean) return;
-
-        $('#time-details-sidebar').show();
-
-        // Update properties
-        $('#time-sidebar-name').text(bean.displayName);
-        $('#time-sidebar-type').text(bean.type).attr('title', bean.type);
-        $('#time-sidebar-start').text(`${Math.round(bean.start)} ms`);
-        $('#time-sidebar-duration').text(`${Math.round(bean.duration)} ms`);
-        $('#time-sidebar-end').text(`${Math.round(bean.end)} ms`);
-
-        // Render dependency hybrid cascade
-        this.renderDependencyCascade(bean);
+    renderErrorState(errorMessage) {
+        const $container = $('#time-rows-container');
+        if (!$container.length) return;
+        const clone = TemplateEngine.clone('tpl-time-error');
+        if (clone) {
+            $(clone).find('[data-field="errorMessage"]').text(`Failed to fetch bean instances: ${errorMessage}`);
+            $container.empty().append(clone);
+        }
     }
 
     /**
-     * Recursively traverses bean dependencies to display View 2: Dependency + Timeline Cascade.
+     * Selects a bean instance and fetches single instance details from backend (/instances/find).
      */
-    renderDependencyCascade(selectedBean) {
-        const $container = $('#time-sidebar-tree-container');
-        if ($container.length === 0) return;
+    async selectBean(contextId, beanName) {
+        if (!contextId || !beanName) return;
 
-        $container.empty();
+        this.selectedContextId = contextId;
+        this.selectedBeanName = beanName;
 
-        const visited = new Set();
-        const treeNodes = [];
+        $('.time-row').removeClass(CLASSES.rowActive);
+        $(`.time-row[data-context-id="${contextId}"][data-bean-name="${beanName}"]`).addClass(CLASSES.rowActive);
 
-        const buildCascadeList = (beanName, depth = 0) => {
-            if (visited.has(beanName) || depth > 4) return; // Limit depth to avoid massive lists
-            visited.add(beanName);
+        try {
+            const queryParams = QueryParam.build({ contextId, beanName });
+            const instanceDetails = await httpClient.getWithQuery(
+                this.beanInstanceFindApi,
+                queryParams.toString()
+            );
 
-            const solvedInfo = this.solvedBeans.find(b => b.beanName === beanName);
-            if (solvedInfo) {
-                treeNodes.push({
-                    beanName,
-                    displayName: solvedInfo.displayName,
-                    start: solvedInfo.start,
-                    duration: solvedInfo.duration,
-                    end: solvedInfo.end,
-                    depth
-                });
-
-                if (solvedInfo.dependencies) {
-                    solvedInfo.dependencies.forEach(dep => {
-                        buildCascadeList(dep, depth + 1);
-                    });
-                }
+            this.selectedBeanInstance = instanceDetails;
+            this.renderSidebarDetails(instanceDetails);
+        } catch (error) {
+            console.warn('Could not fetch single bean instance details:', error);
+            const localInstance = this.instances.find(i => i.contextId === contextId && i.beanName === beanName);
+            if (localInstance) {
+                this.renderSidebarDetails(localInstance);
             }
-            visited.delete(beanName);
+        }
+    }
+
+    renderSidebarDetails(instance) {
+        if (!instance) return;
+
+        const { beanName, type, scope, initDurationNanos, relativeStartMs, contextId, createdAt, hasDefinition } = instance;
+
+        const data = {
+            name: GraphTreeBuilder._displayName(beanName),
+            type: type || 'N/A',
+            scope: scope || 'singleton',
+            duration: this.formatDuration(initDurationNanos),
+            start: relativeStartMs != null ? `${instance.relativeStartMs.toFixed(2)} ms` : '-',
+            context: contextId || 'N/A',
+            created: createdAt || 'N/A',
+            nanos: (initDurationNanos || 0).toLocaleString()
         };
 
-        // Build list starting from the selected bean
-        buildCascadeList(selectedBean.beanName);
+        const $sidebar = $('#time-details-sidebar');
+        $sidebar.removeClass('w-0 max-w-0 opacity-0 pointer-events-none -mr-6 border-0')
+            .addClass('w-[380px] max-w-[380px] opacity-100 mr-0 border');
 
-        if (treeNodes.length <= 1) {
+        $sidebar.find('[data-field]').each((_, el) => {
+            const field = el.dataset.field;
+            if (data[field] != null) {
+                $(el).text(data[field]);
+            }
+        });
+
+        const $footer = $('#time-sidebar-footer');
+        const $viewBtn = $('#time-btn-view-details');
+
+        if (hasDefinition) {
+            const combinedValue = `${contextId}:${beanName}`;
+            $viewBtn
+                .val(combinedValue)
+                .attr('value', combinedValue)
+                .attr('data-context-id', contextId || '')
+                .attr('data-bean-name', beanName || '')
+                .attr('data-bean-id', combinedValue);
+            $footer.removeClass('hidden').show();
+        } else {
+            $viewBtn
+                .val('')
+                .attr('value', '')
+                .removeAttr('data-context-id')
+                .removeAttr('data-bean-name')
+                .removeAttr('data-bean-id');
+            $footer.addClass('hidden').hide();
+        }
+    }
+
+    initEvents() {
+        this._initActionHandlers();
+        this._bindSearchInput();
+        this._bindFilterChangeEvents();
+        this._bindClickActionDelegation();
+    }
+
+    /**
+     * Initializes handler routing maps once to prevent object re-creation on every interaction.
+     */
+    _initActionHandlers() {
+        // Action router for [data-action] clicks
+        this._clickActions = {
+            'refresh-data': ($target) => this._handleRefreshData($target),
+            'reset-filters': () => {
+                this._resetFilterState();
+                return this.fetchInstanceData();
+            },
+            'select-bean': ($target) => this._handleSelectBean($target),
+            'change-page': ($target) => this._handleChangePage($target),
+            'prev-page': () => this._handlePrevPage(),
+            'next-page': () => this._handleNextPage(),
+            'close-sidebar': () => this._handleCloseSidebar(),
+            'download-report': () => this._downloadReport(),
+            'view-bean-details': ($target) => this._handleViewBeanDetails($target),
+            'close-def-modal': () => this.closeBeanDefinitionModal(),
+            'switch-modal-tab': ($target) => this.switchModalTab($target.data('tab') || $target.attr('data-tab'))
+        };
+
+        // Filter change router mapped by element ID
+        this._filterChangeActions = {
+            'time-filter-scope': (val) => {
+                this.scopeFilter = val;
+                return this._resetPageAndFetch();
+            },
+            'time-filter-duration': (val) => {
+                this.minDurationMs = parseFloat(val) || 0;
+                this.applyLocalFilters();
+                this.renderGanttRows();
+            },
+            'time-sort-by': (val) => {
+                const [field, dir = 'ASC'] = val.split('_');
+                this.sortBy = field;
+                this.sortDir = dir.toUpperCase();
+                return this._resetPageAndFetch();
+            },
+            'time-filter-size': (val) => {
+                this.pageSize = parseInt(val, 10) || 15;
+                return this._resetPageAndFetch();
+            }
+        };
+    }
+
+    /**
+     * Handles debounced text search.
+     */
+    _bindSearchInput() {
+        this._on('#time-search-input', 'input', (e) => {
+            clearTimeout(this._searchDebounceTimer);
+            this.searchQuery = e.target.value.trim();
+            this._searchDebounceTimer = setTimeout(() => this._resetPageAndFetch(), 300);
+        });
+    }
+
+    /**
+     * Routes change events via the _filterChangeActions map.
+     */
+    _bindFilterChangeEvents() {
+        const filterSelectors = Object.keys(this._filterChangeActions)
+            .map(id => `#${id}`)
+            .join(', ');
+
+        this._on(filterSelectors, 'change', (e) => {
+            const handler = this._filterChangeActions[e.target.id];
+            if (handler) {
+                handler(e.target.value);
+            }
+        });
+    }
+
+    /**
+     * Centralized click router using the _clickActions routing map.
+     */
+    _bindClickActionDelegation() {
+        this._on(document, 'click', '[data-action]', (e) => {
+            const $target = $(e.currentTarget);
+            const action = $target.data('action') || $target.attr('data-action');
+            const handler = this._clickActions[action];
+
+            if (handler) {
+                e.preventDefault();
+                handler($target, e);
+            }
+        });
+
+        this._on(document, 'click', '#time-btn-view-details', (e) => {
+            e.preventDefault();
+            this._handleViewBeanDetails($('#time-btn-view-details'));
+        });
+
+        this._on(document, 'click', '#bean-definition-details-modal', (e) => {
+            if (e.target.id === 'bean-definition-details-modal') {
+                this.closeBeanDefinitionModal();
+            }
+        });
+
+        this._on(document, 'keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.closeBeanDefinitionModal();
+            }
+        });
+    }
+
+    async _handleRefreshData($target) {
+        const $icon = $target.find('.material-symbols-outlined').addClass('animate-spin');
+        try {
+            await this.fetchInstanceData();
+        } catch (err) {
+            console.error('Error refreshing bean instances:', err);
+        } finally {
+            setTimeout(() => $icon.removeClass('animate-spin'), 500);
+        }
+    }
+
+    async _handleSelectBean($target) {
+        const { beanName, contextId } = $target.data();
+        if (beanName && contextId) {
+            await this.selectBean(contextId, beanName);
+        }
+    }
+
+    _handleChangePage($target) {
+        const targetPage = parseInt($target.data('page'), 10);
+        if (!isNaN(targetPage) && targetPage !== this.currentPage) {
+            this.currentPage = targetPage;
+            this.fetchInstanceData();
+        }
+    }
+
+    _handlePrevPage() {
+        if (!this.paginationState.isFirstPage && this.currentPage > 1) {
+            this.currentPage--;
+            this.fetchInstanceData();
+        }
+    }
+
+    _handleNextPage() {
+        if (!this.paginationState.isLastPage && this.currentPage < this.paginationState.totalPages) {
+            this.currentPage++;
+            this.fetchInstanceData();
+        }
+    }
+
+    _handleCloseSidebar(immediate = false) {
+        const $sidebar = $('#time-details-sidebar');
+        $('#time-sidebar-footer').addClass('hidden').hide();
+        $('#time-btn-view-details').val('').attr('value', '');
+        this.selectedBeanName = null;
+        this.selectedContextId = null;
+        this.selectedBeanInstance = null;
+        $('.time-row').removeClass(CLASSES.rowActive);
+
+        if (!$sidebar.length) return;
+
+        $sidebar.removeClass('w-[380px] max-w-[380px] opacity-100 mr-0 border')
+            .addClass('w-0 max-w-0 opacity-0 pointer-events-none -mr-6 border-0');
+    }
+
+    async _handleViewBeanDetails($target) {
+        const $el = $target && $target.length ? $target : $('#time-btn-view-details');
+        const targetEl = $el.length ? $el[0] : null;
+        const value = $el.val() || $el.attr('value') || '';
+
+        const contextId = (targetEl ? targetEl.getAttribute('data-context-id') : null)
+            || $el.attr('data-context-id')
+            || $el.data('context-id')
+            || this.selectedContextId
+            || (value.includes(':') ? value.split(':')[0] : '');
+
+        const beanName = (targetEl ? targetEl.getAttribute('data-bean-name') : null)
+            || $el.attr('data-bean-name')
+            || $el.data('bean-name')
+            || this.selectedBeanName
+            || (value.includes(':') ? value.split(':')[1] : value);
+
+        if (beanName) {
+            await this.openBeanDefinitionModal(contextId, beanName);
+        }
+    }
+
+    async openBeanDefinitionModal(contextId, beanName) {
+        const $modal = $('#bean-definition-details-modal');
+        const $card = $('#instance-def-modal-card');
+        if (!$modal.length) return;
+
+        // Reset to loading / placeholder state
+        $('#instance-modal-def-name').text(GraphTreeBuilder._displayName(beanName) || beanName);
+        $('#instance-modal-def-context').text(contextId || '-');
+        $('#instance-modal-def-type').text('Loading bean definition details...');
+
+        this.switchModalTab('properties');
+
+        $modal.removeClass('hidden');
+        requestAnimationFrame(() => {
+            $modal.removeClass('opacity-0 pointer-events-none').addClass('opacity-100');
+            $card.removeClass('scale-95').addClass('scale-100');
+        });
+
+        try {
+            const queryParams = QueryParam.build({ contextId, beanName });
+            const beanDef = await httpClient.getWithQuery(
+                this.beanDefinitionFindApi,
+                queryParams.toString()
+            );
+
+            if (beanDef) {
+                beanDataStore.addBeans([beanDef]);
+                this._populateModalDefinition(beanDef, contextId);
+            }
+        } catch (error) {
+            console.warn('Failed to fetch bean definition details for modal:', error);
+            $('#instance-modal-def-type').text(error.message || 'Could not fetch bean definition');
+        }
+    }
+
+    _populateModalDefinition(beanDef, fallbackContextId) {
+        const {
+            beanName = '',
+            type = 'N/A',
+            scope = 'singleton',
+            role = 'APPLICATION',
+            primary = false,
+            lazyInit = false,
+            autowireCandidate = true,
+            contextId = fallbackContextId || '-',
+            factoryBeanName = '-',
+            factoryMethodName = '-',
+            initMethodName = '-',
+            destroyMethodName = '-',
+            dependencies = [],
+            dependents = []
+        } = beanDef;
+
+        const cleanRole = role ? String(role).replace(/^ROLE_/, '') : 'APPLICATION';
+        const { icon, color } = resolveBeanMetadata(beanDef);
+
+        $('#instance-modal-def-icon').text(icon || 'widgets');
+        $('#instance-modal-def-icon-container').css({
+            backgroundColor: `${color}15`,
+            color: color,
+            borderColor: `${color}35`
+        });
+
+        $('#instance-modal-def-name').text(GraphTreeBuilder._displayName(beanName) || beanName);
+        $('#instance-modal-def-context').text(contextId);
+        $('#instance-modal-def-type').text(type).attr('title', type);
+
+        $('#instance-modal-def-scope').text(capitalize(scope));
+        $('#instance-modal-def-role').text(capitalize(cleanRole));
+        $('#instance-modal-def-primary').text(primary ? 'TRUE' : 'FALSE')
+            .toggleClass('text-emerald-600 dark:text-emerald-400', !!primary)
+            .toggleClass('text-gray-500 dark:text-gray-400', !primary);
+        $('#instance-modal-def-lazy').text(lazyInit ? 'TRUE' : 'FALSE')
+            .toggleClass('text-amber-600 dark:text-amber-400', !!lazyInit)
+            .toggleClass('text-gray-500 dark:text-gray-400', !lazyInit);
+
+        $('#instance-modal-def-autowired').text(autowireCandidate ? 'TRUE' : 'FALSE');
+        $('#instance-modal-def-context-detail').text(contextId);
+
+        $('#instance-modal-def-factory-bean').text(factoryBeanName || '-');
+        $('#instance-modal-def-factory-method').text(factoryMethodName || '-');
+        $('#instance-modal-def-init-method').text(initMethodName || '-');
+        $('#instance-modal-def-destroy-method').text(destroyMethodName || '-');
+
+        // Render Dependency and Dependent Lists
+        $('#instance-modal-def-deps-count').text(dependencies.length);
+        $('#instance-modal-def-dependents-count').text(dependents.length);
+
+        this._renderModalList($('#instance-modal-def-deps-list'), dependencies, contextId, 'No dependencies required for this bean');
+        this._renderModalList($('#instance-modal-def-dependents-list'), dependents, contextId, 'No beans currently depend on this bean');
+
+        // Footer goto button
+        const gotoHref = `#/definitions?bean=${encodeURIComponent(beanName)}${contextId ? `&contextId=${encodeURIComponent(contextId)}` : ''}`;
+        $('#instance-modal-def-goto-btn').attr('href', gotoHref);
+    }
+
+    _renderModalList($container, list = [], contextId, emptyText) {
+        if (!$container.length) return;
+        $container.empty();
+
+        if (!list || !list.length) {
             $container.html(`
-                <div class="py-8 text-center text-gray-400 dark:text-gray-500">
-                    <span class="material-symbols-outlined text-[24px] mb-1.5 text-gray-300 dark:text-gray-600">link_off</span>
-                    <p class="text-[11px] text-gray-400 dark:text-gray-500">This bean has no active initialization dependencies.</p>
+                <div class="py-8 text-center text-gray-400 dark:text-gray-500 text-xs italic flex flex-col items-center justify-center gap-1">
+                    <span class="material-symbols-outlined text-2xl text-gray-300 dark:text-slate-700">link_off</span>
+                    <span>${emptyText}</span>
                 </div>
             `);
             return;
         }
 
-        // Render nodes with visual timeline cascade bars scaled relative to this.maxTime
-        treeNodes.forEach(node => {
-            const leftPct = (node.start / this.maxTime) * 100;
-            const widthPct = (node.duration / this.maxTime) * 100;
-
-            const isOriginal = node.beanName === selectedBean.beanName;
-            const indentStyle = `margin-left: ${node.depth * 12}px;`;
-
-            // Choose color depending on if it's the target or a dependency
-            const barColor = isOriginal ? 'bg-primary' : 'bg-gray-400/80 dark:bg-slate-700/80';
-            const textClass = isOriginal ? 'font-bold text-primary dark:text-purple-300' : 'text-gray-600 dark:text-gray-300 font-medium';
-
-            $container.append(`
-                <div class="flex flex-col gap-1 tree-node border-l border-gray-100 dark:border-slate-800 pl-2 ml-1" style="${indentStyle}">
-                    <div class="flex items-center justify-between text-[11px] min-w-0">
-                        <span class="truncate pr-2 cursor-pointer hover:underline tree-node-click ${textClass}" data-bean-name="${node.beanName}">
-                            ${node.depth > 0 ? '↳ ' : ''}${node.displayName}
-                        </span>
-                        <span class="font-mono text-[10px] text-gray-400 dark:text-gray-500 flex-shrink-0">${Math.round(node.duration)}ms</span>
+        const fragment = document.createDocumentFragment();
+        list.forEach(itemBeanName => {
+            const displayName = GraphTreeBuilder._displayName(itemBeanName);
+            const row = document.createElement('div');
+            row.className = 'flex items-center justify-between p-3 rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-primary/40 dark:hover:border-purple-500/40 hover:bg-purple-50/20 dark:hover:bg-purple-950/20 transition-all group';
+            row.innerHTML = `
+                <div class="flex items-center gap-3 min-w-0 flex-1">
+                    <div class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400 group-hover:text-primary dark:group-hover:text-purple-300 flex items-center justify-center flex-shrink-0 transition-colors">
+                        <span class="material-symbols-outlined text-[16px]">data_object</span>
                     </div>
-                    
-                    <!-- Dependency Micro-Timeline Bar -->
-                    <div class="h-2 w-full bg-gray-100 dark:bg-slate-800 rounded-full relative overflow-hidden">
-                        <div class="absolute h-full rounded-full ${barColor}" 
-                             style="left: ${leftPct}%; width: ${Math.max(widthPct, 1.5)}%;">
+                    <div class="min-w-0 flex-1">
+                        <div class="font-bold text-xs text-gray-800 dark:text-gray-100 group-hover:text-primary dark:group-hover:text-purple-300 transition-colors truncate" title="${itemBeanName}">
+                            ${displayName}
+                        </div>
+                        <div class="text-[10px] text-gray-400 dark:text-gray-500 font-mono truncate">
+                            ${itemBeanName}
                         </div>
                     </div>
                 </div>
-            `);
+                <a href="#/definitions?bean=${encodeURIComponent(itemBeanName)}${contextId ? `&contextId=${encodeURIComponent(contextId)}` : ''}"
+                   class="px-2.5 py-1 text-[11px] font-bold text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-purple-300 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-all flex items-center gap-1 flex-shrink-0">
+                    <span>Inspect</span>
+                    <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                </a>
+            `;
+            fragment.appendChild(row);
         });
+
+        $container.append(fragment);
     }
 
-    initEvents() {
-        // Search Input
-        $('#time-search-input').off('input').on('input', (e) => {
-            this.searchQuery = $(e.target).val();
-            this.applyFiltersAndRender();
+    switchModalTab(tabName) {
+        this.activeModalTab = tabName || 'properties';
+        const activeTabClasses = 'text-primary dark:text-purple-400 border-b-2 border-primary font-bold';
+        const inactiveTabClasses = 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium border-b-2 border-transparent';
+
+        $('.modal-tab-btn').each((_, el) => {
+            const $btn = $(el);
+            const isTarget = $btn.data('tab') === this.activeModalTab;
+            $btn.removeClass(activeTabClasses + ' ' + inactiveTabClasses)
+                .addClass(isTarget ? activeTabClasses : inactiveTabClasses);
         });
 
-        // Duration Filter
-        $('#time-filter-duration').off('change').on('change', (e) => {
-            this.minDuration = parseInt($(e.target).val()) || 0;
-            this.applyFiltersAndRender();
+        $('.modal-pane').addClass('hidden');
+        $(`#instance-modal-pane-${this.activeModalTab}`).removeClass('hidden');
+    }
+
+    closeBeanDefinitionModal() {
+        const $modal = $('#bean-definition-details-modal');
+        const $card = $('#instance-def-modal-card');
+        if (!$modal.length) return;
+
+        $modal.removeClass('opacity-100').addClass('opacity-0 pointer-events-none');
+        $card.removeClass('scale-100').addClass('scale-95');
+
+        setTimeout(() => {
+            $modal.addClass('hidden');
+        }, 250);
+    }
+
+    _on(target, event, delegateOrHandler, maybeHandler) {
+        const namespace = '.beanInstances';
+        const namespacedEvent = `${event}${namespace}`;
+        const $target = $(target);
+
+        if (typeof delegateOrHandler === 'string') {
+            $target.off(namespacedEvent, delegateOrHandler).on(namespacedEvent, delegateOrHandler, maybeHandler);
+        } else {
+            $target.off(namespacedEvent).on(namespacedEvent, delegateOrHandler);
+        }
+    }
+
+    _resetPageAndFetch() {
+        this.currentPage = 1;
+        return this.fetchInstanceData();
+    }
+
+    _resetFilterState() {
+        Object.assign(this, {
+            searchQuery: '',
+            scopeFilter: '',
+            minDurationMs: 0,
+            pageSize: 15,
+            currentPage: 1,
+            sortBy: 'createdAt',
+            sortDir: 'ASC',
         });
 
-        // Sorters
-        $('#time-sort-by').off('change').on('change', (e) => {
-            this.sortBy = $(e.target).val();
-            this.applyFiltersAndRender();
-        });
+        const defaults = {
+            '#time-search-input': '',
+            '#time-filter-scope': '',
+            '#time-filter-duration': '0',
+            '#time-sort-by': 'createdAt_asc',
+            '#time-filter-size': '15',
+        };
 
-        // Page Size
-        $('#time-filter-size').off('change').on('change', (e) => {
-            this.pageSize = parseInt($(e.target).val()) || 15;
-            this.applyFiltersAndRender();
-        });
+        Object.entries(defaults).forEach(([selector, val]) => $(selector).val(val));
+    }
 
-        // Reset button
-        $('#time-btn-reset-filters').off('click').on('click', () => {
-            this.searchQuery = '';
-            this.minDuration = 0;
-            this.sortBy = 'start';
-            this.pageSize = 15;
+    _downloadReport() {
+        const reportData = {
+            title: 'SpringLens Bean Instantiation Report',
+            timestamp: new Date().toISOString(),
+            totalElements: this.paginationState.totalElements,
+            instances: this.instances
+        };
 
-            $('#time-search-input').val('');
-            $('#time-filter-duration').val('0');
-            $('#time-sort-by').val('start');
-            $('#time-filter-size').val('15');
+        downloadJson(`spring-lens-instances-${Date.now()}.json`, reportData);
+    }
 
-            this.applyFiltersAndRender();
-        });
-
-        // Row clicks (delegated)
-        $('#time-rows-container').off('click', '.time-row').on('click', '.time-row', (e) => {
-            const beanName = $(e.currentTarget).attr('data-bean-name');
-            if (beanName) {
-                this.selectBean(beanName);
-            }
-        });
-
-        // Sidebar close
-        $('#time-close-sidebar').off('click').on('click', () => {
-            $('#time-details-sidebar').hide();
-            this.selectedBeanName = null;
-            $('.time-row').removeClass('bg-primary-light/40 border-l-4 border-primary font-semibold');
-        });
-
-        // Click sidebar tree items to traverse
-        $('#time-sidebar-tree-container').off('click', '.tree-node-click').on('click', '.tree-node-click', (e) => {
-            const name = $(e.currentTarget).attr('data-bean-name');
-            if (name) {
-                this.selectBean(name);
-            }
-        });
-
-        // Refresh button simulates boot variables reshuffle
-        $('#time-btn-refresh').off('click').on('click', () => {
-            const $btn = $('#time-btn-refresh');
-            $btn.find('.material-symbols-outlined').addClass('animate-spin');
-
-            setTimeout(() => {
-                this.solveTimeline();
-                this.applyFiltersAndRender();
-
-                // Keep the active selection if it still exists
-                if (this.selectedBeanName) {
-                    this.selectBean(this.selectedBeanName);
-                }
-
-                $btn.find('.material-symbols-outlined').removeClass('animate-spin');
-            }, 600);
-        });
-
-        // Download JSON report
-        $('#time-btn-download').off('click').on('click', () => {
-            const reportData = {
-                title: 'SpringLens Bean Instantiation Startup Timeline Report',
-                timestamp: new Date().toISOString(),
-                totalStartupTimeMs: Math.round(this.maxTime),
-                beansCount: this.solvedBeans.length,
-                timeline: this.solvedBeans.map(b => ({
-                    beanName: b.beanName,
-                    type: b.type,
-                    startTimeMs: Math.round(b.start),
-                    durationMs: Math.round(b.duration),
-                    endTimeMs: Math.round(b.end),
-                    dependencies: b.dependencies
-                }))
-            };
-
-            const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(reportData, null, 2));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute('href', dataStr);
-            downloadAnchor.setAttribute('download', `spring-lens-startup-timeline-${Date.now()}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
-        });
-
-        // Bind Pagination chevrons
-        $('#time-pagination-buttons').off('click', '.btn-page').on('click', '.btn-page', (e) => {
-            const page = parseInt($(e.currentTarget).attr('data-page'));
-            if (!isNaN(page)) {
-                this.currentPage = page;
-                this.renderGanttRows();
-                this.renderPagination();
-            }
-        });
-
-        $('#time-pagination-buttons').off('click', '.btn-prev').on('click', '.btn-prev', () => {
-            if (this.currentPage > 1) {
-                this.currentPage--;
-                this.renderGanttRows();
-                this.renderPagination();
-            }
-        });
-
-        $('#time-pagination-buttons').off('click', '.btn-next').on('click', '.btn-next', () => {
-            const totalPages = Math.ceil(this.filteredBeans.length / this.pageSize);
-            if (this.currentPage < totalPages) {
-                this.currentPage++;
-                this.renderGanttRows();
-                this.renderPagination();
-            }
-        });
+    leave() {
+        this._handleCloseSidebar(true);
+        this.closeBeanDefinitionModal();
+        this._resetFilterState();
+        if (this._searchDebounceTimer) {
+            clearTimeout(this._searchDebounceTimer);
+        }
+        $(document).off('.beanInstances');
+        $('#time-search-input, #time-filter-scope, #time-filter-duration, #time-sort-by, #time-filter-size').off('.beanInstances');
     }
 }

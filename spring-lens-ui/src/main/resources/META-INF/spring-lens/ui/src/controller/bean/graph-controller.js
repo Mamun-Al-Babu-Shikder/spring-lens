@@ -1,10 +1,14 @@
-import { GAP_X, GAP_Y, ICON, NH, NW, RX, TEMPLATES, ZOOM_SCALE_EXTENT } from '../../utils/constants.js';
-import { getBeanCategory, lrLink, nodeStyle, tbLink, tree } from '../../utils/utils.js';
-import { GraphTreeBuilder } from '../../builder/graph-tree-builder.js';
-import httpClient from "../../client/http-client.js";
+import httpClient from '../../client/http-client.js';
 import beanDataStore from '../../storage/bean-data-store.js';
+import GraphTreeBuilder from '../../builder/graph-tree-builder.js';
+import {
+    tree, tbLink, lrLink, nodeStyle,
+    NW, NH, RX, GAP_X, GAP_Y, ICON, ZOOM_SCALE_EXTENT,
+    PROGRESS_BADGE_STYLES, ALL_PROGRESS_BADGE_CLASSES, ALL_PROGRESS_DOT_CLASSES,
+    TemplateEngine, QueryParam, Sidebar, ToastNotification
+} from '../../utils/index.js';
 
-export class DependencyGraphController {
+export default class GraphController {
 
     constructor(dependencyGraphApi, findBeanApi) {
         this.root = null;
@@ -21,7 +25,9 @@ export class DependencyGraphController {
         this.findBeanDetailsApi = findBeanApi;
         this.dependencyGraphApi = dependencyGraphApi;
         this.isHighlightPathActive = false;
+        this.focusedNodeFullName = null;
         this.mode = localStorage.getItem('sl-layout') ?? 'tb';
+        this.nodeTheme = localStorage.getItem('sl-node-theme') ?? 'tint';
 
         this.initEvents();
     }
@@ -32,16 +38,18 @@ export class DependencyGraphController {
         this._bindCustomEventHandlers();
     }
 
-    async enter() {
+    async enter(params) {
+        this._initSidebar();
         if (!this._initializeCanvas()) return;
 
         this._bindControls();
+        this.setNodeTheme(this.nodeTheme, false);
 
         const isDataLoaded = await this._loadInitialData();
         if (!isDataLoaded) return;
 
         this._renderInitialGraph();
-        this._handlePendingBeanFocus();
+        this._handlePendingBeanFocus(params);
     }
 
     _initializeCanvas() {
@@ -69,9 +77,9 @@ export class DependencyGraphController {
 
         try {
             await this._fetchBeanGraphDependencies();
-            this._buildHierarchyFromDependencies(this.beanDependencies);
-            this.update(null, { x: 0, y: 0, x0: 0, y0: 0 });
+            this._buildHierarchyFromDependencies();
             this._updateTotalBeanCount();
+            this.update(null, { x: 0, y: 0, x0: 0, y0: 0 });
             this.fitView(0);
         } catch (error) {
             console.error('Error reloading graph data:', error);
@@ -104,11 +112,10 @@ export class DependencyGraphController {
         this.setMode(this.mode);
     }
 
-    _handlePendingBeanFocus() {
-        const targetBean = window.focusBeanOnNextGraphEnter;
+    _handlePendingBeanFocus(params) {
+        const targetBean = QueryParam.get(params, 'focus', 'search', 'bean');
         if (!targetBean) return;
 
-        window.focusBeanOnNextGraphEnter = null;
         setTimeout(() => this.focusOnBean(targetBean), 300);
     }
 
@@ -123,7 +130,7 @@ export class DependencyGraphController {
 
         try {
             const [baseUrl] = this.findBeanDetailsApi.split('?');
-            const queryParams = new URLSearchParams({ contextId, beanName });
+            const queryParams = QueryParam.build({ contextId, beanName });
             const requestUrl = `${baseUrl}?${queryParams.toString()}`;
 
             const beanDetails = await httpClient.get(requestUrl);
@@ -132,7 +139,7 @@ export class DependencyGraphController {
             this._updateBeanCaches(beanDetails, cacheKey);
             return beanDetails;
         } catch (error) {
-            console.error(`Failed to fetch bean details for ${beanName}:`, error);
+            this.beanDetailsCache.set(cacheKey, null);
             return null;
         }
     }
@@ -239,7 +246,7 @@ export class DependencyGraphController {
         });
 
         if (hasRemainingPages) {
-            setTimeout(() => this._loadRemainingDataLazily(serverResponse), 50);
+            setTimeout(() => this._fetchRemainingGraphPages(serverResponse), 50);
         }
     }
 
@@ -250,7 +257,7 @@ export class DependencyGraphController {
         return !last && pageNumber < totalPages - 1;
     }
 
-    async _loadRemainingDataLazily(firstPageData) {
+    async _fetchRemainingGraphPages(firstPageData) {
         if (this.isLoadingRemaining) return;
         this.isLoadingRemaining = true;
 
@@ -259,7 +266,7 @@ export class DependencyGraphController {
             const [baseApiEndpoint] = this.dependencyGraphApi.split('?');
 
             for (let targetPageIndex = pageNumber + 1; targetPageIndex < totalPages; targetPageIndex++) {
-                const searchParams = new URLSearchParams({
+                const searchParams = QueryParam.build({
                     pageNumber: targetPageIndex,
                     pageSize
                 });
@@ -449,7 +456,8 @@ export class DependencyGraphController {
 
     _injectTooltip() {
         if ($('#tip').length === 0) {
-            $('body').append(TEMPLATES.tooltip);
+            const clone = TemplateEngine.clone('tpl-tooltip');
+            if (clone) $('body').append(clone);
         }
     }
 
@@ -500,7 +508,10 @@ export class DependencyGraphController {
             });
 
         this.svg.call(this.zoom)
-            .on('click', () => $('#details-sidebar').hide());
+            .on('click', () => {
+                this.closeSidebar();
+                this.clearFocusedNode();
+            });
     }
 
     showTip({ pageX, pageY }, node) {
@@ -535,22 +546,62 @@ export class DependencyGraphController {
     highlightPathForNode(node) {
         if (!this.isHighlightPathActive || !node || !this.svg) return;
 
-        // Collect all ancestor and descendant nodes in a single set
-        const pathNodes = new Set([...node.ancestors(), ...node.descendants()]);
+        const pathNodeRefs = new Set();
+        const pathNodeIds = new Set();
+        const pathNodeNames = new Set();
 
-        // Explicit D3 selection class toggling for nodes
+        // 1. Trace upwards: All ancestor nodes to root
+        let currentAncestor = node;
+        while (currentAncestor) {
+            pathNodeRefs.add(currentAncestor);
+            if (currentAncestor.id !== undefined) pathNodeIds.add(currentAncestor.id);
+            if (currentAncestor.data?.fullName) pathNodeNames.add(currentAncestor.data.fullName);
+            if (currentAncestor.data?.name) pathNodeNames.add(currentAncestor.data.name);
+            currentAncestor = currentAncestor.parent;
+        }
+
+        // 2. Trace downwards: All descendant nodes (visible children recursively across all nested levels)
+        const traversalQueue = [node];
+        while (traversalQueue.length > 0) {
+            const currentDescendant = traversalQueue.shift();
+            pathNodeRefs.add(currentDescendant);
+            if (currentDescendant.id !== undefined) pathNodeIds.add(currentDescendant.id);
+            if (currentDescendant.data?.fullName) pathNodeNames.add(currentDescendant.data.fullName);
+            if (currentDescendant.data?.name) pathNodeNames.add(currentDescendant.data.name);
+
+            const activeChildren = currentDescendant.children || [];
+            for (let i = 0; i < activeChildren.length; i++) {
+                traversalQueue.push(activeChildren[i]);
+            }
+        }
+
+        const isNodeInPath = (n) => {
+            if (!n) return false;
+            return pathNodeRefs.has(n) ||
+                (n.id !== undefined && pathNodeIds.has(n.id)) ||
+                (n.data?.fullName && pathNodeNames.has(n.data.fullName)) ||
+                (n.data?.name && pathNodeNames.has(n.data.name));
+        };
+
+        // Class toggle on all graph nodes
         this.svg.selectAll('g.node')
-            .classed('highlighted', targetNode => pathNodes.has(targetNode))
-            .classed('dimmed', targetNode => !pathNodes.has(targetNode));
+            .classed('highlighted', isNodeInPath)
+            .classed('dimmed', targetNode => !isNodeInPath(targetNode));
 
-        // Explicit D3 selection class toggling for links
+        // Class toggle on all connecting links
         this.svg.selectAll('path.link')
-            .classed('highlighted', ({ source, target }) => pathNodes.has(source) && pathNodes.has(target))
-            .classed('dimmed', ({ source, target }) => !pathNodes.has(source) || !pathNodes.has(target));
+            .classed('highlighted', ({ source, target }) => isNodeInPath(source) && isNodeInPath(target))
+            .classed('dimmed', ({ source, target }) => !isNodeInPath(source) || !isNodeInPath(target));
     }
 
     resetPathHighlight() {
         if (!this.svg) return;
+
+        if (this.isHighlightPathActive && this.selectedNodeRef) {
+            this.highlightPathForNode(this.selectedNodeRef);
+            return;
+        }
+
         this.svg.selectAll('g.node, path.link')
             .classed('dimmed', false)
             .classed('highlighted', false);
@@ -628,6 +679,8 @@ export class DependencyGraphController {
             .on('click', async (event, node) => {
                 event.stopPropagation();
 
+                this.markNodeAsFocused(node);
+
                 const contextId = node.data?.contextId || node.data?.meta?.contextId;
                 const fullName = node.data?.fullName || node.data?.name;
 
@@ -656,13 +709,20 @@ export class DependencyGraphController {
             .attr('y', -NH / 2)
             .attr('height', NH)
             .attr('rx', RX)
-            .attr('stroke-width', 1.8);
+            .attr('stroke-width', 2);
+
+        enter.append('rect')
+            .attr('class', 'node-icon-bg')
+            .attr('y', -14)
+            .attr('width', 28)
+            .attr('height', 28)
+            .attr('rx', 8);
 
         enter.append('g')
             .attr('class', 'node-icon')
             .append('path')
             .attr('d', ICON)
-            .attr('stroke-width', 1.5)
+            .attr('stroke-width', 1.8)
             .attr('stroke-linecap', 'round')
             .attr('stroke-linejoin', 'round')
             .attr('fill', 'none');
@@ -672,8 +732,8 @@ export class DependencyGraphController {
             .attr('y', 1)
             .attr('dy', '0.35em')
             .attr('font-size', 13)
-            .attr('font-weight', 500)
-            .attr('font-family', 'Inter, sans-serif');
+            .attr('font-weight', 600)
+            .attr('font-family', 'Inter, -apple-system, sans-serif');
 
         // Right-side expand / collapse toggle icon button
         const toggleGroup = enter.append('g')
@@ -681,10 +741,14 @@ export class DependencyGraphController {
             .attr('cursor', 'pointer')
             .on('mouseenter', function (event, node) {
                 const style = nodeStyle(node);
-                d3.select(this).select('circle').attr('fill', style.fill);
+                d3.select(this).select('circle').attr('fill', style.stroke);
+                d3.select(this).select('.node-toggle-icon').attr('stroke', '#ffffff');
             })
-            .on('mouseleave', function () {
-                d3.select(this).select('circle').attr('fill', '#ffffff');
+            .on('mouseleave', function (event, node) {
+                const style = nodeStyle(node);
+                const isDark = document.documentElement.classList.contains('dark');
+                d3.select(this).select('circle').attr('fill', isDark ? '#0f172a' : '#ffffff');
+                d3.select(this).select('.node-toggle-icon').attr('stroke', style.stroke);
             })
             .on('click', async (event, node) => {
                 event.stopPropagation();
@@ -705,7 +769,7 @@ export class DependencyGraphController {
             });
 
         toggleGroup.append('circle')
-            .attr('r', 9)
+            .attr('r', 9.5)
             .attr('fill', '#ffffff')
             .attr('stroke-width', 1.6);
 
@@ -736,22 +800,40 @@ export class DependencyGraphController {
     }
 
     _updateNodeStylesAndContent(selection) {
+        const isBadge = (this.nodeTheme === 'badge');
+
+        selection
+            .style('--node-color', node => nodeStyle(node, this.nodeTheme).stroke)
+            .classed('node-focused', node => Boolean(
+                this.focusedNodeFullName && (
+                    node.data?.fullName === this.focusedNodeFullName ||
+                    node.data?.name === this.focusedNodeFullName
+                )
+            ));
+
         // Single sub-element queries with cached nodeStyle evaluations
         selection.select('.node-rect')
             .attr('x', ({ width }) => -width / 2)
             .attr('width', ({ width }) => width)
-            .attr('fill', node => nodeStyle(node).fill)
-            .attr('stroke', node => nodeStyle(node).stroke);
+            .attr('fill', node => nodeStyle(node, this.nodeTheme).fill)
+            .attr('stroke', node => nodeStyle(node, this.nodeTheme).stroke);
+
+        selection.select('.node-icon-bg')
+            .style('display', isBadge ? 'block' : 'none')
+            .attr('x', ({ width }) => -width / 2 + 8)
+            .attr('fill', node => nodeStyle(node, this.nodeTheme).iconBg ?? 'rgba(0,0,0,0.05)');
 
         selection.select('.node-icon')
-            .attr('transform', ({ width }) => `translate(${-width / 2 + 14}, -10)`);
+            .attr('transform', ({ width }) => isBadge
+                ? `translate(${-width / 2 + 12}, -10)`
+                : `translate(${-width / 2 + 14}, -10)`);
 
         selection.select('.node-icon path')
-            .attr('stroke', node => nodeStyle(node).icon);
+            .attr('stroke', node => nodeStyle(node, this.nodeTheme).icon);
 
         selection.select('.node-text')
-            .attr('x', ({ width }) => -width / 2 + 42)
-            .attr('fill', node => nodeStyle(node).text)
+            .attr('x', ({ width }) => isBadge ? -width / 2 + 44 : -width / 2 + 42)
+            .attr('fill', node => nodeStyle(node, this.nodeTheme).text)
             .text(({ data }) => data.name);
 
         selection.each(function (node) {
@@ -761,11 +843,13 @@ export class DependencyGraphController {
             if (hasChildren) {
                 const style = nodeStyle(node);
                 const isExpanded = !!node.children;
+                const isDark = document.documentElement.classList.contains('dark');
 
                 toggle.style('display', 'block')
                     .attr('transform', `translate(${node.width / 2 - 18}, 0)`);
 
                 toggle.select('circle')
+                    .attr('fill', isDark ? '#0f172a' : '#ffffff')
                     .attr('stroke', style.stroke);
 
                 toggle.select('.node-toggle-icon')
@@ -884,105 +968,94 @@ export class DependencyGraphController {
             meta = {}
         } = selectedHierarchyNode.data ?? {};
 
-        const storedRecord = beanDataStore.findBeanByName(fullName, contextId) ?? {};
-        const mergedMeta = { ...meta, ...storedRecord };
+        if (!fullName || meta.type === 'context' || meta.type === 'root') {
+            this.closeSidebar();
+            return;
+        }
+
+        let storedRecord = beanDataStore.findBeanByName(fullName, contextId);
+        if (!storedRecord && this.findBeanDetailsApi) {
+            const details = await this.fetchBeanDetails(contextId, fullName);
+            if (details) {
+                this._mergeBeanDetailsIntoTree(selectedHierarchyNode, details);
+                storedRecord = details;
+            }
+        }
+
+        const mergedMeta = { ...meta, ...(storedRecord ?? {}) };
+        const initialDependencies = this._resolveInitialDependencyLists(fullName, contextId, mergedMeta);
+        const hasDependencies = Boolean(initialDependencies.dependencies && initialDependencies.dependencies.length > 0);
+        const hasDependents = Boolean(initialDependencies.dependents && initialDependencies.dependents.length > 0);
+
+        if (!this._hasBeanDetails(mergedMeta, storedRecord) || (!hasDependencies && !hasDependents)) {
+            this.closeSidebar();
+            ToastNotification.show({
+                title: 'Bean Details',
+                message: `No additional details available for <span class="font-semibold text-gray-850 dark:text-gray-200">${displayName || fullName}</span>.`,
+                type: 'sweet',
+                duration: 4000
+            });
+            return;
+        }
 
         this._openSidebarAndPopulateHeader(mergedMeta);
+        this._renderDependencyAccordions(initialDependencies.dependencies, initialDependencies.dependents, contextId);
+    }
 
-        const initialDependencies = this._resolveInitialDependencyLists(fullName, contextId);
-        this._renderDependencyAccordions(initialDependencies.dependencies, initialDependencies.dependents);
+    _hasBeanDetails(mergedMeta = {}, storedRecord = null) {
+        if (!mergedMeta) return false;
+        if (mergedMeta.type === 'context' || mergedMeta.type === 'root') return false;
+
+        if (storedRecord && (storedRecord.beanName || storedRecord.name || (storedRecord.type && storedRecord.type !== 'N/A'))) {
+            return true;
+        }
+
+        const hasValidType = mergedMeta.type && mergedMeta.type !== 'N/A' && mergedMeta.type !== 'context' && mergedMeta.type !== 'root';
+        const hasDependencies = Array.isArray(mergedMeta.dependencies) && mergedMeta.dependencies.length > 0;
+        const hasRole = Boolean(mergedMeta.role);
+        const hasFactoryBean = Boolean(mergedMeta.factoryBeanName || mergedMeta.factoryMethodName);
+
+        return Boolean(hasValidType || hasDependencies || hasRole || hasFactoryBean);
+    }
+
+    _initSidebar() {
+        const $sidebar = $('#details-sidebar');
+        if ($sidebar.length && !$sidebar.children().length) {
+            $sidebar.empty();
+            const clone = TemplateEngine.clone('tpl-bean-details-sidebar');
+            if (clone) {
+                $sidebar.append(clone);
+            }
+        }
     }
 
     openSidebar() {
-        $('#details-sidebar').css('display', 'flex');
-        this.fitView(300);
+        this._initSidebar();
+        const $sidebar = $('#details-sidebar');
+        if (!$sidebar.length) return;
+        $sidebar.removeClass('w-0 max-w-0 opacity-0 pointer-events-none -mr-4 border-0')
+                .addClass('w-[360px] max-w-[360px] opacity-100 mr-0 border');
     }
 
-    closeSidebar() {
-        $('#details-sidebar').hide();
-        this.fitView(300);
+    closeSidebar(immediate = false) {
+        const $sidebar = $('#details-sidebar');
+        if (!$sidebar.length) return;
+        $sidebar.removeClass('w-[360px] max-w-[360px] opacity-100 mr-0 border')
+                .addClass('w-0 max-w-0 opacity-0 pointer-events-none -mr-4 border-0');
     }
 
     _openSidebarAndPopulateHeader(meta = {}) {
         this.openSidebar();
-        let {
-            contextId,
-            beanName,
-            type,
-            scope,
-            lazyInit,
-            primary,
-            autowireCandidate,
-            role,
-            initMethodName,
-            destroyMethodName,
-            factoryBeanName,
-            factoryMethodName,
-        } = meta;
-
-        const capitalize = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '';
-
-        const beanType = type || 'N/A';
-        const beanScope = scope || 'singleton';
-        const scopeText = (meta.scope || beanScope) ? capitalize(meta.scope || beanScope) : 'Singleton';
-        const rawRole = role ? String(role).replace(/^ROLE_/, '') : 'APPLICATION';
-        const roleText = capitalize(rawRole);
-        const factoryBean = factoryBeanName || '-';
-        const factoryMethod = factoryMethodName || '-';
-        const initMethod = initMethodName || '-';
-        const destroyMethod = destroyMethodName || '-';
-
-        $('#detail-bean-name').text(beanName).attr('title', beanName);
-        $('#detail-bean-type').text(beanType).attr('title', beanType);
-        $('#detail-bean-scope').text(scopeText);
-        $('#detail-bean-role').text(roleText);
-        $('#detail-prop-primary').text(primary ? 'TRUE' : 'FALSE');
-        $('#detail-prop-lazy').text(lazyInit ? 'TRUE' : 'FALSE');
-        $('#detail-prop-autowired').text(autowireCandidate ? 'TRUE' : 'FALSE');
-        $('#detail-prop-context').text(contextId || '-');
-        $('#detail-factory-bean').text(factoryBean);
-        $('#detail-factory-method').text(factoryMethod);
-        $('#detail-init-method').text(initMethod);
-        $('#detail-destroy-method').text(destroyMethod);
-
+        Sidebar.populateDetails(meta);
+        Sidebar.updateSidebarIcon(meta);
         this.switchTab('properties');
     }
 
     switchTab(tabName) {
-        $('.tab-btn').removeClass('text-primary dark:text-purple-400 border-b-2 border-primary font-bold')
-            .addClass('text-gray-500 dark:text-gray-400 font-medium');
-        $(`#tab-${tabName}`).addClass('text-primary dark:text-purple-400 border-b-2 border-primary font-bold')
-            .removeClass('text-gray-500 dark:text-gray-400 font-medium');
-
-        $('.tab-pane').addClass('hidden');
-        $(`#pane-${tabName}`).removeClass('hidden');
+        Sidebar.switchTab(tabName);
     }
 
-    _applySidebarScopeStyle(scopeName = 'singleton') {
-        const isDarkMode = document.documentElement.classList.contains('dark');
-        const isSingletonScope = scopeName.toLowerCase() === 'singleton';
-
-        const SCOPE_THEME_PALETTE = {
-            dark: {
-                singleton: { bg: 'rgba(126, 34, 206, 0.15)', fg: '#d8b4fe', border: 'rgba(126, 34, 206, 0.3)' },
-                other: { bg: 'rgba(16, 185, 129, 0.15)', fg: '#a7f3d0', border: 'rgba(16, 185, 129, 0.3)' }
-            },
-            light: {
-                singleton: { bg: '#f3e8ff', fg: '#7e22ce', border: '#d8b4fe' },
-                other: { bg: '#ecfdf5', fg: '#047857', border: '#bbf7d0' }
-            }
-        };
-
-        const themeKey = isDarkMode ? 'dark' : 'light';
-        const scopeKey = isSingletonScope ? 'singleton' : 'other';
-        const { bg, fg, border } = SCOPE_THEME_PALETTE[themeKey][scopeKey];
-
-        $('#detail-bean-scope')
-            .text(scopeName)
-            .css({ background: bg, color: fg, borderColor: border });
-    }
-
-    _resolveInitialDependencyLists(fullName, contextId) {
+    _resolveInitialDependencyLists(fullName, contextId, fallbackMeta = {}) {
         if (!fullName) {
             return { dependencies: [], dependents: [] };
         }
@@ -990,49 +1063,27 @@ export class DependencyGraphController {
         const cachedRecord = beanDataStore.findBeanByName(fullName, contextId);
 
         return {
-            dependencies: cachedRecord?.dependencies ?? [],
-            dependents: cachedRecord?.dependents ?? []
+            dependencies: cachedRecord?.dependencies ?? fallbackMeta?.dependencies ?? [],
+            dependents: cachedRecord?.dependents ?? fallbackMeta?.dependents ?? []
         };
     }
 
-    _renderDependencyAccordions(dependencyNames = [], dependentNames = []) {
+    _renderDependencyAccordions(dependencyNames = [], dependentNames = [], contextId = '') {
         $('#detail-deps-count').text(dependencyNames.length);
         $('#detail-dependents-count').text(dependentNames.length);
 
-        const dependencyListHtml = this._buildDependencyListItemsHtml(dependencyNames, 'No dependencies');
-        const dependentListHtml = this._buildDependencyListItemsHtml(dependentNames, 'No dependents');
-
-        $('#detail-deps-list').html(dependencyListHtml);
-        $('#detail-dependents-list').html(dependentListHtml);
-    }
-
-    _buildDependencyListItemsHtml(beanNames, emptyFallbackMessage) {
-        if (!beanNames || beanNames.length === 0) {
-            return `<div class="text-gray-400 text-xs py-2 px-1">${emptyFallbackMessage}</div>`;
-        }
-
-        const categoryColors = {
-            intermediate: 'green',
-            leaf: 'yellow',
-            adapter: 'purple'
-        };
-
-        return beanNames.map(beanName => {
-            const beanRecord = beanDataStore.findBeanByName(beanName);
-            const displayName = GraphTreeBuilder._displayName(beanName);
-            const category = beanRecord
-                ? getBeanCategory({ fullName: beanName, meta: { type: beanRecord.type } })
-                : null;
-
-            const catColor = categoryColors[category] ?? 'blue';
-
-            return `
-                <div class="flex items-center gap-2 py-2 px-2 text-xs border-b border-gray-50 dark:border-slate-800/60 last:border-b-0">
-                    <span class="w-2 h-2 rounded-full bg-${catColor}-500 flex-shrink-0"></span>
-                    <span class="font-mono text-[11px] text-gray-700 dark:text-gray-300 break-all" title="${beanName}">${displayName}</span>
-                </div>
-            `;
-        }).join('');
+        Sidebar.renderDependencyList($('#detail-deps-list'), dependencyNames, {
+            emptyText: 'No dependencies',
+            emptyTemplateId: 'tpl-graph-dep-empty',
+            templateId: 'tpl-graph-dep-item',
+            contextId
+        });
+        Sidebar.renderDependencyList($('#detail-dependents-list'), dependentNames, {
+            emptyText: 'No dependents',
+            emptyTemplateId: 'tpl-graph-dep-empty',
+            templateId: 'tpl-graph-dep-item',
+            contextId
+        });
     }
 
     findNodeInTree(rootNode, targetIdentifier) {
@@ -1108,15 +1159,39 @@ export class DependencyGraphController {
         const targetX = isTopBottom ? nodeX : nodeY;
         const targetY = isTopBottom ? nodeY : nodeX;
 
-        const zoomScale = 1.2;
+        const zoomScale = 1.3;
         const translateX = width / 2 - targetX * zoomScale;
         const translateY = height / 2 - targetY * zoomScale;
 
         this.svg.transition()
-            .duration(500)
+            .duration(600)
             .call(this.zoom.transform, d3.zoomIdentity.translate(translateX, translateY).scale(zoomScale));
 
+        this.markNodeAsFocused(targetNode);
         this.selectNode(targetNode);
+    }
+
+    markNodeAsFocused(targetNode) {
+        this.focusedNodeFullName = targetNode?.data?.fullName || targetNode?.data?.name || (typeof targetNode === 'string' ? targetNode : null);
+        if (!this.svg) return;
+
+        this.svg.selectAll('g.node')
+            .style('--node-color', node => nodeStyle(node).stroke)
+            .classed('node-focused', node => Boolean(
+                this.focusedNodeFullName && (
+                    node === targetNode ||
+                    node.data?.fullName === this.focusedNodeFullName ||
+                    node.data?.name === this.focusedNodeFullName
+                )
+            ));
+
+        this.svg.selectAll('g.node.node-focused').raise();
+    }
+
+    clearFocusedNode() {
+        this.focusedNodeFullName = null;
+        if (!this.svg) return;
+        this.svg.selectAll('g.node').classed('node-focused', false);
     }
 
     setMode(layoutMode) {
@@ -1150,6 +1225,27 @@ export class DependencyGraphController {
         this.fitView(500);
     }
 
+    setNodeTheme(themeName, shouldUpdate = true) {
+        this.nodeTheme = themeName;
+        localStorage.setItem('sl-node-theme', themeName);
+
+        const isTint = themeName === 'tint';
+        const activeClasses = 'bg-white dark:bg-slate-800 text-gray-800 dark:text-white shadow-xs font-bold';
+        const inactiveClasses = 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white font-medium';
+
+        $('#btn-node-theme-tint')
+            .toggleClass(activeClasses, isTint)
+            .toggleClass(inactiveClasses, !isTint);
+
+        $('#btn-node-theme-badge')
+            .toggleClass(activeClasses, !isTint)
+            .toggleClass(inactiveClasses, isTint);
+
+        if (shouldUpdate && this.root) {
+            this.update(null, this.root);
+        }
+    }
+
     _bindSearchHandlers() {
         let searchDebounceTimer = null;
         const DEBOUNCE_DELAY_MS = 150;
@@ -1159,6 +1255,23 @@ export class DependencyGraphController {
             searchDebounceTimer = setTimeout(() => {
                 this._handleSearchInput(event.target.value);
             }, DEBOUNCE_DELAY_MS);
+        });
+
+        $(document).on('keydown', '#search-input', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                const $firstSuggestion = $('#search-suggestions .suggestion-item').first();
+                if ($firstSuggestion.length) {
+                    $firstSuggestion.trigger('click');
+                } else {
+                    const query = $('#search-input').val()?.trim();
+                    if (query) {
+                        this.focusOnBean(query);
+                        $('#search-input').val('');
+                        $('#search-suggestions').hide();
+                    }
+                }
+            }
         });
 
         this._bindOutsideSearchDismissal();
@@ -1227,18 +1340,30 @@ export class DependencyGraphController {
     _renderSearchSuggestions($suggestionsBox, matchingBeans) {
         if (matchingBeans.length === 0) {
             $suggestionsBox
-                .html('<div class="p-2 text-gray-400 text-xs">No matching beans in loaded tree</div>')
+                .html('<div class="p-2 text-gray-400 dark:text-gray-500 text-xs">No matching beans in loaded tree</div>')
                 .show();
             return;
         }
 
-        console.log(matchingBeans);
+        $suggestionsBox.empty();
+        const fragment = document.createDocumentFragment();
+        matchingBeans.forEach(beanMatch => {
+            const clone = TemplateEngine.clone('tpl-suggestion-item');
+            if (clone) {
+                const $item = $(clone.firstElementChild);
+                $item.attr('data-fullname', beanMatch.fullName);
+                $item.find('[data-field="name"]').text(beanMatch.displayName);
+                fragment.appendChild(clone);
+            } else {
+                const itemElem = document.createElement('div');
+                itemElem.className = 'suggestion-item p-2 hover:bg-gray-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors border-b border-gray-50 dark:border-slate-800/50 last:border-b-0';
+                itemElem.setAttribute('data-fullname', beanMatch.fullName);
+                itemElem.innerHTML = `<strong class="text-xs font-semibold text-gray-700 dark:text-gray-300 block">${beanMatch.displayName}</strong>`;
+                fragment.appendChild(itemElem);
+            }
+        });
 
-        const suggestionsHtml = matchingBeans
-            .map(beanMatch => TEMPLATES.suggestionItem(beanMatch))
-            .join('');
-
-        $suggestionsBox.html(suggestionsHtml).show();
+        $suggestionsBox.append(fragment).show();
     }
 
     _bindOutsideSearchDismissal() {
@@ -1285,7 +1410,7 @@ export class DependencyGraphController {
 
     _handleAccordionToggleClick($clickedElement) {
         const $accordionHeader = $clickedElement.closest('.accordion-header');
-        if ($accordionHeader.length === 0) return false;
+        if (!$accordionHeader.length) return false;
 
         $accordionHeader.toggleClass('open');
         $accordionHeader.find('.material-symbols-outlined').toggleClass('rotate-90');
@@ -1317,9 +1442,11 @@ export class DependencyGraphController {
             'btn-control-fit': () => this.fitView(),
             'btn-pan-mode': () => this.fitView(),
             'btn-highlight-path': () => this._togglePathHighlightState($actionButton),
-            'btn-close-sidebar': () => $('#details-sidebar').hide(),
+            'btn-close-sidebar': () => this.closeSidebar(),
             'btn-tb': () => this.setMode('tb'),
-            'btn-lr': () => this.setMode('lr')
+            'btn-lr': () => this.setMode('lr'),
+            'btn-node-theme-tint': () => this.setNodeTheme('tint'),
+            'btn-node-theme-badge': () => this.setNodeTheme('badge')
         };
     }
 
@@ -1381,8 +1508,8 @@ export class DependencyGraphController {
         const progressState = this._resolveProgressState(hasError, isComplete);
         const configuration = this._getProgressConfiguration(progressState, { loaded, total, errorMsg });
 
-        this._applyBadgeStyles($badgeElement, configuration.badgeClass);
-        this._applyDotStyles($dotElement, configuration.dotClass);
+        $badgeElement.removeClass(ALL_PROGRESS_BADGE_CLASSES).addClass(configuration.badgeClass);
+        $dotElement.removeClass(ALL_PROGRESS_DOT_CLASSES).addClass(configuration.dotClass);
         $textElement.html(configuration.textHtml);
     }
 
@@ -1393,44 +1520,26 @@ export class DependencyGraphController {
     }
 
     _getProgressConfiguration(state, { loaded, total, errorMsg }) {
-        const STATE_CONFIGURATIONS = {
-            error: {
-                badgeClass: 'bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-900/30',
-                dotClass: 'bg-red-500',
-                textHtml: `Failed <span class="text-[11px] opacity-85">(${errorMsg || 'Retry'})</span>`
-            },
-            complete: {
-                badgeClass: 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/30',
-                dotClass: 'bg-emerald-500',
-                textHtml: `Loaded (${loaded})`
-            },
-            loading: {
-                badgeClass: 'bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/30',
-                dotClass: 'bg-amber-500 animate-pulse',
-                textHtml: `Loading: ${loaded} / ${total}`
-            }
+        const style = PROGRESS_BADGE_STYLES[state] || PROGRESS_BADGE_STYLES.loading;
+
+        const textHtmlMap = {
+            error: `Failed <span class="text-[11px] opacity-85">(${errorMsg || 'Retry'})</span>`,
+            complete: `Loaded (${loaded})`,
+            loading: `Loading: ${loaded} / ${total}`
         };
 
-        return STATE_CONFIGURATIONS[state];
-    }
-
-    _applyBadgeStyles($badge, targetClass) {
-        const ALL_BADGE_CLASSES = [
-            'bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/30',
-            'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900/30',
-            'bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-900/30'
-        ].join(' ');
-
-        $badge.removeClass(ALL_BADGE_CLASSES).addClass(targetClass);
-    }
-
-    _applyDotStyles($dot, targetClass) {
-        const ALL_DOT_CLASSES = 'bg-amber-500 bg-emerald-500 bg-red-500 animate-pulse';
-        $dot.removeClass(ALL_DOT_CLASSES).addClass(targetClass);
+        return {
+            badgeClass: style.badge,
+            dotClass: style.dot,
+            textHtml: textHtmlMap[state]
+        };
     }
 
     leave() {
         this.closeSidebar();
+        this.clearFocusedNode();
+        $('#search-input').val('');
+        $('#search-results').addClass('hidden').empty();
         $('#tip').removeClass('show');
     }
 }

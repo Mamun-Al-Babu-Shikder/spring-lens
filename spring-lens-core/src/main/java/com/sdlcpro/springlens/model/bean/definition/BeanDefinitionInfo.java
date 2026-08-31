@@ -5,6 +5,8 @@ import com.sdlcpro.springlens.util.Preconditions;
 
 import java.util.List;
 
+import static com.sdlcpro.springlens.util.DefensiveCopies.immutableListOrEmpty;
+
 public record BeanDefinitionInfo(
         String contextId,
         String beanName,
@@ -30,8 +32,8 @@ public record BeanDefinitionInfo(
         Preconditions.notNull(beanName, "Bean name must not be null");
         Preconditions.notNull(scope, "Bean scope must not be null");
         Preconditions.notNull(role, "BeanRole must not be null");
-        aliases = aliases == null ? List.of() : List.copyOf(aliases);
-        dependencies = dependencies == null ? List.of() : List.copyOf(dependencies);
-        dependents = dependents == null ? List.of() : List.copyOf(dependents);
+        aliases = immutableListOrEmpty(aliases);
+        dependencies = immutableListOrEmpty(dependencies);
+        dependents = immutableListOrEmpty(dependents);
     }
 }

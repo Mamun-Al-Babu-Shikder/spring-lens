@@ -1,133 +1,715 @@
 <!-- Topbar -->
-<header class="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-8 py-4 flex items-center justify-between z-10 flex-shrink-0 h-[72px] transition-colors duration-300">
+<header
+    class="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-6 sm:px-8 py-4 flex items-center justify-between z-10 flex-shrink-0 h-[72px] transition-colors duration-300">
     <div>
-        <h1 class="text-xl font-bold text-gray-800 dark:text-white">DashboardController</h1>
+        <h1 class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+            System Overview
+        </h1>
         <div class="text-xs text-gray-500 dark:text-gray-400 font-medium flex items-center gap-1">
-            SpringLens <span class="material-symbols-outlined text-[14px]">chevron_right</span> Overview
+            SpringLens <span class="material-symbols-outlined text-[14px]">chevron_right</span> Application Dashboard
         </div>
     </div>
     <div class="flex items-center gap-3">
-        <button id="btn-refresh-dashboard" class="w-8 h-8 flex items-center justify-center border border-gray-200 dark:border-slate-700 rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 bg-white dark:bg-slate-900 shadow-sm transition-colors cursor-pointer">
-            <span class="material-symbols-outlined text-[18px]">refresh</span>
+        <div
+            class="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60 shadow-sm">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span id="app-live-status">Application Active</span>
+        </div>
+        <button id="btn-refresh-dashboard"
+            class="w-9 h-9 flex items-center justify-center border border-gray-200 dark:border-slate-700 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 bg-white dark:bg-slate-900 shadow-sm transition-all cursor-pointer"
+            title="Refresh dashboard metrics">
+            <span class="material-symbols-outlined text-[18px]" id="refresh-icon">refresh</span>
         </button>
     </div>
 </header>
 
-<!-- DashboardController Content -->
+<!-- Dashboard Content Container -->
 <div class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
-    
-    <!-- Hero / Welcome Banner -->
-    <div class="relative overflow-hidden bg-gradient-to-r from-primary to-indigo-600 rounded-2xl p-6 text-white shadow-md">
-        <div class="relative z-10 max-w-lg">
-            <h2 class="text-2xl font-bold mb-2">Welcome to Spring Lens</h2>
-            <p class="text-sm text-white/80 leading-relaxed mb-4">
-                Real-time observability, bean dependency mapping, and HTTP transaction insights for your Spring Boot application.
-            </p>
-            <div class="text-[11px] font-semibold text-white/90 bg-white/10 rounded-lg px-3 py-1.5 inline-flex items-center gap-1.5 mb-4 backdrop-blur-sm border border-white/10">
-                <span class="material-symbols-outlined text-[14px]">timer</span>
-                Application initialized in <span id="db-startup-time" class="font-bold">-</span>
-            </div>
-            <div class="flex flex-wrap items-center gap-3">
-                <a href="#/graph" class="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-xs font-semibold backdrop-blur-sm transition-colors">
-                    Explore Bean Graph
-                </a>
-                <a href="#/timeline" class="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg text-xs font-semibold backdrop-blur-sm transition-colors">
-                    View Startup Timeline
-                </a>
-                <a href="#/request" class="px-4 py-2 bg-white text-primary hover:bg-gray-50 rounded-lg text-xs font-semibold transition-colors">
-                    Inspect HTTP Requests
-                </a>
-            </div>
-        </div>
-        <!-- Decorative subtle background shapes -->
-        <div class="absolute right-0 bottom-0 top-0 w-1/2 opacity-20 pointer-events-none flex items-center justify-center">
-            <span class="material-symbols-outlined text-[180px] text-white">insights</span>
-        </div>
-    </div>
 
-    <!-- KPI Cards Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <!-- Beans count -->
-        <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm hover:shadow-md dark:hover:shadow-slate-950/40 transition-all flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                <span class="material-symbols-outlined text-[28px]">view_in_ar</span>
-            </div>
-            <div>
-                <span class="text-xs font-medium text-gray-400 dark:text-gray-500 block uppercase tracking-wider">Total Beans</span>
-                <span class="text-2xl font-bold text-gray-800 dark:text-gray-100" id="db-beans-count">-</span>
-            </div>
-        </div>
-        <!-- Dependencies count -->
-        <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm hover:shadow-md dark:hover:shadow-slate-950/40 transition-all flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-success-light dark:bg-success/15 text-success flex items-center justify-center">
-                <span class="material-symbols-outlined text-[28px]">hub</span>
-            </div>
-            <div>
-                <span class="text-xs font-medium text-gray-400 dark:text-gray-500 block uppercase tracking-wider">Dependencies</span>
-                <span class="text-2xl font-bold text-gray-800 dark:text-gray-100" id="db-deps-count">-</span>
-            </div>
-        </div>
-        <!-- Requests count -->
-        <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm hover:shadow-md dark:hover:shadow-slate-950/40 transition-all flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-info/10 dark:bg-info/15 text-info flex items-center justify-center">
-                <span class="material-symbols-outlined text-[28px]">swap_calls</span>
-            </div>
-            <div>
-                <span class="text-xs font-medium text-gray-400 dark:text-gray-500 block uppercase tracking-wider">HTTP Requests</span>
-                <span class="text-2xl font-bold text-gray-800 dark:text-gray-100" id="db-requests-count">-</span>
-            </div>
-        </div>
-        <!-- Avg time -->
-        <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm hover:shadow-md dark:hover:shadow-slate-950/40 transition-all flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-warning/10 dark:bg-warning/15 text-warning flex items-center justify-center">
-                <span class="material-symbols-outlined text-[28px]">speed</span>
-            </div>
-            <div>
-                <span class="text-xs font-medium text-gray-400 dark:text-gray-500 block uppercase tracking-wider">Avg Latency</span>
-                <span class="text-2xl font-bold text-gray-800 dark:text-gray-100" id="db-avg-time">-</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Visualizations & Recent requests -->
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <!-- HTTP request statistics chart -->
-        <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm xl:col-span-1 flex flex-col transition-colors duration-300">
-            <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
-                <span class="material-symbols-outlined text-[18px] text-gray-500 dark:text-gray-400">donut_large</span> Request Status Breakdown
-            </h3>
-            <div class="flex-1 flex items-center justify-center relative min-h-[220px]">
-                <canvas id="dbRequestChart" class="max-w-[200px] max-h-[200px]"></canvas>
-            </div>
-        </div>
-
-        <!-- Recent activity table -->
-        <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm xl:col-span-2 flex flex-col overflow-hidden transition-colors duration-300">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[18px] text-gray-500 dark:text-gray-400">history</span> Recent HTTP Activity
+    <!-- Quick Bean Search & Discovery Bar -->
+    <div
+        class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm transition-colors duration-300">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="space-y-0.5">
+                <h3 class="text-sm font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[20px] text-primary">search</span>
+                    Quick Bean Search & Inspector
                 </h3>
-                <a href="#/request" class="text-xs font-semibold text-primary dark:text-purple-400 hover:underline flex items-center gap-0.5">
-                    View All <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                <p class="text-xs text-gray-500 dark:text-gray-400">Search any bean to jump directly to its definition,
+                    dependencies, or instance metrics</p>
+            </div>
+            <div class="relative flex-1 max-w-md">
+                <span
+                    class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
+                <input type="text" id="db-quick-search-input"
+                    placeholder="Search bean by name (e.g. dataSource, controller, security)..."
+                    class="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
+            </div>
+        </div>
+
+        <!-- Live Quick Search Results Container (Hidden when empty) -->
+        <div id="db-quick-search-results"
+            class="mt-4 pt-4 border-t border-gray-100 dark:border-slate-800 hidden space-y-2">
+            <div class="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Matching Beans
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2" id="db-quick-search-chips">
+                <!-- Search chips -->
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Hero / Application Telemetry Banner -->
+    <div
+        class="relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-950 to-indigo-950 rounded-2xl p-6 sm:p-7 text-white shadow-lg border border-purple-900/30">
+        <!-- Subtle background glow -->
+        <div class="absolute -right-16 -top-16 w-80 h-80 bg-primary/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -left-16 -bottom-16 w-72 h-72 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none">
+        </div>
+
+        <div class="relative z-10 space-y-6" id="hero-application-banner">
+
+            <!-- Top Line: App Name, Profiles, Uptime -->
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div class="space-y-1">
+                    <div class="flex items-center gap-3">
+                        <span
+                            class="px-2.5 py-0.5 rounded-md text-[11px] font-bold uppercase tracking-wider bg-primary/30 text-purple-200 border border-purple-400/30">
+                            Spring App
+                        </span>
+                        <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2"
+                            data-field="appName" id="hero-app-name">
+                            <span class="animate-pulse opacity-70">Loading Application...</span>
+                        </h2>
+                    </div>
+                    <p class="text-xs sm:text-sm text-slate-300/90 leading-relaxed max-w-2xl">
+                        Real-time observability snapshot, bean lifecycle intelligence, dependency telemetry, and
+                        auto-configuration reports.
+                    </p>
+                </div>
+
+                <!-- Live Uptime Chip -->
+                <div class="flex items-center gap-3">
+                    <div
+                        class="bg-white/10 backdrop-blur-md border border-white/15 rounded-xl px-4 py-2.5 flex items-center gap-3 shadow-inner">
+                        <div
+                            class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-[20px]">history_toggle_off</span>
+                        </div>
+                        <div>
+                            <span
+                                class="text-[10px] uppercase font-bold text-slate-300 tracking-wider block">Uptime</span>
+                            <span class="text-sm font-bold text-white font-mono" data-field="uptime"
+                                id="hero-app-uptime">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Application Info Cards Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                <!-- Card 1: Spring Boot & Framework -->
+                <div
+                    class="bg-white/5 hover:bg-white/10 transition-colors backdrop-blur-sm border border-white/10 rounded-xl p-3.5 flex items-center gap-3.5">
+                    <div
+                        class="w-10 h-10 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
+                        <span class="material-symbols-outlined text-[22px]">eco</span>
+                    </div>
+                    <div class="min-w-0">
+                        <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Spring
+                            Runtime</span>
+                        <div class="text-xs font-semibold text-white truncate" id="hero-spring-boot">Boot: <span
+                                class="font-mono font-bold text-emerald-300" data-field="bootVersion"
+                                id="hero-spring-boot-val">--</span></div>
+                        <div class="text-[11px] text-slate-300/80 truncate" id="hero-spring-framework">Framework: <span
+                                class="font-mono text-slate-300" data-field="frameworkVersion"
+                                id="hero-spring-framework-val">--</span></div>
+                    </div>
+                </div>
+
+                <!-- Card 2: Java Runtime -->
+                <div
+                    class="bg-white/5 hover:bg-white/10 transition-colors backdrop-blur-sm border border-white/10 rounded-xl p-3.5 flex items-center gap-3.5">
+                    <div
+                        class="w-10 h-10 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0">
+                        <span class="material-symbols-outlined text-[22px]">code</span>
+                    </div>
+                    <div class="min-w-0">
+                        <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Java
+                            Runtime</span>
+                        <div class="text-xs font-semibold text-white truncate" id="hero-java-version">Version: <span
+                                class="font-mono font-bold text-amber-300" data-field="javaVersion"
+                                id="hero-java-version-val">--</span></div>
+                        <div class="text-[11px] text-slate-300/80 truncate" id="hero-java-vendor">Vendor: <span
+                                class="font-mono text-slate-300 truncate inline-block max-w-[120px] align-bottom"
+                                data-field="javaVendor" id="hero-java-vendor-val">--</span></div>
+                    </div>
+                </div>
+
+                <!-- Card 3: Startup Duration -->
+                <div
+                    class="bg-white/5 hover:bg-white/10 transition-colors backdrop-blur-sm border border-white/10 rounded-xl p-3.5 flex items-center gap-3.5">
+                    <div
+                        class="w-10 h-10 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center flex-shrink-0">
+                        <span class="material-symbols-outlined text-[22px]">bolt</span>
+                    </div>
+                    <div class="min-w-0">
+                        <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Startup
+                            Time</span>
+                        <div class="text-xs font-semibold text-white truncate" id="hero-startup-duration">Duration:
+                            <span class="font-mono font-bold text-cyan-300" data-field="startupDuration"
+                                id="hero-startup-duration-val">--</span>
+                        </div>
+                        <div class="text-[11px] text-slate-300/80 truncate" id="hero-started-at">Started: <span
+                                class="font-mono text-slate-300" data-field="startedAt"
+                                id="hero-started-at-val">--</span></div>
+                    </div>
+                </div>
+
+                <!-- Card 4: Profiles -->
+                <div
+                    class="bg-white/5 hover:bg-white/10 transition-colors backdrop-blur-sm border border-white/10 rounded-xl p-3.5 flex items-center gap-3.5">
+                    <div
+                        class="w-10 h-10 rounded-lg bg-purple-500/20 text-purple-300 flex items-center justify-center flex-shrink-0">
+                        <span class="material-symbols-outlined text-[22px]">tune</span>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block"
+                            data-field="profilesLabel" id="hero-profiles-label">Active
+                            Profiles</span>
+                        <div class="flex flex-wrap gap-1 mt-1" id="hero-profiles-list">
+                            <span
+                                class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-white/10 text-white">default</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Action Links -->
+            <div class="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex flex-wrap items-center gap-2.5 text-xs font-semibold">
+                    <span class="text-slate-400 text-xs font-medium mr-1 hidden sm:inline">Quick Jump:</span>
+                    <a href="#/definitions"
+                        class="px-3.5 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg backdrop-blur-sm transition-all inline-flex items-center gap-1.5 border border-white/10 hover:scale-[1.02]">
+                        <span class="material-symbols-outlined text-[16px] text-purple-300">list_alt</span> Definitions
+                    </a>
+                    <a href="#/timeline"
+                        class="px-3.5 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg backdrop-blur-sm transition-all inline-flex items-center gap-1.5 border border-white/10 hover:scale-[1.02]">
+                        <span class="material-symbols-outlined text-[16px] text-emerald-300">timelapse</span> Instances
+                    </a>
+                    <a href="#/conditions"
+                        class="px-3.5 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg backdrop-blur-sm transition-all inline-flex items-center gap-1.5 border border-white/10 hover:scale-[1.02]">
+                        <span class="material-symbols-outlined text-[16px] text-amber-300">rule</span> Conditions
+                    </a>
+                    <a href="#/graph"
+                        class="px-3.5 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg backdrop-blur-sm transition-all inline-flex items-center gap-1.5 border border-white/10 hover:scale-[1.02]">
+                        <span class="material-symbols-outlined text-[16px] text-blue-300">account_tree</span> Dependency
+                        Graph
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4 Executive Pillar KPI Stat Cards Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <!-- KPI 1: Bean Definitions -->
+        <a href="#/definitions"
+            class="group bg-white dark:bg-slate-900 p-5 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-purple-300 dark:hover:border-purple-800/80 transition-all flex flex-col justify-between cursor-pointer">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Bean
+                    Definitions</span>
+                <div
+                    class="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <span class="material-symbols-outlined text-[24px]">list_alt</span>
+                </div>
+            </div>
+            <div>
+                <div class="text-3xl font-extrabold text-gray-800 dark:text-white tracking-tight"
+                    id="kpi-definitions-count">--</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center justify-between"
+                    id="kpi-definitions-sub">
+                    <span><strong class="text-purple-600 dark:text-purple-400 font-bold"
+                            id="kpi-def-singletons">0</strong> Singleton</span>
+                    <span><strong class="text-gray-700 dark:text-gray-300 font-bold" id="kpi-def-prototypes">0</strong>
+                        Prototype</span>
+                </div>
+            </div>
+        </a>
+
+        <!-- KPI 2: Runtime Instances -->
+        <a href="#/timeline"
+            class="group bg-white dark:bg-slate-900 p-5 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-800/80 transition-all flex flex-col justify-between cursor-pointer">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Bean
+                    Instances</span>
+                <div
+                    class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <span class="material-symbols-outlined text-[24px]">timelapse</span>
+                </div>
+            </div>
+            <div>
+                <div class="text-3xl font-extrabold text-gray-800 dark:text-white tracking-tight"
+                    id="kpi-instances-count">--</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center justify-between"
+                    id="kpi-instances-sub">
+                    <span>Total startup cost: <strong class="text-emerald-600 dark:text-emerald-400 font-mono"
+                            id="kpi-inst-total-cost">--</strong></span>
+                </div>
+            </div>
+        </a>
+
+        <!-- KPI 3: Condition Evaluations -->
+        <a href="#/conditions"
+            class="group bg-white dark:bg-slate-900 p-5 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-amber-300 dark:hover:border-amber-800/80 transition-all flex flex-col justify-between cursor-pointer">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Auto-Config
+                    Conditions</span>
+                <div
+                    class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <span class="material-symbols-outlined text-[24px]">rule</span>
+                </div>
+            </div>
+            <div>
+                <div class="text-3xl font-extrabold text-gray-800 dark:text-white tracking-tight"
+                    id="kpi-conditions-count">--</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center justify-between"
+                    id="kpi-conditions-sub">
+                    <span><strong class="text-emerald-600 dark:text-emerald-400" id="kpi-cond-matched">0</strong>
+                        Matched (<span id="kpi-cond-matched-pct">0</span>%)</span>
+                    <span><strong class="text-slate-500" id="kpi-cond-skipped">0</strong> Skipped</span>
+                </div>
+            </div>
+        </a>
+
+        <!-- KPI 4: Dependency Graph -->
+        <a href="#/graph"
+            class="group bg-white dark:bg-slate-900 p-5 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-blue-300 dark:hover:border-blue-800/80 transition-all flex flex-col justify-between cursor-pointer">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dependency
+                    Graph</span>
+                <div
+                    class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <span class="material-symbols-outlined text-[24px]">account_tree</span>
+                </div>
+            </div>
+            <div>
+                <div class="text-3xl font-extrabold text-gray-800 dark:text-white tracking-tight"
+                    id="kpi-dependencies-count">--</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center justify-between"
+                    id="kpi-dependencies-sub">
+                    <span><strong class="text-blue-600 dark:text-blue-400" id="kpi-dep-edges">0</strong> Dependency
+                        Edges</span>
+                    <span><strong class="text-gray-700 dark:text-gray-300" id="kpi-dep-beans">0</strong> Depended
+                        Beans</span>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- 4 Visual Analytics & Deep-Dive Panels Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Panel 1: Bean Architecture Distribution (Chart.js Doughnut) -->
+        <div
+            class="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm flex flex-col transition-colors duration-300">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                <div>
+                    <h3 class="text-sm font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[20px] text-primary">pie_chart</span>
+                        Bean Architecture Distribution
+                    </h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Distribution across scopes, roles, and
+                        loading modes</p>
+                </div>
+                <!-- Distribution Type Toggle -->
+                <div id="chart-mode-toggle"
+                    class="inline-flex bg-gray-100 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-medium self-start sm:self-auto"
+                    role="group" aria-label="Bean definition chart mode">
+                    <button data-chart-mode="scope"
+                        class="px-2.5 py-1 rounded-md text-xs font-semibold bg-white dark:bg-slate-700 text-gray-800 dark:text-white shadow-sm transition-all cursor-pointer"
+                        aria-pressed="true">
+                        Scope
+                    </button>
+                    <button data-chart-mode="role"
+                        class="px-2.5 py-1 rounded-md text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-all cursor-pointer"
+                        aria-pressed="false">
+                        Role
+                    </button>
+                    <button data-chart-mode="loading"
+                        class="px-2.5 py-1 rounded-md text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-all cursor-pointer"
+                        aria-pressed="false">
+                        Mode
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chart & Custom Legend Layout -->
+            <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 items-center gap-4 min-h-[220px]">
+                <div class="relative flex items-center justify-center h-[200px] w-full">
+                    <canvas id="dbDefinitionChart"></canvas>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <span class="text-2xl font-black text-gray-800 dark:text-white" id="db-chart-total">--</span>
+                        <span
+                            class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Definitions</span>
+                    </div>
+                </div>
+                <div class="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-1" id="db-definition-legend">
+                    <!-- Dynamic legend items -->
+                </div>
+            </div>
+
+            <div
+                class="pt-3 mt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                <span class="text-gray-500 dark:text-gray-400" id="db-chart-footer-info">Showing scope breakdown</span>
+                <a href="#/definitions"
+                    class="font-semibold text-primary dark:text-purple-400 hover:underline flex items-center gap-0.5">
+                    View Definitions <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
                 </a>
             </div>
-            <div class="flex-1 overflow-x-auto custom-scrollbar">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="border-b border-gray-100 dark:border-slate-800 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider bg-gray-50/50 dark:bg-slate-800/50">
-                            <th class="px-6 py-3">Method</th>
-                            <th class="px-6 py-3">URL</th>
-                            <th class="px-6 py-3">Status</th>
-                            <th class="px-6 py-3">Latency</th>
-                            <th class="px-6 py-3">IP Address</th>
-                            <th class="px-6 py-3">Time</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100 dark:divide-slate-800" id="db-recent-requests">
-                        <!-- Dynamic rows here -->
-                    </tbody>
-                </table>
+        </div>
+
+        <!-- Panel: Compact Dependency Graph (D3 Force-Directed Tree) -->
+        <div
+            class="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm flex flex-col transition-colors duration-300">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                <div>
+                    <h3 class="text-sm font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[20px] text-blue-500">account_tree</span>
+                        Dependency Topology
+                    </h3>
+                </div>
+                <!-- Controls: Zoom In / Zoom Out / Reset -->
+                <div class="flex items-center gap-1.5 self-start sm:self-auto">
+                    <!-- Quick Filter Indicator / Level Legend -->
+                    <div
+                        class="hidden sm:flex items-center gap-2.5 mr-2 px-2.5 py-1 rounded-lg bg-gray-50 dark:bg-slate-800/80 border border-gray-100 dark:border-slate-700/50 text-[10px] text-gray-500 dark:text-gray-400">
+                        <span class="flex items-center gap-1"><span
+                                class="w-2 h-2 rounded-full bg-emerald-500"></span>Root</span>
+                        <span class="flex items-center gap-1"><span
+                                class="w-2 h-2 rounded-full bg-emerald-400"></span>Service</span>
+                        <span class="flex items-center gap-1"><span
+                                class="w-2 h-2 rounded-full bg-amber-400"></span>Repo</span>
+                        <span class="flex items-center gap-1"><span
+                                class="w-2 h-2 rounded-full bg-pink-400"></span>Web</span>
+                        <span class="flex items-center gap-1"><span
+                                class="w-2 h-2 rounded-full bg-purple-400"></span>Config</span>
+                        <span class="flex items-center gap-1"><span
+                                class="w-2 h-2 rounded-full bg-blue-400"></span>Core</span>
+                    </div>
+
+                    <button id="btn-radial-zoom-in"
+                        class="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer active:scale-95"
+                        title="Zoom In">
+                        <span class="material-symbols-outlined text-[16px]">add</span>
+                    </button>
+                    <button id="btn-radial-zoom-out"
+                        class="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer active:scale-95"
+                        title="Zoom Out">
+                        <span class="material-symbols-outlined text-[16px]">remove</span>
+                    </button>
+                    <button id="btn-radial-reset"
+                        class="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer active:scale-95"
+                        title="Reset View">
+                        <span class="material-symbols-outlined text-[16px]">restart_alt</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Force-Directed Tree SVG Container -->
+            <div
+                class="relative flex-1 min-h-[340px] h-[340px] w-full flex items-center justify-center overflow-hidden bg-gradient-to-b from-gray-50/70 via-white to-gray-50/40 dark:from-slate-950/60 dark:via-slate-900/40 dark:to-slate-950/80 rounded-xl border border-gray-100 dark:border-slate-800/80">
+                <svg id="db-radial-tree-svg" class="w-full h-full cursor-grab active:cursor-grabbing select-none"></svg>
+
+                <!-- Loading State -->
+                <div id="db-radial-loading"
+                    class="absolute inset-0 flex flex-col items-center justify-center bg-white/70 dark:bg-slate-900/70 backdrop-blur-xs">
+                    <span
+                        class="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent mb-1.5"></span>
+                    <span class="text-[11px] font-medium text-gray-500 dark:text-gray-400">Simulating Force-Directed
+                        Tree...</span>
+                </div>
+
+                <!-- Floating Tooltip Card -->
+                <div id="db-radial-tooltip"
+                    class="absolute hidden min-w-[200px] max-w-[260px] p-3 rounded-xl bg-gray-900/95 dark:bg-slate-800/95 text-white text-xs shadow-2xl backdrop-blur-md pointer-events-none z-30 border border-white/15 transition-all duration-150">
+                    <!-- Dynamic Tooltip content -->
+                </div>
+            </div>
+
+            <div
+                class="pt-3 mt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                <span class="text-gray-500 dark:text-gray-400" id="db-radial-stats">Interactive Force Tree • Drag nodes
+                    to explore</span>
+                <a href="#/graph"
+                    class="font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5">
+                    Full Graph Mode <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- Panel 2: Startup Performance Bottlenecks (Top Slowest Beans) -->
+        <div
+            class="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm flex flex-col transition-colors duration-300">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-sm font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[20px] text-amber-500">speed</span>
+                        Startup Bottlenecks
+                    </h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Beans with longest initialization latency
+                    </p>
+                </div>
+                <a href="#/timeline"
+                    class="text-xs font-semibold text-primary dark:text-purple-400 hover:underline flex items-center gap-0.5">
+                    Full Timeline <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                </a>
+            </div>
+
+            <!-- Slowest Beans List -->
+            <div class="flex-1 space-y-2.5 overflow-y-auto custom-scrollbar max-h-[240px] pr-1"
+                id="db-slowest-beans-list">
+                <!-- Skeleton rows -->
+                <div class="p-3 bg-gray-50 dark:bg-slate-800/50 rounded-xl animate-pulse space-y-2">
+                    <div class="h-3 bg-gray-200 dark:bg-slate-700 rounded w-1/2"></div>
+                    <div class="h-2 bg-gray-200 dark:bg-slate-700 rounded w-3/4"></div>
+                </div>
+            </div>
+
+            <div
+                class="pt-3 mt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                <span id="db-slowest-total-cost">Total Init Cost: <strong
+                        class="text-gray-700 dark:text-gray-300 font-mono" id="db-slowest-cost-val">--</strong></span>
+                <span class="text-amber-600 dark:text-amber-400 font-semibold" id="db-slowest-max-latency">Max:
+                    <strong class="font-mono" id="db-slowest-max-val">--</strong></span>
+            </div>
+        </div>
+
+        <!-- Panel 3: Auto-Configuration Condition Evaluations -->
+        <div
+            class="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm flex flex-col transition-colors duration-300">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-sm font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[20px] text-emerald-500">checklist</span>
+                        Condition Evaluations
+                    </h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Spring Boot auto-configuration decisions
+                    </p>
+                </div>
+                <a href="#/conditions"
+                    class="text-xs font-semibold text-primary dark:text-purple-400 hover:underline flex items-center gap-0.5">
+                    View Reports <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                </a>
+            </div>
+
+            <!-- Visual Condition Outcome Ratio Bar -->
+            <div class="space-y-1.5 mb-4">
+                <div class="flex items-center justify-between text-xs font-medium">
+                    <span class="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        Matched: <span id="db-cond-matched-label">0 (0%)</span>
+                    </span>
+                    <span class="text-slate-500 dark:text-slate-400 font-bold flex items-center gap-1">
+                        <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                        Not Matched: <span id="db-cond-unmatched-label">0 (0%)</span>
+                    </span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex">
+                    <div id="db-cond-matched-bar" class="h-full bg-emerald-500 transition-all duration-500"
+                        style="width: 0%"></div>
+                    <div id="db-cond-unmatched-bar"
+                        class="h-full bg-slate-400 dark:bg-slate-600 transition-all duration-500" style="width: 0%">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Evaluated Auto-Configurations -->
+            <div class="flex-1 space-y-2 overflow-y-auto custom-scrollbar max-h-[170px] pr-1"
+                id="db-conditions-sample-list">
+                <!-- Dynamically populated -->
+            </div>
+
+            <div
+                class="pt-3 mt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                <span id="db-conditions-summary-footer">Evaluating auto-configurations</span>
+                <span class="font-semibold text-gray-700 dark:text-gray-300" id="db-conditions-eval-count">--</span>
+            </div>
+        </div>
+
+        <!-- Panel 4: Dependency Graph Hotspots -->
+        <div
+            class="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm flex flex-col transition-colors duration-300">
+            <div class="flex items-center justify-between mb-4">
+                <div>
+                    <h3 class="text-sm font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[20px] text-blue-500">hub</span>
+                        Dependency Hubs
+                    </h3>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Most depended-upon core beans across
+                        contexts</p>
+                </div>
+                <a href="#/definitions"
+                    class="text-xs font-semibold text-primary dark:text-purple-400 hover:underline flex items-center gap-0.5">
+                    View full dependencies <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                </a>
+            </div>
+
+            <!-- Top Hub Beans List -->
+            <div class="flex-1 space-y-2 overflow-y-auto custom-scrollbar max-h-[220px] pr-1"
+                id="db-dependency-hubs-list">
+                <!-- Dynamically populated -->
+            </div>
+
+            <div
+                class="pt-3 mt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                <span id="db-graph-footer-stats">Graph topology telemetry</span>
+                <a href="#/graph"
+                    class="font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5">
+                    Explore Graph Tree <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                </a>
             </div>
         </div>
     </div>
 </div>
+
+<template id="tpl-dashboard-empty-state">
+    <div class="text-center py-6 text-xs text-gray-400 dark:text-gray-500" data-field="message">
+        No records found.
+    </div>
+</template>
+
+<template id="tpl-dashboard-slowest-row">
+    <div class="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-slate-800/40 hover:bg-gray-100/80 dark:hover:bg-slate-800 rounded-xl transition-all gap-3 cursor-pointer group slowest-bean-item"
+        data-bean-name="">
+        <div class="flex items-center gap-2.5 min-w-0 flex-1">
+            <span
+                class="w-5 h-5 rounded-md bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 text-[11px] font-bold flex items-center justify-center flex-shrink-0"
+                data-field="rank">1</span>
+            <span class="material-symbols-outlined text-[18px] flex-shrink-0" data-field="icon"></span>
+            <div class="min-w-0 flex-1">
+                <div class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate group-hover:text-primary transition-colors"
+                    data-field="name">--</div>
+                <div class="text-[10px] font-mono text-gray-400 dark:text-gray-500 truncate" data-field="type">--</div>
+            </div>
+        </div>
+        <div class="flex items-center gap-2.5 flex-shrink-0">
+            <div class="w-16 sm:w-24 bg-gray-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden hidden sm:block">
+                <div class="h-full rounded-full transition-all duration-300" data-field="latency-bar" style="width: 0%">
+                </div>
+            </div>
+            <span
+                class="px-2 py-0.5 rounded text-[11px] font-bold font-mono inline-block border text-right min-w-[62px]"
+                data-field="latency-badge">--</span>
+        </div>
+    </div>
+</template>
+
+<template id="tpl-dashboard-condition-row">
+    <div
+        class="flex items-center justify-between p-2 bg-gray-50 dark:bg-slate-800/40 hover:bg-gray-100/60 dark:hover:bg-slate-800 rounded-lg transition-colors gap-3">
+        <div class="flex items-center gap-2 min-w-0 flex-1">
+            <span class="w-2 h-2 rounded-full flex-shrink-0" data-field="dot"></span>
+            <span class="text-xs font-mono font-medium text-gray-800 dark:text-gray-200 truncate"
+                data-field="source">--</span>
+        </div>
+        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border flex-shrink-0"
+            data-field="outcome-badge">--</span>
+    </div>
+</template>
+
+<template id="tpl-dashboard-hub-row">
+    <div
+        class="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-slate-800/40 hover:bg-gray-100/80 dark:hover:bg-slate-800 rounded-xl transition-all gap-3 cursor-pointer group hub-bean-item">
+        <div class="flex items-center gap-2.5 min-w-0 flex-1">
+            <span
+                class="w-5 h-5 rounded-md bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-[11px] font-bold flex items-center justify-center flex-shrink-0"
+                data-field="rank">1</span>
+            <span class="material-symbols-outlined text-[18px]" data-field="icon"></span>
+            <div class="min-w-0 flex-1">
+                <div class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"
+                    data-field="name">--</div>
+                <div class="text-[10px] font-mono text-gray-400 dark:text-gray-500 truncate" data-field="type">--</div>
+            </div>
+        </div>
+        <div class="text-right flex-shrink-0">
+            <span
+                class="px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
+                data-field="dependents-count">--</span>
+        </div>
+    </div>
+</template>
+
+<template id="tpl-dashboard-profile-badge">
+    <span
+        class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-primary/40 text-purple-200 border border-purple-400/30"
+        data-field="name"></span>
+</template>
+
+<template id="tpl-dashboard-profile-empty">
+    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-white/10 text-slate-300">default</span>
+</template>
+
+<template id="tpl-dashboard-chart-legend-item">
+    <div
+        class="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors text-xs">
+        <div class="flex items-center gap-2 min-w-0">
+            <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" data-field="dot"></span>
+            <span class="font-medium text-gray-700 dark:text-gray-300 truncate" data-field="label"></span>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+            <span class="font-bold text-gray-800 dark:text-white font-mono" data-field="val"></span>
+            <span class="text-[11px] text-gray-400 dark:text-gray-500 font-mono w-9 text-right" data-field="pct"></span>
+        </div>
+    </div>
+</template>
+
+<template id="tpl-dashboard-search-chip">
+    <div
+        class="flex items-center justify-between p-2 rounded-xl bg-gray-50 dark:bg-slate-800 hover:bg-purple-50 dark:hover:bg-purple-950/30 border border-gray-200 dark:border-slate-700 hover:border-primary/40 transition-all cursor-pointer group search-chip-item">
+        <div class="flex items-center gap-2 min-w-0 flex-1 btn-goto-def" title="View Definition & Details">
+            <span class="material-symbols-outlined text-[16px]" data-field="icon"></span>
+            <span
+                class="text-xs font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary transition-colors truncate"
+                data-field="name"></span>
+        </div>
+        <div class="flex items-center gap-1.5 flex-shrink-0">
+            <button type="button"
+                class="btn-goto-def px-1.5 py-0.5 rounded text-[10px] font-semibold text-primary dark:text-purple-300 hover:bg-primary/10 transition-colors"
+                title="View Definition & Details">Def</button>
+            <button type="button"
+                class="btn-goto-graph px-1.5 py-0.5 rounded text-[10px] font-semibold text-blue-500 dark:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                title="Inspect in Dependency Graph">Graph</button>
+            <button type="button"
+                class="btn-goto-inst px-1.5 py-0.5 rounded text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                title="View Initialization Timeline">Inst</button>
+        </div>
+    </div>
+</template>
+
+<template id="tpl-dashboard-radial-tooltip">
+    <div>
+        <div class="flex items-center gap-2 mb-1.5">
+            <span class="material-symbols-outlined text-[16px]" data-field="icon"></span>
+            <span class="font-bold text-white text-xs truncate flex-1" data-field="title"></span>
+            <span class="px-1.5 py-0.2 rounded text-[9px] font-mono uppercase border border-white/10"
+                data-field="scope-badge"></span>
+        </div>
+        <div class="text-[10px] text-gray-300 font-mono truncate mb-2" data-field="type"></div>
+        <div class="grid grid-cols-2 gap-1.5 text-[10px] pt-1.5 border-t border-white/10 text-gray-300">
+            <div><span class="text-gray-400">Depth:</span> <strong class="text-white font-mono"
+                    data-field="depth"></strong></div>
+            <div><span class="text-gray-400">Direct Deps:</span> <strong class="text-blue-300 font-mono"
+                    data-field="direct-deps"></strong></div>
+            <div><span class="text-gray-400">Subtree:</span> <strong class="text-amber-300 font-mono"
+                    data-field="subtree"></strong></div>
+            <div class="truncate" data-field="parent-container"><span class="text-gray-400">Parent:</span> <strong
+                    class="text-white font-mono" data-field="parent"></strong></div>
+        </div>
+        <div class="mt-2 pt-1.5 border-t border-white/10 flex items-center justify-between text-[10px] text-blue-400 font-semibold hidden"
+            data-field="inspect-hint">
+            <span>Inspect in Full Graph</span>
+            <span class="material-symbols-outlined text-[12px]">open_in_new</span>
+        </div>
+    </div>
+</template>
