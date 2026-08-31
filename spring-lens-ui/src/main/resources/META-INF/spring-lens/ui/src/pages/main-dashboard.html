@@ -67,7 +67,7 @@
         <div class="absolute -left-16 -bottom-16 w-72 h-72 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none">
         </div>
 
-        <div class="relative z-10 space-y-6">
+        <div class="relative z-10 space-y-6" id="hero-application-banner">
 
             <!-- Top Line: App Name, Profiles, Uptime -->
             <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -78,7 +78,7 @@
                             Spring App
                         </span>
                         <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2"
-                            id="hero-app-name">
+                            data-field="appName" id="hero-app-name">
                             <span class="animate-pulse opacity-70">Loading Application...</span>
                         </h2>
                     </div>
@@ -99,7 +99,8 @@
                         <div>
                             <span
                                 class="text-[10px] uppercase font-bold text-slate-300 tracking-wider block">Uptime</span>
-                            <span class="text-sm font-bold text-white font-mono" id="hero-app-uptime">--</span>
+                            <span class="text-sm font-bold text-white font-mono" data-field="uptime"
+                                id="hero-app-uptime">--</span>
                         </div>
                     </div>
                 </div>
@@ -118,9 +119,11 @@
                         <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Spring
                             Runtime</span>
                         <div class="text-xs font-semibold text-white truncate" id="hero-spring-boot">Boot: <span
-                                class="font-mono">--</span></div>
+                                class="font-mono font-bold text-emerald-300" data-field="bootVersion"
+                                id="hero-spring-boot-val">--</span></div>
                         <div class="text-[11px] text-slate-300/80 truncate" id="hero-spring-framework">Framework: <span
-                                class="font-mono">--</span></div>
+                                class="font-mono text-slate-300" data-field="frameworkVersion"
+                                id="hero-spring-framework-val">--</span></div>
                     </div>
                 </div>
 
@@ -135,9 +138,11 @@
                         <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Java
                             Runtime</span>
                         <div class="text-xs font-semibold text-white truncate" id="hero-java-version">Version: <span
-                                class="font-mono">--</span></div>
+                                class="font-mono font-bold text-amber-300" data-field="javaVersion"
+                                id="hero-java-version-val">--</span></div>
                         <div class="text-[11px] text-slate-300/80 truncate" id="hero-java-vendor">Vendor: <span
-                                class="font-mono">--</span></div>
+                                class="font-mono text-slate-300 truncate inline-block max-w-[120px] align-bottom"
+                                data-field="javaVendor" id="hero-java-vendor-val">--</span></div>
                     </div>
                 </div>
 
@@ -152,10 +157,12 @@
                         <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Startup
                             Time</span>
                         <div class="text-xs font-semibold text-white truncate" id="hero-startup-duration">Duration:
-                            <span class="font-mono font-bold text-cyan-300">--</span>
+                            <span class="font-mono font-bold text-cyan-300" data-field="startupDuration"
+                                id="hero-startup-duration-val">--</span>
                         </div>
-                        <div class="text-[11px] text-slate-300/80 truncate" id="hero-started-at">At: <span
-                                class="font-mono">--</span></div>
+                        <div class="text-[11px] text-slate-300/80 truncate" id="hero-started-at">Started: <span
+                                class="font-mono text-slate-300" data-field="startedAt"
+                                id="hero-started-at-val">--</span></div>
                     </div>
                 </div>
 
@@ -167,7 +174,8 @@
                         <span class="material-symbols-outlined text-[22px]">tune</span>
                     </div>
                     <div class="min-w-0 flex-1">
-                        <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Active
+                        <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block"
+                            data-field="profilesLabel" id="hero-profiles-label">Active
                             Profiles</span>
                         <div class="flex flex-wrap gap-1 mt-1" id="hero-profiles-list">
                             <span
@@ -221,7 +229,10 @@
                     id="kpi-definitions-count">--</div>
                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center justify-between"
                     id="kpi-definitions-sub">
-                    <span>Loading summary...</span>
+                    <span><strong class="text-purple-600 dark:text-purple-400 font-bold"
+                            id="kpi-def-singletons">0</strong> Singleton</span>
+                    <span><strong class="text-gray-700 dark:text-gray-300 font-bold" id="kpi-def-prototypes">0</strong>
+                        Prototype</span>
                 </div>
             </div>
         </a>
@@ -242,7 +253,8 @@
                     id="kpi-instances-count">--</div>
                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center justify-between"
                     id="kpi-instances-sub">
-                    <span>Loading instances...</span>
+                    <span>Total startup cost: <strong class="text-emerald-600 dark:text-emerald-400 font-mono"
+                            id="kpi-inst-total-cost">--</strong></span>
                 </div>
             </div>
         </a>
@@ -263,7 +275,9 @@
                     id="kpi-conditions-count">--</div>
                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center justify-between"
                     id="kpi-conditions-sub">
-                    <span>Loading conditions...</span>
+                    <span><strong class="text-emerald-600 dark:text-emerald-400" id="kpi-cond-matched">0</strong>
+                        Matched (<span id="kpi-cond-matched-pct">0</span>%)</span>
+                    <span><strong class="text-slate-500" id="kpi-cond-skipped">0</strong> Skipped</span>
                 </div>
             </div>
         </a>
@@ -284,7 +298,10 @@
                     id="kpi-dependencies-count">--</div>
                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center justify-between"
                     id="kpi-dependencies-sub">
-                    <span>Loading graph stats...</span>
+                    <span><strong class="text-blue-600 dark:text-blue-400" id="kpi-dep-edges">0</strong> Dependency
+                        Edges</span>
+                    <span><strong class="text-gray-700 dark:text-gray-300" id="kpi-dep-beans">0</strong> Depended
+                        Beans</span>
                 </div>
             </div>
         </a>
@@ -306,18 +323,22 @@
                         loading modes</p>
                 </div>
                 <!-- Distribution Type Toggle -->
-                <div
-                    class="inline-flex bg-gray-100 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-medium self-start sm:self-auto">
-                    <button id="btn-chart-scope"
-                        class="px-2.5 py-1 rounded-md text-xs font-semibold bg-white dark:bg-slate-700 text-gray-800 dark:text-white shadow-sm transition-all cursor-pointer">
+                <div id="chart-mode-toggle"
+                    class="inline-flex bg-gray-100 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-medium self-start sm:self-auto"
+                    role="group" aria-label="Bean definition chart mode">
+                    <button data-chart-mode="scope"
+                        class="px-2.5 py-1 rounded-md text-xs font-semibold bg-white dark:bg-slate-700 text-gray-800 dark:text-white shadow-sm transition-all cursor-pointer"
+                        aria-pressed="true">
                         Scope
                     </button>
-                    <button id="btn-chart-role"
-                        class="px-2.5 py-1 rounded-md text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-all cursor-pointer">
+                    <button data-chart-mode="role"
+                        class="px-2.5 py-1 rounded-md text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-all cursor-pointer"
+                        aria-pressed="false">
                         Role
                     </button>
-                    <button id="btn-chart-loading"
-                        class="px-2.5 py-1 rounded-md text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-all cursor-pointer">
+                    <button data-chart-mode="loading"
+                        class="px-2.5 py-1 rounded-md text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-all cursor-pointer"
+                        aria-pressed="false">
                         Mode
                     </button>
                 </div>
@@ -405,7 +426,8 @@
                     class="absolute inset-0 flex flex-col items-center justify-center bg-white/70 dark:bg-slate-900/70 backdrop-blur-xs">
                     <span
                         class="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent mb-1.5"></span>
-                    <span class="text-[11px] font-medium text-gray-500 dark:text-gray-400">Simulating Force-Directed Tree...</span>
+                    <span class="text-[11px] font-medium text-gray-500 dark:text-gray-400">Simulating Force-Directed
+                        Tree...</span>
                 </div>
 
                 <!-- Floating Tooltip Card -->
@@ -417,7 +439,8 @@
 
             <div
                 class="pt-3 mt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                <span class="text-gray-500 dark:text-gray-400" id="db-radial-stats">Interactive Force Tree • Drag nodes to explore</span>
+                <span class="text-gray-500 dark:text-gray-400" id="db-radial-stats">Interactive Force Tree • Drag nodes
+                    to explore</span>
                 <a href="#/graph"
                     class="font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5">
                     Full Graph Mode <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
@@ -455,9 +478,10 @@
 
             <div
                 class="pt-3 mt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span id="db-slowest-total-cost">Total Init Cost: --</span>
+                <span id="db-slowest-total-cost">Total Init Cost: <strong
+                        class="text-gray-700 dark:text-gray-300 font-mono" id="db-slowest-cost-val">--</strong></span>
                 <span class="text-amber-600 dark:text-amber-400 font-semibold" id="db-slowest-max-latency">Max:
-                    --</span>
+                    <strong class="font-mono" id="db-slowest-max-val">--</strong></span>
             </div>
         </div>
 
@@ -525,9 +549,9 @@
                     <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Most depended-upon core beans across
                         contexts</p>
                 </div>
-                <a href="#/graph"
+                <a href="#/definitions"
                     class="text-xs font-semibold text-primary dark:text-purple-400 hover:underline flex items-center gap-0.5">
-                    Open D3 Graph <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                    View full dependencies <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
                 </a>
             </div>
 
@@ -548,6 +572,12 @@
         </div>
     </div>
 </div>
+
+<template id="tpl-dashboard-empty-state">
+    <div class="text-center py-6 text-xs text-gray-400 dark:text-gray-500" data-field="message">
+        No records found.
+    </div>
+</template>
 
 <template id="tpl-dashboard-slowest-row">
     <div class="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-slate-800/40 hover:bg-gray-100/80 dark:hover:bg-slate-800 rounded-xl transition-all gap-3 cursor-pointer group slowest-bean-item"
@@ -611,7 +641,8 @@
 </template>
 
 <template id="tpl-dashboard-profile-badge">
-    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-primary/40 text-purple-200 border border-purple-400/30"
+    <span
+        class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-primary/40 text-purple-200 border border-purple-400/30"
         data-field="name"></span>
 </template>
 
@@ -620,7 +651,8 @@
 </template>
 
 <template id="tpl-dashboard-chart-legend-item">
-    <div class="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors text-xs">
+    <div
+        class="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors text-xs">
         <div class="flex items-center gap-2 min-w-0">
             <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" data-field="dot"></span>
             <span class="font-medium text-gray-700 dark:text-gray-300 truncate" data-field="label"></span>
@@ -633,14 +665,24 @@
 </template>
 
 <template id="tpl-dashboard-search-chip">
-    <div class="flex items-center justify-between p-2 rounded-xl bg-gray-50 dark:bg-slate-800 hover:bg-purple-50 dark:hover:bg-purple-950/30 border border-gray-200 dark:border-slate-700 hover:border-primary/40 transition-all cursor-pointer group">
-        <div class="flex items-center gap-2 min-w-0 flex-1">
+    <div
+        class="flex items-center justify-between p-2 rounded-xl bg-gray-50 dark:bg-slate-800 hover:bg-purple-50 dark:hover:bg-purple-950/30 border border-gray-200 dark:border-slate-700 hover:border-primary/40 transition-all cursor-pointer group search-chip-item">
+        <div class="flex items-center gap-2 min-w-0 flex-1 btn-goto-def" title="View Definition & Details">
             <span class="material-symbols-outlined text-[16px]" data-field="icon"></span>
-            <span class="text-xs font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary transition-colors truncate" data-field="name"></span>
+            <span
+                class="text-xs font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary transition-colors truncate"
+                data-field="name"></span>
         </div>
-        <div class="flex items-center gap-1">
-            <a href="#/definitions" class="px-1.5 py-0.5 text-[10px] font-semibold text-primary dark:text-purple-300 hover:underline">Def</a>
-            <a href="#/timeline" class="px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">Inst</a>
+        <div class="flex items-center gap-1.5 flex-shrink-0">
+            <button type="button"
+                class="btn-goto-def px-1.5 py-0.5 rounded text-[10px] font-semibold text-primary dark:text-purple-300 hover:bg-primary/10 transition-colors"
+                title="View Definition & Details">Def</button>
+            <button type="button"
+                class="btn-goto-graph px-1.5 py-0.5 rounded text-[10px] font-semibold text-blue-500 dark:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                title="Inspect in Dependency Graph">Graph</button>
+            <button type="button"
+                class="btn-goto-inst px-1.5 py-0.5 rounded text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                title="View Initialization Timeline">Inst</button>
         </div>
     </div>
 </template>
@@ -650,16 +692,22 @@
         <div class="flex items-center gap-2 mb-1.5">
             <span class="material-symbols-outlined text-[16px]" data-field="icon"></span>
             <span class="font-bold text-white text-xs truncate flex-1" data-field="title"></span>
-            <span class="px-1.5 py-0.2 rounded text-[9px] font-mono uppercase border border-white/10" data-field="scope-badge"></span>
+            <span class="px-1.5 py-0.2 rounded text-[9px] font-mono uppercase border border-white/10"
+                data-field="scope-badge"></span>
         </div>
         <div class="text-[10px] text-gray-300 font-mono truncate mb-2" data-field="type"></div>
         <div class="grid grid-cols-2 gap-1.5 text-[10px] pt-1.5 border-t border-white/10 text-gray-300">
-            <div><span class="text-gray-400">Depth:</span> <strong class="text-white font-mono" data-field="depth"></strong></div>
-            <div><span class="text-gray-400">Direct Deps:</span> <strong class="text-blue-300 font-mono" data-field="direct-deps"></strong></div>
-            <div><span class="text-gray-400">Subtree:</span> <strong class="text-amber-300 font-mono" data-field="subtree"></strong></div>
-            <div class="truncate" data-field="parent-container"><span class="text-gray-400">Parent:</span> <strong class="text-white font-mono" data-field="parent"></strong></div>
+            <div><span class="text-gray-400">Depth:</span> <strong class="text-white font-mono"
+                    data-field="depth"></strong></div>
+            <div><span class="text-gray-400">Direct Deps:</span> <strong class="text-blue-300 font-mono"
+                    data-field="direct-deps"></strong></div>
+            <div><span class="text-gray-400">Subtree:</span> <strong class="text-amber-300 font-mono"
+                    data-field="subtree"></strong></div>
+            <div class="truncate" data-field="parent-container"><span class="text-gray-400">Parent:</span> <strong
+                    class="text-white font-mono" data-field="parent"></strong></div>
         </div>
-        <div class="mt-2 pt-1.5 border-t border-white/10 flex items-center justify-between text-[10px] text-blue-400 font-semibold hidden" data-field="inspect-hint">
+        <div class="mt-2 pt-1.5 border-t border-white/10 flex items-center justify-between text-[10px] text-blue-400 font-semibold hidden"
+            data-field="inspect-hint">
             <span>Inspect in Full Graph</span>
             <span class="material-symbols-outlined text-[12px]">open_in_new</span>
         </div>

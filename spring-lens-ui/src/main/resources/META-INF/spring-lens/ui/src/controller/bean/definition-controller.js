@@ -4,16 +4,11 @@ import beanDataStore from '../../storage/bean-data-store.js';
 import {
     tree, tbLink, lrLink, capitalize, formatPercentage, resolveBeanMetadata,
     NH, RX, NW, ICON, GAP_X, GAP_Y, CLASSES, ROLE_COLORS, SCOPE_COLORS,
-    SCOPE_STYLES, ZOOM_SCALE_EXTENT, GRAPH_NODE_THEMES, LOADING_MODE_COLORS,
-    DEFAULT_SCOPE_STYLE, CONTEXT_THEME_COLORS,
+    SCOPE_STYLES, ZOOM_SCALE_EXTENT, GRAPH_NODE_THEMES, GRAPH_NODE_THEMES_TINT, GRAPH_NODE_THEMES_BADGE, LOADING_MODE_COLORS,
+    DEFAULT_SCOPE_STYLE, CONTEXT_THEME_COLORS, downloadJson,
     TemplateEngine, QueryParam, Pagination, Sidebar
 } from '../../utils/index.js';
 
-/**
- * Controller class for the Beans Definitions dashboard tab.
- * Manages view state (pagination, filters, search, sorting), renders table data via server API,
- * manages D3/Chart.js metrics, and handles detail sidebar interactivity.
- */
 export default class BeanDefinitionsController {
     // Private State Fields
     _hasFetchedTableData = false;
@@ -71,14 +66,42 @@ export default class BeanDefinitionsController {
         this.activeSidebarTab = 'properties';
 
         this.modalGraphMode = 'tb';
+        this.modalNodeTheme = localStorage.getItem('sl-node-theme') || 'tint';
         this.modalZoom = null;
         this.modalSvg = null;
         this.modalGraphRoot = null;
     }
 
-    async enter() {
+    async enter(params) {
         try {
             this.bindEvents();
+
+            // 1. Reset filter state to clean defaults
+            this._resetFilterState();
+            this.closeSidebar(true);
+
+            const queryParams = QueryParam.parse(params);
+            const targetBean = QueryParam.get(queryParams, 'search', 'bean');
+            const targetContextId = QueryParam.get(queryParams, 'contextId', 'context');
+            const scope = queryParams.get('scope');
+            const role = queryParams.get('role');
+
+            if (targetBean) {
+                this.searchQuery = targetBean;
+                $('#bean-definition-search-input').val(targetBean);
+            }
+            if (targetContextId) {
+                this.filterCriteria.contextId = targetContextId;
+                $('#bean-definition-filter-context').val(targetContextId);
+            }
+            if (scope) {
+                this.filterCriteria.scope = scope;
+                $('#bean-definition-filter-scope').val(scope);
+            }
+            if (role) {
+                this.filterCriteria.role = role;
+                $('#bean-definition-filter-role').val(role);
+            }
 
             await Promise.all([
                 this.fetchSummaryData(this.beanDefinitionSummaryEndpoint),
@@ -87,10 +110,8 @@ export default class BeanDefinitionsController {
 
             this._initSidebar();
 
-            if (window.pendingSelectBean) {
-                const { beanName, contextId } = window.pendingSelectBean;
-                window.pendingSelectBean = null;
-                await this.selectBean(beanName, contextId);
+            if (targetBean) {
+                await this.selectBean(targetBean, targetContextId);
             }
         } catch (error) {
             console.error('Error entering BeanDefinitions view:', error);
@@ -435,11 +456,11 @@ export default class BeanDefinitionsController {
             if (clone) {
                 $sidebar.append(clone);
                 const footerHtml = `
-                    <div class="p-4 border-t border-gray-100 dark:border-slate-800 mt-auto bg-white dark:bg-slate-900">
+                    <div class="p-4 border-t border-gray-100 dark:border-slate-800 mt-auto bg-gray-50/50 dark:bg-slate-900/50">
                         <button data-action="view-graph"
-                            class="w-full py-2 border border-primary text-primary hover:text-white rounded-md text-xs font-bold flex items-center justify-center gap-2 hover:bg-primary dark:hover:bg-primary/80 transition-all cursor-pointer"
+                            class="w-full py-2.5 px-4 bg-gradient-to-r from-primary via-purple-600 to-indigo-600 hover:from-primary/95 hover:to-indigo-600/95 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm shadow-primary/25 hover:shadow-md hover:shadow-primary/35 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
                             id="def-view-graph-btn">
-                            <span class="material-symbols-outlined text-[16px]">account_tree</span> View Bean Graph
+                            <span class="material-symbols-outlined text-[17px]">account_tree</span> View Bean Graph
                         </button>
                     </div>
                 `;
@@ -667,6 +688,9 @@ export default class BeanDefinitionsController {
             },
             'close-graph-modal': () => {
                 this.closeGraphModal();
+            },
+            'export-data': () => {
+                this._downloadReport();
             }
         };
 
@@ -716,10 +740,7 @@ export default class BeanDefinitionsController {
         this.selectedContextId = resolvedContextId;
 
         this._updateRowSelectionStyles(this.selectedBeanId);
-
-        this._initSidebar();
-        $('#def-details-sidebar').removeClass('hidden').show();
-
+        this.openSidebar();
         this._populateSidebarDetails(targetBean);
         this._populateSidebarLists(targetBean);
         this.renderActiveTab();
@@ -835,6 +856,9 @@ export default class BeanDefinitionsController {
 
         $beanNameModalGraphContainer.text(targetBean.beanName).attr('title', targetBean.beanName);
         $beanGraphModalContainer.removeClass('hidden');
+
+        // Sync node theme button state
+        this.setModalNodeTheme(this.modalNodeTheme, false);
 
         requestAnimationFrame(() => {
             $beanGraphModalContainer.removeClass('opacity-0 pointer-events-none').addClass('opacity-100');
@@ -956,12 +980,24 @@ export default class BeanDefinitionsController {
         descendants.forEach((node, i) => {
             node.id = i;
             const nameLen = node.data.name?.length || 0;
-            node.width = Math.max(170, nameLen * 7.5 + 60);
+            node.width = Math.max(180, nameLen * 7.8 + 64);
         });
 
         const maxWidth = d3.max(descendants, d => d.width) || NW;
-        tree.nodeSize(isTB ? [maxWidth + GAP_X, NH + GAP_Y] : [NH + 32, maxWidth + GAP_Y]);
+        tree.nodeSize(isTB ? [maxWidth + GAP_X, NH + GAP_Y] : [NH + 36, maxWidth + GAP_Y]);
         tree(root);
+
+        const isDark = document.documentElement.classList.contains('dark');
+        const isBadge = (this.modalNodeTheme === 'badge');
+
+        const getModalNodeStyle = (node) => {
+            const kind = node?.data?.meta?.kind || 'default';
+            const mode = isDark ? 'dark' : 'light';
+            const themeMap = (isBadge ? GRAPH_NODE_THEMES_BADGE : GRAPH_NODE_THEMES_TINT) || GRAPH_NODE_THEMES;
+
+            const modeMap = themeMap?.[mode] || (isDark ? GRAPH_NODE_THEMES_TINT.dark : GRAPH_NODE_THEMES_TINT.light);
+            return modeMap[kind] || modeMap.default || { fill: '#eff6ff', stroke: '#3b82f6', icon: '#2563eb', text: '#1d4ed8' };
+        };
 
         const linkFn = isTB ? tbLink : lrLink;
         gLink.selectAll('path.link')
@@ -969,18 +1005,10 @@ export default class BeanDefinitionsController {
             .join('path')
             .attr('class', 'link')
             .attr('fill', 'none')
-            .attr('stroke', '#94a3b8')
-            .attr('stroke-width', 1.5)
+            .attr('stroke', isDark ? '#334155' : '#cbd5e1')
+            .attr('stroke-width', 1.6)
             .attr('marker-end', 'url(#modal-dot)')
             .attr('d', linkFn);
-
-        const isDark = document.documentElement.classList.contains('dark');
-        const getModalNodeStyle = (node) => {
-            const kind = node?.data?.meta?.kind;
-            const mode = isDark ? 'dark' : 'light';
-
-            return GRAPH_NODE_THEMES[mode][kind] ?? GRAPH_NODE_THEMES[mode].default;
-        };
 
         const getNodePos = ({ x, y }) => isTB ? `translate(${x},${y})` : `translate(${y},${x})`;
 
@@ -1000,31 +1028,43 @@ export default class BeanDefinitionsController {
             .attr('rx', RX)
             .attr('fill', d => getModalNodeStyle(d).fill)
             .attr('stroke', d => getModalNodeStyle(d).stroke)
-            .attr('stroke-width', d => d.data.meta?.kind === 'target' ? 2.5 : 1.8);
+            .attr('stroke-width', d => d.data.meta?.kind === 'target' ? 2.5 : 2);
+
+        nodes.append('rect')
+            .attr('class', 'node-icon-bg')
+            .style('display', isBadge ? 'block' : 'none')
+            .attr('x', d => -d.width / 2 + 8)
+            .attr('y', -14)
+            .attr('width', 28)
+            .attr('height', 28)
+            .attr('rx', 8)
+            .attr('fill', d => getModalNodeStyle(d).iconBg ?? 'rgba(0,0,0,0.05)');
 
         nodes.append('g')
             .attr('class', 'node-icon')
-            .attr('transform', d => `translate(${-d.width / 2 + 14}, -10)`)
+            .attr('transform', d => isBadge
+                ? `translate(${-d.width / 2 + 12}, -10)`
+                : `translate(${-d.width / 2 + 14}, -10)`)
             .append('path')
             .attr('d', ICON)
             .attr('stroke', d => getModalNodeStyle(d).icon)
-            .attr('stroke-width', 1.5)
+            .attr('stroke-width', 1.8)
             .attr('stroke-linecap', 'round')
             .attr('stroke-linejoin', 'round')
             .attr('fill', 'none');
 
         nodes.append('text')
             .attr('class', 'node-text')
-            .attr('x', d => -d.width / 2 + 42)
+            .attr('x', d => isBadge ? -d.width / 2 + 44 : -d.width / 2 + 42)
             .attr('y', 1)
             .attr('dy', '0.35em')
             .attr('font-size', 13)
-            .attr('font-weight', d => d.data.meta?.kind === 'target' ? 700 : 500)
-            .attr('font-family', 'Inter, sans-serif')
+            .attr('font-weight', 600)
+            .attr('font-family', 'Inter, -apple-system, sans-serif')
             .attr('fill', d => getModalNodeStyle(d).text)
             .text(d => d.data.name);
-        const $tip = $('#tip');
 
+        const $tip = $('#tip');
         if (!$tip.length) {
             const clone = TemplateEngine.clone('tpl-tooltip');
             if (clone) $('body').append(clone);
@@ -1079,8 +1119,8 @@ export default class BeanDefinitionsController {
         if (!nodes || nodes.length === 0) return;
         const isTB = this.modalGraphMode === 'tb';
 
-        const minX = d3.min(nodes, d => isTB ? d.x - (d.width || 170) / 2 : d.y - (d.width || 170) / 2) ?? 0;
-        const maxX = d3.max(nodes, d => isTB ? d.x + (d.width || 170) / 2 : d.y + (d.width || 170) / 2) ?? 800;
+        const minX = d3.min(nodes, d => isTB ? d.x - (d.width || 180) / 2 : d.y - (d.width || 180) / 2) ?? 0;
+        const maxX = d3.max(nodes, d => isTB ? d.x + (d.width || 180) / 2 : d.y + (d.width || 180) / 2) ?? 800;
         const minY = d3.min(nodes, d => isTB ? d.y - NH / 2 : d.x - NH / 2) ?? 0;
         const maxY = d3.max(nodes, d => isTB ? d.y + NH / 2 : d.x + NH / 2) ?? 500;
 
@@ -1103,6 +1143,8 @@ export default class BeanDefinitionsController {
         const actions = {
             '#modal-btn-tb': () => this.setGraphMode('tb'),
             '#modal-btn-lr': () => this.setGraphMode('lr'),
+            '#modal-btn-theme-tint': () => this.setModalNodeTheme('tint'),
+            '#modal-btn-theme-badge': () => this.setModalNodeTheme('badge'),
             '#modal-btn-zoom-in': () => this.zoomModal(1.25),
             '#modal-btn-zoom-out': () => this.zoomModal(0.8),
             '#modal-btn-reset, #modal-btn-fit': () => this.fitModalView(),
@@ -1118,15 +1160,45 @@ export default class BeanDefinitionsController {
         this.modalGraphMode = mode;
 
         const isTb = mode === 'tb';
+        const activeClasses = 'bg-white dark:bg-slate-800 text-gray-800 dark:text-white shadow-xs font-bold';
+        const inactiveClasses = 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white font-medium';
+
         $('#modal-btn-tb')
-            .toggleClass(CLASSES.toggleActive, isTb)
-            .toggleClass(CLASSES.toggleInactive, !isTb);
+            .toggleClass(activeClasses, isTb)
+            .toggleClass(inactiveClasses, !isTb);
 
         $('#modal-btn-lr')
-            .toggleClass(CLASSES.toggleActive, !isTb)
-            .toggleClass(CLASSES.toggleInactive, isTb);
+            .toggleClass(activeClasses, !isTb)
+            .toggleClass(inactiveClasses, isTb);
 
         if (this.modalGraphRoot && this.modalSvg) {
+            this._drawModalTree(
+                this.modalGraphRoot,
+                this.modalSvg.select('g.nodes'),
+                this.modalSvg.select('g.links'),
+                this.modalSvg,
+                this.modalZoom
+            );
+        }
+    }
+
+    setModalNodeTheme(theme, shouldUpdate = true) {
+        this.modalNodeTheme = theme;
+        localStorage.setItem('sl-node-theme', theme);
+
+        const isTint = theme === 'tint';
+        const activeClasses = 'bg-white dark:bg-slate-800 text-gray-800 dark:text-white shadow-xs font-bold';
+        const inactiveClasses = 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white font-medium';
+
+        $('#modal-btn-theme-tint')
+            .toggleClass(activeClasses, isTint)
+            .toggleClass(inactiveClasses, !isTint);
+
+        $('#modal-btn-theme-badge')
+            .toggleClass(activeClasses, !isTint)
+            .toggleClass(inactiveClasses, isTint);
+
+        if (shouldUpdate && this.modalGraphRoot && this.modalSvg) {
             this._drawModalTree(
                 this.modalGraphRoot,
                 this.modalSvg.select('g.nodes'),
@@ -1143,12 +1215,37 @@ export default class BeanDefinitionsController {
         }
     }
 
-    closeSidebar() {
-        $('#def-details-sidebar').addClass('hidden').hide();
+    openSidebar() {
+        const $sidebar = $('#def-details-sidebar');
+        if (!$sidebar.length) return;
+        this._initSidebar();
+        $sidebar.removeClass('w-0 max-w-0 opacity-0 pointer-events-none -mr-6 border-0')
+            .addClass('w-[360px] max-w-[360px] opacity-100 mr-0 border');
+    }
+
+    closeSidebar(immediate = false) {
+        const $sidebar = $('#def-details-sidebar');
         this.selectedBeanId = null;
         this.selectedBeanName = null;
         this.selectedContextId = null;
         $('.bean-row').removeClass(CLASSES.defRowActive);
+
+        if (!$sidebar.length) return;
+
+        $sidebar.removeClass('w-[360px] max-w-[360px] opacity-100 mr-0 border')
+            .addClass('w-0 max-w-0 opacity-0 pointer-events-none -mr-6 border-0');
+    }
+
+    _downloadReport() {
+        const reportData = {
+            title: 'SpringLens Bean Definitions Report',
+            timestamp: new Date().toISOString(),
+            totalElements: this.paginationState.totalElements || this.currentPageBeans.length,
+            summary: this.beanDefinitionSummary,
+            definitions: this.currentPageBeans
+        };
+
+        downloadJson(`spring-lens-definitions-${Date.now()}.json`, reportData);
     }
 
     /**
@@ -1157,7 +1254,8 @@ export default class BeanDefinitionsController {
     leave() {
         this.destroyCharts();
         this.closeGraphModal();
-        this.closeSidebar();
+        this.closeSidebar(true);
+        this._resetFilterState();
         if (this._searchDebounceTimer) {
             clearTimeout(this._searchDebounceTimer);
         }

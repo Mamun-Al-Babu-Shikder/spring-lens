@@ -2,15 +2,14 @@ import httpClient from '../../client/http-client.js';
 import GraphTreeBuilder from '../../builder/graph-tree-builder.js';
 import beanDataStore from '../../storage/bean-data-store.js';
 import {
-    CLASSES, DURATION_BAR_RULES,
+    CLASSES, DURATION_BAR_RULES, capitalize, resolveBeanMetadata, downloadJson,
     TemplateEngine, QueryParam, Pagination
 } from '../../utils/index.js';
 
 export default class InstanceController {
-    constructor(beanInstanceApi, beanInstanceFindApi) {
-        this.beanInstanceApi = beanInstanceApi;
-        this.beanInstanceFindApi = beanInstanceFindApi;
+    constructor(beanInstanceApi, beanInstanceFindApi, beanDefinitionFindApi) {
 
+        this.activeModalTab = 'properties';
         this.instances = [];
         this.filteredInstances = [];
         this.selectedBeanInstance = null;
@@ -36,20 +35,40 @@ export default class InstanceController {
 
         this.maxTimeMs = 100;
         this._searchDebounceTimer = null;
+        this.beanInstanceApi = beanInstanceApi;
+        this.beanInstanceFindApi = beanInstanceFindApi;
+        this.beanDefinitionFindApi = beanDefinitionFindApi;
     }
 
-    async enter() {
+    async enter(params) {
         try {
-            const storedBean = sessionStorage.getItem('springlens_selected_bean');
-            if (storedBean) {
-                this.searchQuery = storedBean;
-                sessionStorage.removeItem('springlens_selected_bean');
+            // 1. Reset filter state to clean defaults
+            this._resetFilterState();
+            this._handleCloseSidebar(true);
+
+            const queryParams = QueryParam.parse(params);
+            const targetBean = QueryParam.get(queryParams, 'search', 'bean');
+            const targetContextId = QueryParam.get(queryParams, 'contextId', 'context');
+            const scope = queryParams.get('scope');
+
+            if (targetBean) {
+                this.searchQuery = targetBean;
+                $('#time-search-input').val(targetBean);
             }
+            if (scope) {
+                this.scopeFilter = scope;
+                $('#time-filter-scope').val(scope);
+            }
+
             this.initEvents();
-            if (this.searchQuery) {
-                $('#time-search-input').val(this.searchQuery);
-            }
             await this.fetchInstanceData();
+
+            if (targetBean && this.instances && this.instances.length > 0) {
+                const match = this.instances.find(i => i.beanName === targetBean) || this.instances[0];
+                if (match) {
+                    await this.selectBean(targetContextId || match.contextId, match.beanName);
+                }
+            }
         } catch (error) {
             console.error('Error in InstanceController enter:', error);
         }
@@ -383,7 +402,7 @@ export default class InstanceController {
     renderSidebarDetails(instance) {
         if (!instance) return;
 
-        const {beanName, type, scope, initDurationNanos, relativeStartMs, contextId, createdAt, hasDefinition} = instance;
+        const { beanName, type, scope, initDurationNanos, relativeStartMs, contextId, createdAt, hasDefinition } = instance;
 
         const data = {
             name: GraphTreeBuilder._displayName(beanName),
@@ -396,13 +415,16 @@ export default class InstanceController {
             nanos: (initDurationNanos || 0).toLocaleString()
         };
 
-        $('#time-details-sidebar').removeClass('hidden').show()
-            .find('[data-field]').each((_, el) => {
-                const field = el.dataset.field;
-                if (data[field] != null) {
-                    $(el).text(data[field]);
-                }
-            });
+        const $sidebar = $('#time-details-sidebar');
+        $sidebar.removeClass('w-0 max-w-0 opacity-0 pointer-events-none -mr-6 border-0')
+            .addClass('w-[380px] max-w-[380px] opacity-100 mr-0 border');
+
+        $sidebar.find('[data-field]').each((_, el) => {
+            const field = el.dataset.field;
+            if (data[field] != null) {
+                $(el).text(data[field]);
+            }
+        });
 
         const $footer = $('#time-sidebar-footer');
         const $viewBtn = $('#time-btn-view-details');
@@ -451,7 +473,9 @@ export default class InstanceController {
             'next-page': () => this._handleNextPage(),
             'close-sidebar': () => this._handleCloseSidebar(),
             'download-report': () => this._downloadReport(),
-            'view-bean-details': ($target) => this._handleViewBeanDetails($target)
+            'view-bean-details': ($target) => this._handleViewBeanDetails($target),
+            'close-def-modal': () => this.closeBeanDefinitionModal(),
+            'switch-modal-tab': ($target) => this.switchModalTab($target.data('tab') || $target.attr('data-tab'))
         };
 
         // Filter change router mapped by element ID
@@ -511,14 +535,29 @@ export default class InstanceController {
     _bindClickActionDelegation() {
         this._on(document, 'click', '[data-action]', (e) => {
             const $target = $(e.currentTarget);
-            const action = $target.data('action');
+            const action = $target.data('action') || $target.attr('data-action');
             const handler = this._clickActions[action];
 
             if (handler) {
                 e.preventDefault();
                 handler($target, e);
-            } else {
-                console.warn(`Unhandled action: ${action}`);
+            }
+        });
+
+        this._on(document, 'click', '#time-btn-view-details', (e) => {
+            e.preventDefault();
+            this._handleViewBeanDetails($('#time-btn-view-details'));
+        });
+
+        this._on(document, 'click', '#bean-definition-details-modal', (e) => {
+            if (e.target.id === 'bean-definition-details-modal') {
+                this.closeBeanDefinitionModal();
+            }
+        });
+
+        this._on(document, 'keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.closeBeanDefinitionModal();
             }
         });
     }
@@ -563,25 +602,211 @@ export default class InstanceController {
         }
     }
 
-    _handleCloseSidebar() {
-        $('#time-details-sidebar').addClass('hidden').hide();
+    _handleCloseSidebar(immediate = false) {
+        const $sidebar = $('#time-details-sidebar');
         $('#time-sidebar-footer').addClass('hidden').hide();
         $('#time-btn-view-details').val('').attr('value', '');
         this.selectedBeanName = null;
         this.selectedContextId = null;
         this.selectedBeanInstance = null;
         $('.time-row').removeClass(CLASSES.rowActive);
+
+        if (!$sidebar.length) return;
+
+        $sidebar.removeClass('w-[380px] max-w-[380px] opacity-100 mr-0 border')
+            .addClass('w-0 max-w-0 opacity-0 pointer-events-none -mr-6 border-0');
     }
 
-    _handleViewBeanDetails($target) {
-        const value = $target.val() || $target.attr('value') || '';
-        const contextId = $target.data('context-id') || this.selectedContextId || (value.includes(':') ? value.split(':')[0] : '');
-        const beanName = $target.data('bean-name') || this.selectedBeanName || (value.includes(':') ? value.split(':')[1] : value);
+    async _handleViewBeanDetails($target) {
+        const $el = $target && $target.length ? $target : $('#time-btn-view-details');
+        const targetEl = $el.length ? $el[0] : null;
+        const value = $el.val() || $el.attr('value') || '';
+
+        const contextId = (targetEl ? targetEl.getAttribute('data-context-id') : null)
+            || $el.attr('data-context-id')
+            || $el.data('context-id')
+            || this.selectedContextId
+            || (value.includes(':') ? value.split(':')[0] : '');
+
+        const beanName = (targetEl ? targetEl.getAttribute('data-bean-name') : null)
+            || $el.attr('data-bean-name')
+            || $el.data('bean-name')
+            || this.selectedBeanName
+            || (value.includes(':') ? value.split(':')[1] : value);
 
         if (beanName) {
-            window.pendingSelectBean = { beanName, contextId };
-            window.location.hash = '#/definitions';
+            await this.openBeanDefinitionModal(contextId, beanName);
         }
+    }
+
+    async openBeanDefinitionModal(contextId, beanName) {
+        const $modal = $('#bean-definition-details-modal');
+        const $card = $('#instance-def-modal-card');
+        if (!$modal.length) return;
+
+        // Reset to loading / placeholder state
+        $('#instance-modal-def-name').text(GraphTreeBuilder._displayName(beanName) || beanName);
+        $('#instance-modal-def-context').text(contextId || '-');
+        $('#instance-modal-def-type').text('Loading bean definition details...');
+
+        this.switchModalTab('properties');
+
+        $modal.removeClass('hidden');
+        requestAnimationFrame(() => {
+            $modal.removeClass('opacity-0 pointer-events-none').addClass('opacity-100');
+            $card.removeClass('scale-95').addClass('scale-100');
+        });
+
+        try {
+            const queryParams = QueryParam.build({ contextId, beanName });
+            const beanDef = await httpClient.getWithQuery(
+                this.beanDefinitionFindApi,
+                queryParams.toString()
+            );
+
+            if (beanDef) {
+                beanDataStore.addBeans([beanDef]);
+                this._populateModalDefinition(beanDef, contextId);
+            }
+        } catch (error) {
+            console.warn('Failed to fetch bean definition details for modal:', error);
+            $('#instance-modal-def-type').text(error.message || 'Could not fetch bean definition');
+        }
+    }
+
+    _populateModalDefinition(beanDef, fallbackContextId) {
+        const {
+            beanName = '',
+            type = 'N/A',
+            scope = 'singleton',
+            role = 'APPLICATION',
+            primary = false,
+            lazyInit = false,
+            autowireCandidate = true,
+            contextId = fallbackContextId || '-',
+            factoryBeanName = '-',
+            factoryMethodName = '-',
+            initMethodName = '-',
+            destroyMethodName = '-',
+            dependencies = [],
+            dependents = []
+        } = beanDef;
+
+        const cleanRole = role ? String(role).replace(/^ROLE_/, '') : 'APPLICATION';
+        const { icon, color } = resolveBeanMetadata(beanDef);
+
+        $('#instance-modal-def-icon').text(icon || 'widgets');
+        $('#instance-modal-def-icon-container').css({
+            backgroundColor: `${color}15`,
+            color: color,
+            borderColor: `${color}35`
+        });
+
+        $('#instance-modal-def-name').text(GraphTreeBuilder._displayName(beanName) || beanName);
+        $('#instance-modal-def-context').text(contextId);
+        $('#instance-modal-def-type').text(type).attr('title', type);
+
+        $('#instance-modal-def-scope').text(capitalize(scope));
+        $('#instance-modal-def-role').text(capitalize(cleanRole));
+        $('#instance-modal-def-primary').text(primary ? 'TRUE' : 'FALSE')
+            .toggleClass('text-emerald-600 dark:text-emerald-400', !!primary)
+            .toggleClass('text-gray-500 dark:text-gray-400', !primary);
+        $('#instance-modal-def-lazy').text(lazyInit ? 'TRUE' : 'FALSE')
+            .toggleClass('text-amber-600 dark:text-amber-400', !!lazyInit)
+            .toggleClass('text-gray-500 dark:text-gray-400', !lazyInit);
+
+        $('#instance-modal-def-autowired').text(autowireCandidate ? 'TRUE' : 'FALSE');
+        $('#instance-modal-def-context-detail').text(contextId);
+
+        $('#instance-modal-def-factory-bean').text(factoryBeanName || '-');
+        $('#instance-modal-def-factory-method').text(factoryMethodName || '-');
+        $('#instance-modal-def-init-method').text(initMethodName || '-');
+        $('#instance-modal-def-destroy-method').text(destroyMethodName || '-');
+
+        // Render Dependency and Dependent Lists
+        $('#instance-modal-def-deps-count').text(dependencies.length);
+        $('#instance-modal-def-dependents-count').text(dependents.length);
+
+        this._renderModalList($('#instance-modal-def-deps-list'), dependencies, contextId, 'No dependencies required for this bean');
+        this._renderModalList($('#instance-modal-def-dependents-list'), dependents, contextId, 'No beans currently depend on this bean');
+
+        // Footer goto button
+        const gotoHref = `#/definitions?bean=${encodeURIComponent(beanName)}${contextId ? `&contextId=${encodeURIComponent(contextId)}` : ''}`;
+        $('#instance-modal-def-goto-btn').attr('href', gotoHref);
+    }
+
+    _renderModalList($container, list = [], contextId, emptyText) {
+        if (!$container.length) return;
+        $container.empty();
+
+        if (!list || !list.length) {
+            $container.html(`
+                <div class="py-8 text-center text-gray-400 dark:text-gray-500 text-xs italic flex flex-col items-center justify-center gap-1">
+                    <span class="material-symbols-outlined text-2xl text-gray-300 dark:text-slate-700">link_off</span>
+                    <span>${emptyText}</span>
+                </div>
+            `);
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        list.forEach(itemBeanName => {
+            const displayName = GraphTreeBuilder._displayName(itemBeanName);
+            const row = document.createElement('div');
+            row.className = 'flex items-center justify-between p-3 rounded-xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-primary/40 dark:hover:border-purple-500/40 hover:bg-purple-50/20 dark:hover:bg-purple-950/20 transition-all group';
+            row.innerHTML = `
+                <div class="flex items-center gap-3 min-w-0 flex-1">
+                    <div class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400 group-hover:text-primary dark:group-hover:text-purple-300 flex items-center justify-center flex-shrink-0 transition-colors">
+                        <span class="material-symbols-outlined text-[16px]">data_object</span>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="font-bold text-xs text-gray-800 dark:text-gray-100 group-hover:text-primary dark:group-hover:text-purple-300 transition-colors truncate" title="${itemBeanName}">
+                            ${displayName}
+                        </div>
+                        <div class="text-[10px] text-gray-400 dark:text-gray-500 font-mono truncate">
+                            ${itemBeanName}
+                        </div>
+                    </div>
+                </div>
+                <a href="#/definitions?bean=${encodeURIComponent(itemBeanName)}${contextId ? `&contextId=${encodeURIComponent(contextId)}` : ''}"
+                   class="px-2.5 py-1 text-[11px] font-bold text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-purple-300 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-all flex items-center gap-1 flex-shrink-0">
+                    <span>Inspect</span>
+                    <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                </a>
+            `;
+            fragment.appendChild(row);
+        });
+
+        $container.append(fragment);
+    }
+
+    switchModalTab(tabName) {
+        this.activeModalTab = tabName || 'properties';
+        const activeTabClasses = 'text-primary dark:text-purple-400 border-b-2 border-primary font-bold';
+        const inactiveTabClasses = 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium border-b-2 border-transparent';
+
+        $('.modal-tab-btn').each((_, el) => {
+            const $btn = $(el);
+            const isTarget = $btn.data('tab') === this.activeModalTab;
+            $btn.removeClass(activeTabClasses + ' ' + inactiveTabClasses)
+                .addClass(isTarget ? activeTabClasses : inactiveTabClasses);
+        });
+
+        $('.modal-pane').addClass('hidden');
+        $(`#instance-modal-pane-${this.activeModalTab}`).removeClass('hidden');
+    }
+
+    closeBeanDefinitionModal() {
+        const $modal = $('#bean-definition-details-modal');
+        const $card = $('#instance-def-modal-card');
+        if (!$modal.length) return;
+
+        $modal.removeClass('opacity-100').addClass('opacity-0 pointer-events-none');
+        $card.removeClass('scale-100').addClass('scale-95');
+
+        setTimeout(() => {
+            $modal.addClass('hidden');
+        }, 250);
     }
 
     _on(target, event, delegateOrHandler, maybeHandler) {
@@ -631,20 +856,13 @@ export default class InstanceController {
             instances: this.instances
         };
 
-        const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-
-        anchor.href = url;
-        anchor.download = `spring-lens-instances-${Date.now()}.json`;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        URL.revokeObjectURL(url);
+        downloadJson(`spring-lens-instances-${Date.now()}.json`, reportData);
     }
 
     leave() {
-        this._handleCloseSidebar();
+        this._handleCloseSidebar(true);
+        this.closeBeanDefinitionModal();
+        this._resetFilterState();
         if (this._searchDebounceTimer) {
             clearTimeout(this._searchDebounceTimer);
         }

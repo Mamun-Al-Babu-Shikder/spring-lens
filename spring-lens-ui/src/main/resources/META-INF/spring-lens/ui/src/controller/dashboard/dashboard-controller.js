@@ -6,21 +6,24 @@ import {
     formatPercentage,
     SCOPE_COLORS,
     ROLE_COLORS,
-    LOADING_MODE_COLORS
-} from '../../utils';
+    LOADING_MODE_COLORS,
+    QueryParam,
+    TemplateEngine
+} from '../../utils/index.js';
 
 export default class DashboardController {
+
     /**
-     * @param {Object} endpoints Endpoint configuration for dashboard data sources.
+     * @param ENDPOINTS
      */
-    constructor(endpoints = {}) {
+    constructor(ENDPOINTS = {}) {
         this.endpoints = {
-            application: endpoints.application || 'http://localhost:8083/spring-lens/api/application',
-            definitionsSummary: endpoints.definitionsSummary || 'http://localhost:8083/spring-lens/api/beans/definitions/summary',
-            definitions: endpoints.definitions || 'http://localhost:8083/spring-lens/api/beans/definitions',
-            instances: endpoints.instances || 'http://localhost:8083/spring-lens/api/beans/instances',
-            conditions: endpoints.conditions || 'http://localhost:8083/spring-lens/api/beans/conditions',
-            dependencies: endpoints.dependencies || 'http://localhost:8083/spring-lens/api/beans/definitions/dependencies'
+            application         : ENDPOINTS.APPLICATION_INFO,
+            definitions         : ENDPOINTS.BEAN_DEFINITION,
+            instances           : ENDPOINTS.BEAN_INSTANCE,
+            conditions          : ENDPOINTS.CONDITIONAL_REPORTS,
+            dependencies        : ENDPOINTS.GRAPH_DEPENDENCIES,
+            definitionsSummary  : ENDPOINTS.SUMMARY_BEAN_DEFINITION
         };
 
         this.applicationData = null;
@@ -28,7 +31,6 @@ export default class DashboardController {
         this.instancesData = null;
         this.conditionsData = null;
         this.dependenciesData = null;
-        this.cachedBeansList = [];
 
         this.chartInstance = null;
         this.activeChartMode = 'scope'; // 'scope' | 'role' | 'loading'
@@ -40,11 +42,18 @@ export default class DashboardController {
         this._boundThemeHandler = null;
     }
 
+    _resetQuickSearch() {
+        $('#db-quick-search-input').val('');
+        $('#db-quick-search-chips').empty();
+        $('#db-quick-search-results').addClass('hidden');
+    }
+
     /**
      * Called when the dashboard route is entered.
      */
     async enter() {
         try {
+            this._resetQuickSearch();
             this.initEvents();
             await this.loadAllDashboardData();
         } catch (error) {
@@ -56,6 +65,7 @@ export default class DashboardController {
      * Called when navigating away from dashboard.
      */
     leave() {
+        this._resetQuickSearch();
         // 1. Destroy charts and simulations
         this.chartInstance?.destroy();
         this.forceSimulation?.stop();
@@ -103,10 +113,11 @@ export default class DashboardController {
                 }
             },
 
-            // Chart View Mode Toggles
-            '#btn-chart-scope': () => this._setChartMode('scope'),
-            '#btn-chart-role': () => this._setChartMode('role'),
-            '#btn-chart-loading': () => this._setChartMode('loading'),
+            // Chart View Mode Toggles (delegated via data-chart-mode)
+            '[data-chart-mode]': (e) => {
+                const mode = $(e.currentTarget).data('chart-mode');
+                if (mode) this._setChartMode(mode);
+            },
 
             // Radial Tree Zoom Controls
             '#btn-radial-zoom-in': () => this._zoomRadial(1.3),
@@ -115,7 +126,7 @@ export default class DashboardController {
 
             // Quick Navigation Rows
             '.slowest-bean-item': () => { window.location.hash = '#/timeline'; },
-            '.hub-bean-item': () => { window.location.hash = '#/graph'; }
+            '.hub-bean-item': () => { window.location.hash = '#/definitions'; }
         };
 
         // 3. Register click events with the '.dashboard' namespace
@@ -144,112 +155,189 @@ export default class DashboardController {
     }
 
     /**
-     * Fetches all required endpoints in parallel with resilient fallback.
+     * Helper to smoothly scale the radial D3 SVG zoom
      */
-    async loadAllDashboardData() {
-        const [
-            appResult,
-            summaryResult,
-            instancesResult,
-            conditionsResult,
-            dependenciesResult
-        ] = await Promise.allSettled([
-            httpClient.get(this.endpoints.application),
-            httpClient.get(this.endpoints.definitionsSummary),
-            httpClient.getWithQuery(this.endpoints.instances, 'pageSize=100&sortBy=initDurationNanos&sortDir=DESC'),
-            httpClient.getWithQuery(this.endpoints.conditions, 'pageSize=100'),
-            httpClient.getWithQuery(this.endpoints.dependencies, 'pageSize=1000')
-        ]);
-
-        if (appResult.status === 'fulfilled') {
-            this.applicationData = appResult.value;
-            this.renderApplicationInfo(this.applicationData);
-        } else {
-            console.warn('Could not fetch Application Info:', appResult.reason);
-            this.renderApplicationInfoFallback();
+    _zoomRadial(scaleFactor) {
+        if (this.radialSvg && this.radialZoom) {
+            this.radialSvg.transition().duration(250).call(this.radialZoom.scaleBy, scaleFactor);
         }
-
-        if (summaryResult.status === 'fulfilled') {
-            this.summaryData = summaryResult.value;
-            this.renderDefinitionKpi(this.summaryData);
-            this.renderDefinitionChart(this.summaryData);
-        }
-
-        if (instancesResult.status === 'fulfilled') {
-            this.instancesData = instancesResult.value;
-            this.renderInstancesKpiAndBottlenecks(this.instancesData);
-        }
-
-        if (conditionsResult.status === 'fulfilled') {
-            this.conditionsData = conditionsResult.value;
-            this.renderConditionsKpiAndSummary(this.conditionsData);
-        }
-
-        if (dependenciesResult.status === 'fulfilled') {
-            this.dependenciesData = dependenciesResult.value;
-            this.renderDependenciesKpiAndHubs(this.dependenciesData);
-            this.renderRadialTidyTree(this.dependenciesData);
-        }
-
-        // Cache bean items for quick search
-        this._buildCachedBeansList();
     }
 
     /**
-     * Renders Application information hero banner.
+     * Fetches all required endpoints in parallel with resilient fallback.
+     */
+    async loadAllDashboardData() {
+        await Promise.allSettled([
+            httpClient.get(this.endpoints.application)
+                .then(data => this.renderApplicationInfo(this.applicationData = data))
+                .catch(err => {
+                    console.warn('Could not fetch Application Info:', err);
+                    this.renderApplicationInfoFallback();
+                }),
+
+            httpClient.get(this.endpoints.definitionsSummary)
+                .then(data => {
+                    this.summaryData = data;
+                    this.renderDefinitionKpi(data);
+                    this.renderDefinitionChart(data);
+                }),
+
+            httpClient.getWithQuery(
+                this.endpoints.instances,
+                QueryParam.build({ pageSize: 100, sortBy: 'initDurationNanos', sortDir: 'DESC' }).toString()
+            ).then(data => this.renderInstancesKpiAndBottlenecks(this.instancesData = data)),
+
+            httpClient.getWithQuery(
+                this.endpoints.conditions,
+                QueryParam.build({ pageSize: 100 }).toString()
+            ).then(data => this.renderConditionsKpiAndSummary(this.conditionsData = data)),
+
+            httpClient.getWithQuery(
+                this.endpoints.dependencies,
+                QueryParam.build({ pageSize: 100 }).toString()
+            ).then(data => {
+                this.dependenciesData = data;
+                this.renderDependenciesKpiAndHubs(data);
+                this.renderRadialTidyTree(data);
+            })
+        ]);
+    }
+
+    /**
+     * Renders the application hero metrics and starts the live ticker.
      */
     renderApplicationInfo(app) {
-        if (!app) return;
+        const vm = this._extractAppViewModel(app);
+        const $hero = $('#hero-application-banner');
 
-        const name = app.name || 'Spring Application';
-        $('#hero-app-name').text(name);
+        const fieldMap = {
+            appName: vm.name,
+            bootVersion: `v${vm.bootVersion}`,
+            frameworkVersion: `v${vm.frameworkVersion}`,
+            javaVersion: `Java ${vm.javaVersion}`,
+            javaVendor: vm.javaVendor,
+            startupDuration: vm.formattedDuration,
+            startedAt: vm.formattedStartedAt
+        };
 
-        // Spring Info
-        const bootVersion = app.spring?.bootVersion || '3.x';
-        const frameworkVersion = app.spring?.frameworkVersion || '6.x';
-        $('#hero-spring-boot').html(`Boot: <span class="font-mono font-bold text-emerald-300">v${bootVersion}</span>`);
-        $('#hero-spring-framework').html(`Framework: <span class="font-mono text-slate-300">v${frameworkVersion}</span>`);
+        this._bindDataFields($hero, fieldMap);
+        this._renderProfileBadges(vm.activeProfiles, vm.defaultProfiles);
 
-        // Java Info
-        const javaVersion = app.java?.version || '21';
-        const javaVendor = app.java?.vendor || 'OpenJDK';
-        $('#hero-java-version').html(`Version: <span class="font-mono font-bold text-amber-300">Java ${javaVersion}</span>`);
-        $('#hero-java-vendor').html(`Vendor: <span class="font-mono text-slate-300">${javaVendor}</span>`);
-
-        // Startup Info
-        const rawDuration = app.startup?.startupDuration;
-        const formattedDuration = this._formatStartupDuration(rawDuration);
-        const rawStartedAt = app.startup?.startedAt;
-        const formattedStartedAt = rawStartedAt ? new Date(rawStartedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '--';
-
-        $('#hero-startup-duration').html(`Duration: <span class="font-mono font-bold text-cyan-300">${formattedDuration}</span>`);
-        $('#hero-started-at').html(`Started: <span class="font-mono text-slate-300">${formattedStartedAt}</span>`);
-
-        // Profiles
-        const activeProfiles = Array.from(app.activeProfiles || []);
-        const $profilesContainer = $('#hero-profiles-list').empty();
-        if (activeProfiles.length > 0) {
-            activeProfiles.forEach(p => {
-                $profilesContainer.append(`<span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-primary/40 text-purple-200 border border-purple-400/30">${p}</span>`);
-            });
-        } else {
-            $profilesContainer.append('<span class="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-white/10 text-slate-300">default</span>');
-        }
-
-        // Live Uptime Ticker
-        if (rawStartedAt) {
-            this._startUptimeTracker(new Date(rawStartedAt));
+        if (vm.startDate) {
+            this._startUptimeTracker(vm.startDate);
         }
     }
 
+    _bindDataFields($container, fieldMap = {}) {
+        Object.entries(fieldMap).forEach(([field, value]) => {
+            const $target = $container.find(`[data-field="${field}"]`);
+            if ($target.length && value != null) {
+                $target.text(value);
+                if (field === 'javaVendor' || field === 'startedAt') {
+                    $target.attr('title', String(value));
+                }
+            }
+        });
+    }
+
+    _renderProfileBadges(activeProfiles = [], defaultProfiles = []) {
+        const $hero = $('#hero-application-banner');
+        const $container = $('#hero-profiles-list').empty();
+        const isActive = activeProfiles.length > 0;
+        const profiles = isActive ? activeProfiles : defaultProfiles;
+
+        $hero.find('[data-field="profilesLabel"]').text(isActive ? 'Active Profiles' : 'Default Profiles');
+
+        if (!profiles.length || (!isActive && profiles.length === 1 && profiles[0] === 'default')) {
+            const emptyClone = TemplateEngine.clone('tpl-dashboard-profile-empty');
+            if (emptyClone) {
+                $container.append(emptyClone);
+                return;
+            }
+        }
+
+        const fragment = document.createDocumentFragment();
+        profiles.forEach(profileName => {
+            const clone = TemplateEngine.clone(isActive ? 'tpl-dashboard-profile-badge' : 'tpl-dashboard-profile-empty');
+            if (!clone) return;
+
+            const badge = clone.firstElementChild;
+            const nameEl = badge.querySelector('[data-field="name"]') || badge;
+            nameEl.textContent = profileName;
+
+            if (!isActive) {
+                badge.setAttribute('title', 'Default profile');
+            }
+
+            fragment.appendChild(clone);
+        });
+
+        $container.append(fragment);
+    }
+
+    _extractAppViewModel(app = {}) {
+        const {
+            name = 'Spring Application',
+            spring = {},
+            java = {},
+            startup = {},
+            activeProfiles = [],
+            defaultProfiles = [],
+        } = app;
+
+        let startDate = null;
+        let formattedStartedAt = '--';
+
+        if (startup.startedAt) {
+            const parsedDate = new Date(startup.startedAt);
+            if (!Number.isNaN(parsedDate.getTime())) {
+                startDate = parsedDate;
+                formattedStartedAt = parsedDate.toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+            }
+        }
+
+        return {
+            name,
+            bootVersion: spring.bootVersion ?? '3.x',
+            frameworkVersion: spring.frameworkVersion ?? '6.x',
+            javaVersion: java.version ?? '21',
+            javaVendor: java.vendor ?? 'OpenJDK',
+            rawDuration: startup.startupDuration,
+            formattedDuration: this._formatStartupDuration(startup.startupDuration),
+            rawStartedAt: startup.startedAt ?? '',
+            formattedStartedAt,
+            startDate,
+            activeProfiles: Array.isArray(activeProfiles) ? activeProfiles : [],
+            defaultProfiles: Array.isArray(defaultProfiles) && defaultProfiles.length > 0
+                ? defaultProfiles
+                : ['default'],
+        };
+    }
+
     renderApplicationInfoFallback() {
-        $('#hero-app-name').text('Spring Boot Application');
-        $('#hero-spring-boot').html('Boot: <span class="font-mono text-emerald-300">Active</span>');
-        $('#hero-spring-framework').html('Framework: <span class="font-mono text-slate-300">Detected</span>');
-        $('#hero-java-version').html('Java: <span class="font-mono text-amber-300">Runtime</span>');
-        $('#hero-java-vendor').html('Vendor: <span class="font-mono text-slate-300">Standard</span>');
-        $('#hero-startup-duration').html('Duration: <span class="font-mono text-cyan-300">Ready</span>');
-        $('#hero-started-at').html('Status: <span class="font-mono text-slate-300">Live</span>');
+        const $hero = $('#hero-application-banner');
+        const fallbackMap = {
+            appName: 'Spring Boot Application',
+            bootVersion: 'Active',
+            frameworkVersion: 'Detected',
+            javaVersion: 'Runtime',
+            javaVendor: 'Standard',
+            startupDuration: 'Ready',
+            startedAt: 'Live',
+            profilesLabel: 'Active Profiles'
+        };
+
+        this._bindDataFields($hero, fallbackMap);
+
+        const $container = $('#hero-profiles-list').empty();
+        const emptyClone = TemplateEngine.clone('tpl-dashboard-profile-empty');
+        if (emptyClone) {
+            $container.append(emptyClone);
+        }
     }
 
     /**
@@ -265,10 +353,8 @@ export default class DashboardController {
         const singletons = scopes.singleton || scopes.SINGLETON || 0;
         const prototypes = scopes.prototype || scopes.PROTOTYPE || 0;
 
-        $('#kpi-definitions-sub').html(`
-            <span><strong class="text-purple-600 dark:text-purple-400">${singletons}</strong> Singleton</span>
-            <span><strong class="text-gray-700 dark:text-gray-300">${prototypes}</strong> Prototype</span>
-        `);
+        $('#kpi-def-singletons').text(singletons.toLocaleString());
+        $('#kpi-def-prototypes').text(prototypes.toLocaleString());
     }
 
     /**
@@ -322,26 +408,28 @@ export default class DashboardController {
 
         $('#db-chart-footer-info').text(footerText);
 
-        // Render Custom Legend
+        // Render Custom Legend using TemplateEngine
         const $legend = $('#db-definition-legend').empty();
+        const fragment = document.createDocumentFragment();
+
         labels.forEach((label, idx) => {
             const val = data[idx] || 0;
             const pct = formatPercentage(val, total);
             const col = colors[idx] || '#6366f1';
 
-            $legend.append(`
-                <div class="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors text-xs">
-                    <div class="flex items-center gap-2 min-w-0">
-                        <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: ${col}"></span>
-                        <span class="font-medium text-gray-700 dark:text-gray-300 truncate">${label}</span>
-                    </div>
-                    <div class="flex items-center gap-2 flex-shrink-0">
-                        <span class="font-bold text-gray-800 dark:text-white font-mono">${val}</span>
-                        <span class="text-[11px] text-gray-400 dark:text-gray-500 font-mono w-9 text-right">${pct}</span>
-                    </div>
-                </div>
-            `);
+            const clone = TemplateEngine.clone('tpl-dashboard-chart-legend-item');
+            if (!clone) return;
+
+            const $item = $(clone.firstElementChild);
+            $item.find('[data-field="dot"]').css('background-color', col);
+            $item.find('[data-field="label"]').text(label).attr('title', label);
+            $item.find('[data-field="val"]').text(val);
+            $item.find('[data-field="pct"]').text(pct);
+
+            fragment.appendChild(clone);
         });
+
+        $legend.append(fragment);
 
         // Render Chart.js
         const canvas = document.getElementById('dbDefinitionChart');
@@ -388,15 +476,19 @@ export default class DashboardController {
     }
 
     _setChartMode(mode) {
+        if (this.activeChartMode === mode && this.chartInstance) return;
         this.activeChartMode = mode;
 
-        $('#btn-chart-scope, #btn-chart-role, #btn-chart-loading')
-            .removeClass('bg-white dark:bg-slate-700 text-gray-800 dark:text-white shadow-sm')
-            .addClass('text-gray-500 dark:text-gray-400');
+        const activeCls = 'bg-white dark:bg-slate-700 text-gray-800 dark:text-white shadow-sm';
+        const inactiveCls = 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white';
 
-        $(`#btn-chart-${mode}`)
-            .removeClass('text-gray-500 dark:text-gray-400')
-            .addClass('bg-white dark:bg-slate-700 text-gray-800 dark:text-white shadow-sm');
+        $('#chart-mode-toggle [data-chart-mode]').each(function () {
+            const isCurrent = $(this).data('chart-mode') === mode;
+            $(this)
+                .toggleClass(activeCls, isCurrent)
+                .toggleClass(inactiveCls, !isCurrent)
+                .attr('aria-pressed', String(isCurrent));
+        });
 
         if (this.summaryData) {
             this.renderDefinitionChart(this.summaryData);
@@ -409,14 +501,8 @@ export default class DashboardController {
     renderInstancesKpiAndBottlenecks(instancesResponse) {
         if (!instancesResponse) return;
 
-        const items = Array.isArray(instancesResponse?.content)
-            ? instancesResponse.content
-            : (Array.isArray(instancesResponse?.items)
-                ? instancesResponse.items
-                : (Array.isArray(instancesResponse) ? instancesResponse : []));
-
-        const total = instancesResponse.totalElements ?? items.length;
-
+        const items = instancesResponse?.content ?? [];
+        const total = instancesResponse?.totalElements ?? items.length;
         $('#kpi-instances-count').text(total.toLocaleString());
 
         // Compute total startup cost
@@ -431,12 +517,9 @@ export default class DashboardController {
         const formattedTotalCost = this._formatNanos(totalNanos);
         const formattedMaxLatency = this._formatNanos(maxNanos);
 
-        $('#kpi-instances-sub').html(`
-            <span>Total startup cost: <strong class="text-emerald-600 dark:text-emerald-400 font-mono">${formattedTotalCost}</strong></span>
-        `);
-
-        $('#db-slowest-total-cost').html(`Total Cost: <strong class="text-gray-700 dark:text-gray-300 font-mono">${formattedTotalCost}</strong>`);
-        $('#db-slowest-max-latency').html(`Max Latency: <strong class="font-mono">${formattedMaxLatency}</strong>`);
+        $('#kpi-inst-total-cost').text(formattedTotalCost);
+        $('#db-slowest-cost-val').text(formattedTotalCost);
+        $('#db-slowest-max-val').text(formattedMaxLatency);
 
         // Sort items by initDurationNanos descending and pick top 5
         const sorted = [...items].sort((a, b) => (b.initDurationNanos || 0) - (a.initDurationNanos || 0));
@@ -444,18 +527,25 @@ export default class DashboardController {
         const topMaxNanos = top5.length > 0 ? (top5[0].initDurationNanos || 1) : 1;
 
         const $list = $('#db-slowest-beans-list').empty();
-        const template = document.getElementById('tpl-dashboard-slowest-row');
 
-        if (!template || top5.length === 0) {
-            $list.append('<div class="text-center py-6 text-xs text-gray-400">No instance initialization records found.</div>');
+        if (top5.length === 0) {
+            const emptyClone = TemplateEngine.clone('tpl-dashboard-empty-state');
+            if (emptyClone) {
+                $(emptyClone).find('[data-field="message"]').text('No instance initialization records found.');
+                $list.append(emptyClone);
+            }
             return;
         }
 
-        top5.forEach((item, index) => {
-            const clone = template.content.cloneNode(true);
-            const $row = $(clone.querySelector('.slowest-bean-item'));
+        const fragment = document.createDocumentFragment();
 
+        top5.forEach((item, index) => {
+            const clone = TemplateEngine.clone('tpl-dashboard-slowest-row');
+            if (!clone) return;
+
+            const $row = $(clone.firstElementChild);
             const durationNanos = item.initDurationNanos || 0;
+            const durationMs = durationNanos / 1_000_000;
             const formattedDuration = this._formatNanos(durationNanos);
             const meta = resolveBeanMetadata(item);
             const pct = Math.max(8, Math.min(100, Math.round((durationNanos / topMaxNanos) * 100)));
@@ -468,35 +558,47 @@ export default class DashboardController {
             $row.find('[data-field="name"]').text(item.beanName || '--');
             $row.find('[data-field="type"]').text(item.type || '--');
 
-            const durationMs = durationNanos / 1_000_000;
-            const $bar = $row.find('[data-field="latency-bar"]');
-            $bar.css('width', `${pct}%`);
+            const $bar = $row.find('[data-field="latency-bar"]').css('width', `${pct}%`);
+            const $badge = $row.find('[data-field="latency-badge"]').text(formattedDuration);
 
-            const $badge = $row.find('[data-field="latency-badge"]');
-            $badge.text(formattedDuration);
-
-            // Latency color code
-            if (durationMs >= 50) {
-                $bar.addClass('bg-red-500');
-                $badge.addClass('bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800');
-            } else if (durationMs >= 10) {
-                $bar.addClass('bg-amber-500');
-                $badge.addClass('bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800');
-            } else {
-                $bar.addClass('bg-emerald-500');
-                $badge.addClass('bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800');
-            }
+            // Apply latency theme classes cleanly via helper
+            const theme = this._resolveLatencyTheme(durationMs);
+            $bar.addClass(theme.bar);
+            $badge.addClass(theme.badge);
 
             // Click to navigate to timeline
             $row.on('click', () => {
                 if (item.beanName) {
-                    sessionStorage.setItem('springlens_selected_bean', item.beanName);
+                    const query = QueryParam.build({ search: item.beanName, contextId: item.contextId || '' }).toString();
+                    window.location.hash = `#/timeline?${query}`;
+                } else {
+                    window.location.hash = '#/timeline';
                 }
-                window.location.hash = '#/timeline';
             });
 
-            $list.append($row);
+            fragment.appendChild(clone);
         });
+
+        $list.append(fragment);
+    }
+
+    _resolveLatencyTheme(durationMs) {
+        if (durationMs >= 50) {
+            return {
+                bar: 'bg-red-500',
+                badge: 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800'
+            };
+        }
+        if (durationMs >= 10) {
+            return {
+                bar: 'bg-amber-500',
+                badge: 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800'
+            };
+        }
+        return {
+            bar: 'bg-emerald-500',
+            badge: 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
+        };
     }
 
     /**
@@ -505,13 +607,8 @@ export default class DashboardController {
     renderConditionsKpiAndSummary(conditionsResponse) {
         if (!conditionsResponse) return;
 
-        const items = Array.isArray(conditionsResponse?.content)
-            ? conditionsResponse.content
-            : (Array.isArray(conditionsResponse?.items)
-                ? conditionsResponse.items
-                : (Array.isArray(conditionsResponse) ? conditionsResponse : []));
-
-        const total = conditionsResponse.totalElements ?? items.length;
+        const items = conditionsResponse?.content ?? [];
+        const total = conditionsResponse?.totalElements ?? items.length;
 
         let matched = 0;
         let notMatched = 0;
@@ -527,10 +624,9 @@ export default class DashboardController {
         const notMatchedPct = 100 - matchedPct;
 
         $('#kpi-conditions-count').text(total.toLocaleString());
-        $('#kpi-conditions-sub').html(`
-            <span><strong class="text-emerald-600 dark:text-emerald-400">${matched}</strong> Matched (${matchedPct}%)</span>
-            <span><strong class="text-slate-500">${notMatched}</strong> Skipped</span>
-        `);
+        $('#kpi-cond-matched').text(matched.toLocaleString());
+        $('#kpi-cond-matched-pct').text(matchedPct);
+        $('#kpi-cond-skipped').text(notMatched.toLocaleString());
 
         // Update Progress Bar
         $('#db-cond-matched-label').text(`${matched} (${matchedPct}%)`);
@@ -542,18 +638,24 @@ export default class DashboardController {
 
         // Render Recent Samples
         const $list = $('#db-conditions-sample-list').empty();
-        const template = document.getElementById('tpl-dashboard-condition-row');
 
-        if (!template || items.length === 0) {
-            $list.append('<div class="text-center py-4 text-xs text-gray-400">No condition reports available.</div>');
+        if (items.length === 0) {
+            const emptyClone = TemplateEngine.clone('tpl-dashboard-empty-state');
+            if (emptyClone) {
+                $(emptyClone).find('[data-field="message"]').text('No condition reports available.');
+                $list.append(emptyClone);
+            }
             return;
         }
 
+        const fragment = document.createDocumentFragment();
         const sample = items.slice(0, 4);
-        sample.forEach(cond => {
-            const clone = template.content.cloneNode(true);
-            const $row = $(clone.firstElementChild);
 
+        sample.forEach(cond => {
+            const clone = TemplateEngine.clone('tpl-dashboard-condition-row');
+            if (!clone) return;
+
+            const $row = $(clone.firstElementChild);
             const isMatch = cond.outcome === 'MATCHED';
             const shortSource = cond.source?.split('.').pop() || cond.source || '--';
 
@@ -561,7 +663,7 @@ export default class DashboardController {
                 .addClass(isMatch ? 'bg-emerald-500' : 'bg-slate-400');
             $row.find('[data-field="source"]')
                 .text(shortSource)
-                .attr('title', cond.source);
+                .attr('title', cond.source || '');
 
             const $badge = $row.find('[data-field="outcome-badge"]');
             $badge.text(cond.outcome || 'UNKNOWN');
@@ -572,8 +674,10 @@ export default class DashboardController {
                 $badge.addClass('bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700');
             }
 
-            $list.append($row);
+            fragment.appendChild(clone);
         });
+
+        $list.append(fragment);
     }
 
     /**
@@ -582,13 +686,8 @@ export default class DashboardController {
     renderDependenciesKpiAndHubs(dependenciesResponse) {
         if (!dependenciesResponse) return;
 
-        const items = Array.isArray(dependenciesResponse?.content)
-            ? dependenciesResponse.content
-            : (Array.isArray(dependenciesResponse?.items)
-                ? dependenciesResponse.items
-                : (Array.isArray(dependenciesResponse) ? dependenciesResponse : []));
-
-        const totalBeans = dependenciesResponse.totalElements ?? items.length;
+        const items = dependenciesResponse?.content ?? [];
+        const totalBeans = dependenciesResponse?.totalElements ?? items.length;
 
         // Build dependent fan-in counts
         const dependentCounts = new Map();
@@ -604,10 +703,8 @@ export default class DashboardController {
         });
 
         $('#kpi-dependencies-count').text(totalBeans.toLocaleString());
-        $('#kpi-dependencies-sub').html(`
-            <span><strong class="text-blue-600 dark:text-blue-400">${totalEdges}</strong> Dependency Edges</span>
-            <span><strong class="text-gray-700 dark:text-gray-300">${dependentCounts.size}</strong> Depended Beans</span>
-        `);
+        $('#kpi-dep-edges').text(totalEdges.toLocaleString());
+        $('#kpi-dep-beans').text(dependentCounts.size.toLocaleString());
 
         $('#db-graph-footer-stats').text(`${totalBeans} Beans • ${totalEdges} Connections`);
 
@@ -617,17 +714,23 @@ export default class DashboardController {
             .slice(0, 5);
 
         const $list = $('#db-dependency-hubs-list').empty();
-        const template = document.getElementById('tpl-dashboard-hub-row');
 
-        if (!template || sortedHubs.length === 0) {
-            $list.append('<div class="text-center py-6 text-xs text-gray-400">No dependency connections detected.</div>');
+        if (sortedHubs.length === 0) {
+            const emptyClone = TemplateEngine.clone('tpl-dashboard-empty-state');
+            if (emptyClone) {
+                $(emptyClone).find('[data-field="message"]').text('No dependency connections detected.');
+                $list.append(emptyClone);
+            }
             return;
         }
 
-        sortedHubs.forEach(([beanName, count], idx) => {
-            const clone = template.content.cloneNode(true);
-            const $row = $(clone.querySelector('.hub-bean-item'));
+        const fragment = document.createDocumentFragment();
 
+        sortedHubs.forEach(([beanName, count], idx) => {
+            const clone = TemplateEngine.clone('tpl-dashboard-hub-row');
+            if (!clone) return;
+
+            const $row = $(clone.firstElementChild);
             const meta = resolveBeanMetadata({ beanName });
 
             $row.find('[data-field="rank"]').text(idx + 1);
@@ -635,54 +738,24 @@ export default class DashboardController {
                 .css('color', meta.color)
                 .text(meta.icon);
             $row.find('[data-field="name"]').text(beanName);
-            $row.find('[data-field="type"]').text(`Referenced by other beans`);
+            $row.find('[data-field="type"]').text('Referenced by other beans');
             $row.find('[data-field="dependents-count"]').text(`${count} dependents`);
 
-            $list.append($row);
+            $row.on('click', () => {
+                const query = QueryParam.build({ search: beanName }).toString();
+                window.location.hash = `#/definitions?${query}`;
+            });
+
+            fragment.appendChild(clone);
         });
+
+        $list.append(fragment);
     }
 
     /**
-     * Builds in-memory search lookup list from instances and dependencies.
+     * Quick search handler using backend API.
      */
-    _buildCachedBeansList() {
-        const set = new Map();
-
-        const instancesList = Array.isArray(this.instancesData?.content)
-            ? this.instancesData.content
-            : (Array.isArray(this.instancesData?.items) ? this.instancesData.items : []);
-
-        instancesList.forEach(inst => {
-            if (inst.beanName) {
-                set.set(inst.beanName, {
-                    name: inst.beanName,
-                    type: inst.type || '',
-                    contextId: inst.contextId || ''
-                });
-            }
-        });
-
-        const depsList = Array.isArray(this.dependenciesData?.content)
-            ? this.dependenciesData.content
-            : (Array.isArray(this.dependenciesData?.items) ? this.dependenciesData.items : []);
-
-        depsList.forEach(item => {
-            if (item.beanName && !set.has(item.beanName)) {
-                set.set(item.beanName, {
-                    name: item.beanName,
-                    type: '',
-                    contextId: item.contextId || ''
-                });
-            }
-        });
-
-        this.cachedBeansList = Array.from(set.values());
-    }
-
-    /**
-     * Quick search handler.
-     */
-    handleQuickSearch(query) {
+    async handleQuickSearch(query) {
         const $resultsContainer = $('#db-quick-search-results');
         const $chipsContainer = $('#db-quick-search-chips').empty();
 
@@ -691,35 +764,79 @@ export default class DashboardController {
             return;
         }
 
-        const lower = query.toLowerCase();
-        const matches = this.cachedBeansList.filter(b =>
-            b.name.toLowerCase().includes(lower) || b.type.toLowerCase().includes(lower)
-        ).slice(0, 9);
+        try {
+            const queryParams = QueryParam.build({
+                search: query,
+                pageSize: 9
+            }).toString();
 
-        if (matches.length === 0) {
-            $chipsContainer.append('<div class="col-span-full text-xs text-gray-400 py-2">No matching beans found for query.</div>');
+            const response = await httpClient.getWithQuery(this.endpoints.definitions, queryParams);
+            const items = response?.content ?? [];
+
+            if (items.length === 0) {
+                const emptyClone = TemplateEngine.clone('tpl-dashboard-empty-state');
+                if (emptyClone) {
+                    const $emptyEl = $(emptyClone.firstElementChild);
+                    $emptyEl.addClass('col-span-full').find('[data-field="message"]').text('No matching beans found for query.');
+                    $chipsContainer.append($emptyEl);
+                }
+                $resultsContainer.removeClass('hidden');
+                return;
+            }
+
+            const fragment = document.createDocumentFragment();
+
+            items.forEach(b => {
+                const clone = TemplateEngine.clone('tpl-dashboard-search-chip');
+                if (!clone) return;
+
+                const $chip = $(clone.firstElementChild);
+                const beanName = b.beanName || b.name || '--';
+                const beanType = b.beanType || b.type || b.className || '';
+                const contextId = b.contextId || '';
+                const meta = resolveBeanMetadata({ beanName, type: beanType });
+
+                $chip.find('[data-field="icon"]')
+                    .css('color', meta.color)
+                    .text(meta.icon);
+                $chip.find('[data-field="name"]')
+                    .text(beanName)
+                    .attr('title', beanName);
+
+                // Def button & chip body -> Definitions page with URL params
+                $chip.find('.btn-goto-def').on('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const q = QueryParam.build({ search: beanName, contextId }).toString();
+                    window.location.hash = `#/definitions?${q}`;
+                });
+
+                // Graph button -> Dependency Graph page with URL params
+                $chip.find('.btn-goto-graph').on('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const q = QueryParam.build({ focus: beanName, contextId }).toString();
+                    window.location.hash = `#/graph?${q}`;
+                });
+
+                // Inst button -> Instance Timeline page with URL params
+                $chip.find('.btn-goto-inst').on('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const q = QueryParam.build({ search: beanName, contextId }).toString();
+                    window.location.hash = `#/timeline?${q}`;
+                });
+
+                fragment.appendChild(clone);
+            });
+
+            $chipsContainer.append(fragment);
             $resultsContainer.removeClass('hidden');
-            return;
+        } catch (err) {
+            console.warn('Error during dashboard quick search:', err);
+            $chipsContainer.append('<div class="col-span-full text-xs text-red-400 py-2">Error searching beans.</div>');
+            $resultsContainer.removeClass('hidden');
         }
-
-        matches.forEach(b => {
-            const meta = resolveBeanMetadata({ beanName: b.name, type: b.type });
-            const chip = $(`
-                <div class="flex items-center justify-between p-2 rounded-xl bg-gray-50 dark:bg-slate-800 hover:bg-purple-50 dark:hover:bg-purple-950/30 border border-gray-200 dark:border-slate-700 hover:border-primary/40 transition-all cursor-pointer group">
-                    <div class="flex items-center gap-2 min-w-0 flex-1">
-                        <span class="material-symbols-outlined text-[16px]" style="color: ${meta.color}">${meta.icon}</span>
-                        <span class="text-xs font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary transition-colors truncate">${b.name}</span>
-                    </div>
-                    <div class="flex items-center gap-1">
-                        <a href="#/definitions" class="px-1.5 py-0.5 text-[10px] font-semibold text-primary dark:text-purple-300 hover:underline">Def</a>
-                        <a href="#/timeline" class="px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline">Inst</a>
-                    </div>
-                </div>
-            `);
-            $chipsContainer.append(chip);
-        });
-
-        $resultsContainer.removeClass('hidden');
     }
 
     /**
@@ -814,11 +931,7 @@ export default class DashboardController {
 
         const $dbRadialLoading = $('#db-radial-loading');
 
-        const items = Array.isArray(dependenciesResponse?.content)
-            ? dependenciesResponse.content
-            : (Array.isArray(dependenciesResponse?.items)
-                ? dependenciesResponse.items
-                : (Array.isArray(dependenciesResponse) ? dependenciesResponse : []));
+        const items = dependenciesResponse?.content ?? [];
 
         const $svg = $('#db-radial-tree-svg');
         const svgNode = $svg[0];
@@ -871,17 +984,23 @@ export default class DashboardController {
             // Main Zoomable SVG Group
             const g = svg.append('g');
 
-            // Zoom Handling
+            // Zoom Handling (with default zoomed-in view)
             const zoom = d3.zoom()
-                .scaleExtent([0.25, 4.5])
+                .scaleExtent([0.25, 5.0])
                 .on('zoom', (event) => {
                     g.attr('transform', event.transform);
                 });
 
-            svg.call(zoom);
+            const initialScale = 1.30;
+            const initialTransform = d3.zoomIdentity
+                .translate((width / 2) * (1 - initialScale), (height / 2) * (1 - initialScale))
+                .scale(initialScale);
+
             this.radialZoom = zoom;
             this.radialSvg = svg;
-            this.radialInitialTransform = d3.zoomIdentity;
+            this.radialInitialTransform = initialTransform;
+
+            svg.call(zoom).call(zoom.transform, initialTransform);
 
             // 1. Render Links Group (Clean, thin linear lines)
             const linksGroup = g.append('g').attr('class', 'tree-links');
@@ -899,7 +1018,7 @@ export default class DashboardController {
             const nodeGroups = nodesGroup.selectAll('g')
                 .data(nodes)
                 .join('g')
-                .attr('class', 'tree-node cursor-pointer select-none');
+                .attr('class', 'tree-node select-none');
 
             // Node Rendering (Simple clean solid dots for all nodes including root)
             nodeGroups.each(function (d) {
@@ -907,7 +1026,7 @@ export default class DashboardController {
                 const hasChildren = Boolean(d.children && d.children.length > 0);
                 const isRoot = d.depth === 0;
                 const nodeColor = getNodeColor(d);
-                const radius = isRoot ? 6.0 : (hasChildren ? 5.2 : 4.0);
+                const radius = isRoot ? 6.2 : (hasChildren ? 5.4 : 4.2);
 
                 // Clean Solid Colored Circle
                 nodeEl.append('circle')
@@ -922,15 +1041,15 @@ export default class DashboardController {
             const simulation = d3.forceSimulation(nodes)
                 .force('link', d3.forceLink(links)
                     .id(d => d.id)
-                    .distance(d => d.depth === 1 ? 55 : (d.target.children ? 38 : 28))
+                    .distance(d => d.depth === 1 ? 58 : (d.target.children ? 40 : 28))
                     .strength(0.85)
                 )
                 .force('charge', d3.forceManyBody()
-                    .strength(d => d.depth === 0 ? -180 : (d.children ? -130 : -55))
-                    .distanceMax(260)
+                    .strength(d => d.depth === 0 ? -190 : (d.children ? -135 : -58))
+                    .distanceMax(270)
                 )
                 .force('collide', d3.forceCollide()
-                    .radius(d => (d.depth === 0 ? 10 : (d.children ? 8 : 6)) + 3)
+                    .radius(d => (d.depth === 0 ? 11 : (d.children ? 9 : 7)) + 3)
                     .iterations(2)
                 )
                 .force('center', d3.forceCenter(width / 2, height / 2).strength(0.08))
@@ -1043,39 +1162,38 @@ export default class DashboardController {
                 const totalSubtree = descendants.size - 1;
                 const parentName = d.parent ? (d.parent.data.name || d.parent.data.fullName || 'Root') : 'None';
 
-                // Resolve matching badge color
-                let badgeClass = 'bg-blue-400/20 text-blue-300';
-                let iconColor = '#60a5fa';
-                if (isRootNode) {
-                    badgeClass = 'bg-emerald-500/20 text-emerald-300';
-                    iconColor = '#10b981';
-                } else {
-                    const color = getNodeColor(d);
-                    if (color === '#34d399') { badgeClass = 'bg-emerald-400/20 text-emerald-300'; iconColor = '#34d399'; }
-                    else if (color === '#fbbf24') { badgeClass = 'bg-amber-400/20 text-amber-300'; iconColor = '#fbbf24'; }
-                    else if (color === '#f472b6') { badgeClass = 'bg-pink-400/20 text-pink-300'; iconColor = '#f472b6'; }
-                    else if (color === '#c084fc') { badgeClass = 'bg-purple-400/20 text-purple-300'; iconColor = '#c084fc'; }
-                }
+                const clone = TemplateEngine.clone('tpl-dashboard-radial-tooltip');
+                if (clone) {
+                    const $t = $(clone.firstElementChild);
 
-                $tooltip.html(`
-                    <div class="flex items-center gap-2 mb-1.5">
-                        <span class="material-symbols-outlined text-[16px]" style="color: ${iconColor}">${isRootNode ? 'account_tree' : meta.icon}</span>
-                        <span class="font-bold text-white text-xs truncate flex-1">${titleName}</span>
-                        <span class="px-1.5 py-0.2 rounded text-[9px] font-mono uppercase ${badgeClass} border border-white/10">${scope}</span>
-                    </div>
-                    <div class="text-[10px] text-gray-300 font-mono truncate mb-2" title="${type}">${type}</div>
-                    <div class="grid grid-cols-2 gap-1.5 text-[10px] pt-1.5 border-t border-white/10 text-gray-300">
-                        <div><span class="text-gray-400">Depth:</span> <strong class="text-white font-mono">L${d.depth}</strong></div>
-                        <div><span class="text-gray-400">Direct Deps:</span> <strong class="text-blue-300 font-mono">${directChildren}</strong></div>
-                        <div><span class="text-gray-400">Subtree:</span> <strong class="text-amber-300 font-mono">${totalSubtree}</strong></div>
-                        <div class="truncate" title="${parentName}"><span class="text-gray-400">Parent:</span> <strong class="text-white font-mono">${parentName}</strong></div>
-                    </div>
-                    ${!isRootNode ? `
-                    <div class="mt-2 pt-1.5 border-t border-white/10 flex items-center justify-between text-[10px] text-blue-400 font-semibold">
-                        <span>Inspect in Full Graph</span>
-                        <span class="material-symbols-outlined text-[12px]">open_in_new</span>
-                    </div>` : ''}
-                `).removeClass('hidden');
+                    // Resolve matching badge color
+                    let badgeClass = 'bg-blue-400/20 text-blue-300';
+                    let iconColor = '#60a5fa';
+                    if (isRootNode) {
+                        badgeClass = 'bg-emerald-500/20 text-emerald-300';
+                        iconColor = '#10b981';
+                    } else {
+                        const color = getNodeColor(d);
+                        if (color === '#34d399') { badgeClass = 'bg-emerald-400/20 text-emerald-300'; iconColor = '#34d399'; }
+                        else if (color === '#fbbf24') { badgeClass = 'bg-amber-400/20 text-amber-300'; iconColor = '#fbbf24'; }
+                        else if (color === '#f472b6') { badgeClass = 'bg-pink-400/20 text-pink-300'; iconColor = '#f472b6'; }
+                        else if (color === '#c084fc') { badgeClass = 'bg-purple-400/20 text-purple-300'; iconColor = '#c084fc'; }
+                    }
+
+                    $t.find('[data-field="icon"]')
+                        .css('color', iconColor)
+                        .text(isRootNode ? 'account_tree' : meta.icon);
+                    $t.find('[data-field="title"]').text(titleName);
+                    $t.find('[data-field="scope-badge"]').addClass(badgeClass).text(scope);
+                    $t.find('[data-field="type"]').text(type).attr('title', type);
+                    $t.find('[data-field="depth"]').text(`L${d.depth}`);
+                    $t.find('[data-field="direct-deps"]').text(directChildren);
+                    $t.find('[data-field="subtree"]').text(totalSubtree);
+                    $t.find('[data-field="parent"]').text(parentName);
+                    $t.find('[data-field="parent-container"]').attr('title', parentName);
+
+                    $tooltip.empty().append($t).removeClass('hidden');
+                }
             })
                 .on('mousemove', (event) => {
                     const containerRect = svgNode.getBoundingClientRect();
@@ -1101,12 +1219,6 @@ export default class DashboardController {
                         .attr('stroke-width', 1.0);
 
                     $tooltip.addClass('hidden');
-                })
-                .on('click', (event, d) => {
-                    if (d.data.fullName) {
-                        sessionStorage.setItem('springlens_selected_bean', d.data.fullName);
-                    }
-                    window.location.hash = '#/graph';
                 });
 
             $dbRadialLoading.addClass('hidden');

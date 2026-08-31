@@ -47,11 +47,43 @@ export default class ConditionalEvaluationController {
         this._searchDebounceTimer = null;
     }
 
+    _resetFilterState() {
+        this.currentPage = 1;
+        this.pageSize = 10;
+        this.searchQuery = '';
+        this.outcomeFilter = '';
+        this.groupBy = 'none';
+        this.sortBy = 'source';
+        this.sortDir = 'ASC';
+        this.selectedCondition = null;
+
+        $('#condition-search-input').val('');
+        $('#condition-group-by').val('none');
+        $('#condition-page-size').val('10');
+        this.renderTabs();
+    }
+
     /**
      * Initializes events and loads condition evaluation data when route is entered.
      */
-    async enter() {
+    async enter(params) {
         try {
+            this.closeDetail();
+            this._resetFilterState();
+
+            const queryParams = QueryParam.parse(params);
+            const search = queryParams.get('search');
+            const outcome = queryParams.get('outcome');
+
+            if (search) {
+                this.searchQuery = search;
+                $('#condition-search-input').val(search);
+            }
+            if (outcome) {
+                this.outcomeFilter = outcome;
+            }
+            this.renderTabs();
+
             this.initEvents();
             await Promise.all([
                 this.fetchSummaryMetrics(),
@@ -231,13 +263,8 @@ export default class ConditionalEvaluationController {
             const outcome = $btn.data('outcome') || '';
             const isActive = outcome === activeOutcome;
 
-            if (isActive) {
-                $btn.removeClass('text-gray-500 dark:text-gray-400 border-transparent font-medium')
-                    .addClass('text-emerald-600 dark:text-emerald-400 border-b-2 border-emerald-500 font-semibold');
-            } else {
-                $btn.removeClass('text-emerald-600 dark:text-emerald-400 border-emerald-500 font-semibold')
-                    .addClass('text-gray-500 dark:text-gray-400 border-transparent font-medium');
-            }
+            $btn.toggleClass(CLASSES.pillActive, isActive)
+                .toggleClass(CLASSES.pillInactive, !isActive);
         });
 
         this.renderTabCounts();
@@ -776,6 +803,7 @@ export default class ConditionalEvaluationController {
     _handleFilterOutcome($target) {
         const outcome = $target.data('outcome') || '';
         this.outcomeFilter = outcome;
+        this.renderTabs();
         this.currentPage = 1;
         this.fetchConditionEvaluationData();
     }
@@ -830,6 +858,7 @@ export default class ConditionalEvaluationController {
      */
     leave() {
         this.closeDetail();
+        this._resetFilterState();
         if (this._searchDebounceTimer) {
             clearTimeout(this._searchDebounceTimer);
         }

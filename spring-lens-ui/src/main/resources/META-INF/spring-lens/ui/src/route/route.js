@@ -1,5 +1,5 @@
 import TemplateEngine from '../utils/template-engine.js';
-import { NAV_STYLES } from '../utils';
+import { NAV_STYLES } from '../utils/index.js';
 
 export default class Route {
 
@@ -76,7 +76,8 @@ export default class Route {
      */
     async resolve() {
         const hash = window.location.hash.slice(2) || 'dashboard';
-        const routeKey = hash.split('?')[0];
+        const [routeKey, queryString] = hash.split('?');
+        const params = new URLSearchParams(queryString || '');
 
         const route = this.routes[routeKey];
         if (!route) {
@@ -107,12 +108,15 @@ export default class Route {
             try {
                 const html = await this._loadTemplate(routeKey, route.template);
                 this.container.html(html);
-                route.onEnter?.();
+                route.onEnter?.(params);
             } catch (error) {
                 console.error(`Routing error loading template for ${routeKey}:`, error);
                 this._renderError(error.message);
                 return;
             }
+        } else {
+            // If same route but hash params changed, execute onEnter with updated params
+            route.onEnter?.(params);
         }
 
         this.updateSidebarVisuals(routeKey);

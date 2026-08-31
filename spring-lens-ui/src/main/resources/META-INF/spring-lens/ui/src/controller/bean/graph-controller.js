@@ -27,6 +27,7 @@ export default class GraphController {
         this.isHighlightPathActive = false;
         this.focusedNodeFullName = null;
         this.mode = localStorage.getItem('sl-layout') ?? 'tb';
+        this.nodeTheme = localStorage.getItem('sl-node-theme') ?? 'tint';
 
         this.initEvents();
     }
@@ -37,17 +38,18 @@ export default class GraphController {
         this._bindCustomEventHandlers();
     }
 
-    async enter() {
+    async enter(params) {
         this._initSidebar();
         if (!this._initializeCanvas()) return;
 
         this._bindControls();
+        this.setNodeTheme(this.nodeTheme, false);
 
         const isDataLoaded = await this._loadInitialData();
         if (!isDataLoaded) return;
 
         this._renderInitialGraph();
-        this._handlePendingBeanFocus();
+        this._handlePendingBeanFocus(params);
     }
 
     _initializeCanvas() {
@@ -75,7 +77,7 @@ export default class GraphController {
 
         try {
             await this._fetchBeanGraphDependencies();
-            this._buildHierarchyFromDependencies(this.beanDependencies);
+            this._buildHierarchyFromDependencies();
             this._updateTotalBeanCount();
             this.update(null, { x: 0, y: 0, x0: 0, y0: 0 });
             this.fitView(0);
@@ -110,11 +112,10 @@ export default class GraphController {
         this.setMode(this.mode);
     }
 
-    _handlePendingBeanFocus() {
-        const targetBean = window.focusBeanOnNextGraphEnter;
+    _handlePendingBeanFocus(params) {
+        const targetBean = QueryParam.get(params, 'focus', 'search', 'bean');
         if (!targetBean) return;
 
-        window.focusBeanOnNextGraphEnter = null;
         setTimeout(() => this.focusOnBean(targetBean), 300);
     }
 
@@ -508,7 +509,7 @@ export default class GraphController {
 
         this.svg.call(this.zoom)
             .on('click', () => {
-                $('#details-sidebar').hide();
+                this.closeSidebar();
                 this.clearFocusedNode();
             });
     }
@@ -708,13 +709,20 @@ export default class GraphController {
             .attr('y', -NH / 2)
             .attr('height', NH)
             .attr('rx', RX)
-            .attr('stroke-width', 1.8);
+            .attr('stroke-width', 2);
+
+        enter.append('rect')
+            .attr('class', 'node-icon-bg')
+            .attr('y', -14)
+            .attr('width', 28)
+            .attr('height', 28)
+            .attr('rx', 8);
 
         enter.append('g')
             .attr('class', 'node-icon')
             .append('path')
             .attr('d', ICON)
-            .attr('stroke-width', 1.5)
+            .attr('stroke-width', 1.8)
             .attr('stroke-linecap', 'round')
             .attr('stroke-linejoin', 'round')
             .attr('fill', 'none');
@@ -724,8 +732,8 @@ export default class GraphController {
             .attr('y', 1)
             .attr('dy', '0.35em')
             .attr('font-size', 13)
-            .attr('font-weight', 500)
-            .attr('font-family', 'Inter, sans-serif');
+            .attr('font-weight', 600)
+            .attr('font-family', 'Inter, -apple-system, sans-serif');
 
         // Right-side expand / collapse toggle icon button
         const toggleGroup = enter.append('g')
@@ -733,10 +741,14 @@ export default class GraphController {
             .attr('cursor', 'pointer')
             .on('mouseenter', function (event, node) {
                 const style = nodeStyle(node);
-                d3.select(this).select('circle').attr('fill', style.fill);
+                d3.select(this).select('circle').attr('fill', style.stroke);
+                d3.select(this).select('.node-toggle-icon').attr('stroke', '#ffffff');
             })
-            .on('mouseleave', function () {
-                d3.select(this).select('circle').attr('fill', '#ffffff');
+            .on('mouseleave', function (event, node) {
+                const style = nodeStyle(node);
+                const isDark = document.documentElement.classList.contains('dark');
+                d3.select(this).select('circle').attr('fill', isDark ? '#0f172a' : '#ffffff');
+                d3.select(this).select('.node-toggle-icon').attr('stroke', style.stroke);
             })
             .on('click', async (event, node) => {
                 event.stopPropagation();
@@ -757,7 +769,7 @@ export default class GraphController {
             });
 
         toggleGroup.append('circle')
-            .attr('r', 9)
+            .attr('r', 9.5)
             .attr('fill', '#ffffff')
             .attr('stroke-width', 1.6);
 
@@ -788,8 +800,10 @@ export default class GraphController {
     }
 
     _updateNodeStylesAndContent(selection) {
+        const isBadge = (this.nodeTheme === 'badge');
+
         selection
-            .style('--node-color', node => nodeStyle(node).stroke)
+            .style('--node-color', node => nodeStyle(node, this.nodeTheme).stroke)
             .classed('node-focused', node => Boolean(
                 this.focusedNodeFullName && (
                     node.data?.fullName === this.focusedNodeFullName ||
@@ -801,18 +815,25 @@ export default class GraphController {
         selection.select('.node-rect')
             .attr('x', ({ width }) => -width / 2)
             .attr('width', ({ width }) => width)
-            .attr('fill', node => nodeStyle(node).fill)
-            .attr('stroke', node => nodeStyle(node).stroke);
+            .attr('fill', node => nodeStyle(node, this.nodeTheme).fill)
+            .attr('stroke', node => nodeStyle(node, this.nodeTheme).stroke);
+
+        selection.select('.node-icon-bg')
+            .style('display', isBadge ? 'block' : 'none')
+            .attr('x', ({ width }) => -width / 2 + 8)
+            .attr('fill', node => nodeStyle(node, this.nodeTheme).iconBg ?? 'rgba(0,0,0,0.05)');
 
         selection.select('.node-icon')
-            .attr('transform', ({ width }) => `translate(${-width / 2 + 14}, -10)`);
+            .attr('transform', ({ width }) => isBadge
+                ? `translate(${-width / 2 + 12}, -10)`
+                : `translate(${-width / 2 + 14}, -10)`);
 
         selection.select('.node-icon path')
-            .attr('stroke', node => nodeStyle(node).icon);
+            .attr('stroke', node => nodeStyle(node, this.nodeTheme).icon);
 
         selection.select('.node-text')
-            .attr('x', ({ width }) => -width / 2 + 42)
-            .attr('fill', node => nodeStyle(node).text)
+            .attr('x', ({ width }) => isBadge ? -width / 2 + 44 : -width / 2 + 42)
+            .attr('fill', node => nodeStyle(node, this.nodeTheme).text)
             .text(({ data }) => data.name);
 
         selection.each(function (node) {
@@ -822,11 +843,13 @@ export default class GraphController {
             if (hasChildren) {
                 const style = nodeStyle(node);
                 const isExpanded = !!node.children;
+                const isDark = document.documentElement.classList.contains('dark');
 
                 toggle.style('display', 'block')
                     .attr('transform', `translate(${node.width / 2 - 18}, 0)`);
 
                 toggle.select('circle')
+                    .attr('fill', isDark ? '#0f172a' : '#ffffff')
                     .attr('stroke', style.stroke);
 
                 toggle.select('.node-toggle-icon')
@@ -1008,11 +1031,17 @@ export default class GraphController {
 
     openSidebar() {
         this._initSidebar();
-        $('#details-sidebar').css('display', 'flex');
+        const $sidebar = $('#details-sidebar');
+        if (!$sidebar.length) return;
+        $sidebar.removeClass('w-0 max-w-0 opacity-0 pointer-events-none -mr-4 border-0')
+                .addClass('w-[360px] max-w-[360px] opacity-100 mr-0 border');
     }
 
-    closeSidebar() {
-        $('#details-sidebar').hide();
+    closeSidebar(immediate = false) {
+        const $sidebar = $('#details-sidebar');
+        if (!$sidebar.length) return;
+        $sidebar.removeClass('w-[360px] max-w-[360px] opacity-100 mr-0 border')
+                .addClass('w-0 max-w-0 opacity-0 pointer-events-none -mr-4 border-0');
     }
 
     _openSidebarAndPopulateHeader(meta = {}) {
@@ -1194,6 +1223,27 @@ export default class GraphController {
 
         this.update(null, { x, y, x0, y0 });
         this.fitView(500);
+    }
+
+    setNodeTheme(themeName, shouldUpdate = true) {
+        this.nodeTheme = themeName;
+        localStorage.setItem('sl-node-theme', themeName);
+
+        const isTint = themeName === 'tint';
+        const activeClasses = 'bg-white dark:bg-slate-800 text-gray-800 dark:text-white shadow-xs font-bold';
+        const inactiveClasses = 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white font-medium';
+
+        $('#btn-node-theme-tint')
+            .toggleClass(activeClasses, isTint)
+            .toggleClass(inactiveClasses, !isTint);
+
+        $('#btn-node-theme-badge')
+            .toggleClass(activeClasses, !isTint)
+            .toggleClass(inactiveClasses, isTint);
+
+        if (shouldUpdate && this.root) {
+            this.update(null, this.root);
+        }
     }
 
     _bindSearchHandlers() {
@@ -1392,9 +1442,11 @@ export default class GraphController {
             'btn-control-fit': () => this.fitView(),
             'btn-pan-mode': () => this.fitView(),
             'btn-highlight-path': () => this._togglePathHighlightState($actionButton),
-            'btn-close-sidebar': () => $('#details-sidebar').hide(),
+            'btn-close-sidebar': () => this.closeSidebar(),
             'btn-tb': () => this.setMode('tb'),
-            'btn-lr': () => this.setMode('lr')
+            'btn-lr': () => this.setMode('lr'),
+            'btn-node-theme-tint': () => this.setNodeTheme('tint'),
+            'btn-node-theme-badge': () => this.setNodeTheme('badge')
         };
     }
 
@@ -1486,6 +1538,8 @@ export default class GraphController {
     leave() {
         this.closeSidebar();
         this.clearFocusedNode();
+        $('#search-input').val('');
+        $('#search-results').addClass('hidden').empty();
         $('#tip').removeClass('show');
     }
 }
