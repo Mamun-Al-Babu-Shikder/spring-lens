@@ -1,6 +1,7 @@
 package com.sdlcpro.springlens.insight.bean.instance;
 
 import com.sdlcpro.springlens.annotation.SpringLensInternalComponent;
+import com.sdlcpro.springlens.constant.SpringFrameworkModule;
 import com.sdlcpro.springlens.insight.bean.BeanInfoCollectionContext;
 import com.sdlcpro.springlens.insight.bean.BeanInfoCollectorSettings;
 import com.sdlcpro.springlens.listener.bean.BeanInstanceInfoCollectListener;
@@ -18,6 +19,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.util.ObjectUtils;
 
 import java.time.Instant;
+import java.util.EnumSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -29,7 +31,7 @@ public final class BeanInstanceInfoCollector implements BeanPostProcessor {
 
     private static final String INCLUDE_ROLE_INFRA_PROPERTY = "spring.lens.bean.include.role-infra";
     private static final String INCLUDE_TOOL_INTERNAL_PROPERTY = "spring.lens.bean.include.tool-internal";
-    private static final String INCLUDE_FRAMEWORK_INTERNAL_PROPERTY = "spring.lens.bean.include.framework-internal";
+    private static final String INCLUDE_FRAMEWORK_MODULES_PROPERTY = "spring.lens.bean.include.framework-modules";
     private static final String EXCLUDE_PACKAGE_PATTERN_PROPERTY = "spring.lens.bean.exclude.package-patterns";
     private static final String EXCLUDE_CLASSES_PROPERTY = "spring.lens.bean.exclude.classes";
     private static final BeanInstanceInfoEventStream BEAN_INSTANCE_INFO_EVENT_STREAM;
@@ -57,10 +59,18 @@ public final class BeanInstanceInfoCollector implements BeanPostProcessor {
         try {
             boolean includeInfraRole = env.getProperty(INCLUDE_ROLE_INFRA_PROPERTY, boolean.class, false);
             boolean includeToolInternal = env.getProperty(INCLUDE_TOOL_INTERNAL_PROPERTY, boolean.class, false);
-            boolean includeFrameworkInternal = env.getProperty(INCLUDE_FRAMEWORK_INTERNAL_PROPERTY, boolean.class, false);
+            Set<String> frameworkModuleNames = env.getProperty(INCLUDE_FRAMEWORK_MODULES_PROPERTY, Set.class, Set.of());
             Set<String> excludePackagePattern = env.getProperty(EXCLUDE_PACKAGE_PATTERN_PROPERTY, Set.class, Set.of());
             Set<String> excludeClasses = env.getProperty(EXCLUDE_CLASSES_PROPERTY, Set.class, Set.of());
-            return new BeanInfoCollectorSettings(includeInfraRole, includeToolInternal, includeFrameworkInternal, excludePackagePattern, excludeClasses);
+
+            Set<SpringFrameworkModule> includeFrameworkModules = EnumSet.noneOf(SpringFrameworkModule.class);
+            for (String moduleName : frameworkModuleNames) {
+                if (moduleName != null) {
+                    includeFrameworkModules.add(SpringFrameworkModule.from(moduleName));
+                }
+            }
+
+            return new BeanInfoCollectorSettings(includeInfraRole, includeToolInternal, includeFrameworkModules, excludePackagePattern, excludeClasses);
         } catch (Exception ex) {
             throw new IllegalArgumentException("Invalid property value found to instantiate BeanInfoCollectorSettings", ex);
         }

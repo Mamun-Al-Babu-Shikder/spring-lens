@@ -1,6 +1,7 @@
 package com.sdlcpro.springlens.autoconfigure.bean;
 
 import com.sdlcpro.springlens.annotation.SpringLensInternalComponent;
+import com.sdlcpro.springlens.constant.SpringFrameworkModule;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.util.HashSet;
@@ -58,7 +59,7 @@ public class SpringLensBeanProperties {
     public static class Include {
         private boolean roleInfra = false;
         private boolean toolInternal = false;
-        private boolean frameworkInternal = false;
+        private Set<SpringFrameworkModule> frameworkModules;
 
         public boolean isRoleInfra() {
             return roleInfra;
@@ -76,12 +77,12 @@ public class SpringLensBeanProperties {
             this.toolInternal = toolInternal;
         }
 
-        public boolean isFrameworkInternal() {
-            return frameworkInternal;
+        public Set<SpringFrameworkModule> getFrameworkModules() {
+            return frameworkModules;
         }
 
-        public void setFrameworkInternal(boolean frameworkInternal) {
-            this.frameworkInternal = frameworkInternal;
+        public void setFrameworkModules(Set<SpringFrameworkModule> frameworkModules) {
+            this.frameworkModules = frameworkModules;
         }
     }
 
