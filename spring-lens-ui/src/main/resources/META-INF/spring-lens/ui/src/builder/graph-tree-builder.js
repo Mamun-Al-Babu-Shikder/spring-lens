@@ -1,163 +1,179 @@
-export class GraphTreeBuilder {
+export default class GraphTreeBuilder {
 
     static _displayName(beanName = '') {
         if (!beanName) return '';
-        const lastPart = beanName.split('.').pop() || '';
-        const cleaned = lastPart.replace(/\$\$.*$/, '');
-        return cleaned.split('$').pop() || '';
+        const simpleName = beanName.split('.').pop() || '';
+        return simpleName.replace(/\$\$.*$/, '').split('$').pop() || '';
     }
 
+    /**
+     * Builds hierarchical tree structures grouped by application context.
+     */
     static buildByContext(beanDependencies = []) {
         const groupedData = this._transformBeanDependencyData(beanDependencies);
         const contextKeys = Object.keys(groupedData);
 
         if (contextKeys.length === 0) {
-            return {
-                name: 'default',
-                fullName: 'default',
-                contextId: 'default',
-                meta: { type: 'context', contextId: 'default' },
-                children: []
-            };
+            return this._buildSingleContextTree('default', []);
         }
 
-        // Single Context: Return the context tree directly as the root
         if (contextKeys.length === 1) {
             const contextId = contextKeys[0];
             return this._buildSingleContextTree(contextId, groupedData[contextId]);
         }
-
-        // Multiple Contexts: Group under a single top-level container root node
-        const contextNodes = contextKeys.map(contextId =>
-            this._buildSingleContextTree(contextId, groupedData[contextId])
-        );
 
         return {
             name: 'Application Contexts',
             fullName: 'Application Contexts',
             contextId: 'all',
             meta: { type: 'context', contextId: 'all' },
-            children: contextNodes
+            children: contextKeys.map(contextId =>
+                this._buildSingleContextTree(contextId, groupedData[contextId])
+            )
         };
     }
 
+    /**
+     * Builds a single hierarchy tree for a given context.
+     */
     static _buildSingleContextTree(contextId, beans = []) {
-        if (!beans.length) {
-            return {
-                name: contextId,
-                fullName: contextId,
-                contextId: contextId,
-                meta: { type: 'context', contextId },
-                children: []
-            };
-        }
+        const contextNode = {
+            name: contextId,
+            fullName: contextId,
+            contextId,
+            meta: { type: 'context', contextId },
+            children: []
+        };
 
-        const beanMap = new Map(beans.map(b => [b.name, b]));
-        const beanNames = new Set(beans.map(b => b.name));
+        if (!beans.length) return contextNode;
+
+        const beanMap = new Map();
         const hasParent = new Set();
 
-        // 1. Mark beans that are dependencies of other beans as child nodes
-        for (let i = 0; i < beans.length; i++) {
-            const { dependencies = [] } = beans[i];
-            for (let j = 0; j < dependencies.length; j++) {
-                const dep = dependencies[j];
-                if (beanNames.has(dep)) {
+        // 1. Single pass: Populate map and track dependencies
+        for (const b of beans) {
+            beanMap.set(b.name, b);
+        }
+        for (const b of beans) {
+            for (const dep of b.dependencies) {
+                if (beanMap.has(dep)) {
                     hasParent.add(dep);
                 }
             }
         }
 
-        // 2. Identify top-level root beans (beans not listed as a dependency of any other bean in this context)
-        let rootNames = beans
-            .map(b => b.name)
-            .filter(name => !hasParent.has(name));
+        // 2. Identify top-level root beans (circular fallback to first bean)
+        const rootBeans = beans.filter(b => !hasParent.has(b.name));
+        const rootNames = rootBeans.length ? rootBeans.map(b => b.name) : [beans[0].name];
 
-        if (!rootNames.length) {
-            rootNames = [beans[0].name]; // Circular fallback
-        }
+        // 3. Build tree recursively with single-set backtracking (prevents memory cloning)
+        const visited = new Set();
 
-        // 3. Build tree recursively: parent bean -> child dependencies
-        const buildNode = (name, visited = new Set()) => {
-            const displayName = this._displayName(name);
+        const buildNode = (name) => {
             const beanRecord = beanMap.get(name) || {};
+            const isCycle = visited.has(name);
             const meta = {
-                type: beanRecord.type || beanRecord.className || beanRecord.beanType || 'N/A',
+                type: beanRecord.type || 'N/A',
                 scope: beanRecord.scope || 'singleton',
-                contextId
+                contextId,
+                ...(isCycle && { isCycle: true })
             };
-
-            if (visited.has(name)) {
-                return {
-                    name: displayName,
-                    fullName: name,
-                    contextId,
-                    meta: { ...meta, isCycle: true },
-                    isCycle: true
-                };
-            }
-
-            const nextVisited = new Set(visited).add(name);
-            const rawDeps = beanRecord.dependencies || [];
-            const directChildren = rawDeps.filter(dep => beanNames.has(dep));
 
             const node = {
-                name: displayName,
+                name: this._displayName(name),
                 fullName: name,
                 contextId,
-                meta
+                meta,
+                ...(isCycle && { isCycle: true })
             };
 
-            if (directChildren.length > 0) {
-                node.children = directChildren.map(child => buildNode(child, nextVisited));
+            if (isCycle) return node;
+
+            visited.add(name);
+            const validChildren = (beanRecord.dependencies || []).filter(dep => beanMap.has(dep));
+
+            if (validChildren.length > 0) {
+                node.children = validChildren.map(buildNode);
             }
 
+            visited.delete(name); // Backtrack for sibling branches
             return node;
         };
 
-        return {
-            name: contextId,
-            fullName: contextId,
-            contextId,
-            meta: { type: 'context', contextId },
-            children: rootNames.map(root => buildNode(root))
-        };
+        contextNode.children = rootNames.map(buildNode);
+        return contextNode;
     }
 
+    /**
+     * Normalizes and groups input beans by contextId.
+     */
     static _transformBeanDependencyData(data) {
         if (!data) return {};
 
-        // Case 1: Structured payload object: { contextId: "...", beans: [...] }
+        // Format: { contextId: "...", beans: [...] }
         if (!Array.isArray(data) && Array.isArray(data.beans)) {
             const contextId = data.contextId || 'default';
             return {
-                [contextId]: data.beans.map(b => ({
-                    name: b.name || b.beanName || '',
-                    type: b.type || '',
-                    scope: b.scope || 'singleton',
-                    dependencies: b.dependencies || []
-                }))
+                [contextId]: data.beans.map(b => this._normalizeBean(b))
             };
         }
 
-        // Case 2: Array of bean definitions: [{ contextId, beanName/name, dependencies }, ...]
+        // Format: [{ contextId, ... }, ...]
         if (Array.isArray(data) && data.length > 0) {
-            const grouped = {};
-            for (let i = 0; i < data.length; i++) {
-                const item = data[i];
-                const contextId = item.contextId || 'default';
-                if (!grouped[contextId]) {
-                    grouped[contextId] = [];
-                }
-                grouped[contextId].push({
-                    name: item.name || item.beanName || '',
-                    type: item.type || '',
-                    scope: item.scope || 'singleton',
-                    dependencies: item.dependencies || []
-                });
-            }
-            return grouped;
+            return data.reduce((acc, bean) => {
+                const contextId = bean.contextId || 'default';
+                (acc[contextId] = acc[contextId] || []).push(this._normalizeBean(bean));
+                return acc;
+            }, {});
         }
 
         return {};
+    }
+
+    static _normalizeBean(bean = {}) {
+         const { name, beanName, type, className, beanType, scope, dependencies } = bean;
+
+        return {
+            name: name || beanName || '',
+            type: type || className || beanType || 'N/A',
+            scope: scope || 'singleton',
+            dependencies: dependencies || []
+        };
+    }
+
+    static buildModalGraphHierarchy(targetBean, findBeanFn = () => null) {
+        if (!targetBean) return null;
+
+        const targetName = targetBean.beanName || targetBean.name || '';
+
+        const createChild = (name, kind) => {
+            const depBean = findBeanFn(name, targetBean.contextId);
+            return {
+                name: this._displayName(name),
+                fullName: name,
+                meta: {
+                    type: depBean?.type || 'N/A',
+                    scope: depBean?.scope || 'N/A',
+                    role: depBean?.role || 'N/A',
+                    kind
+                }
+            };
+        };
+
+        const deps = (targetBean.dependencies || []).map(name => createChild(name, 'dependency'));
+        const dependents = (targetBean.dependents || []).map(name => createChild(name, 'dependent'));
+        const children = [...deps, ...dependents];
+
+        return {
+            name: targetName,
+            fullName: targetName,
+            meta: {
+                type: targetBean.type || 'N/A',
+                scope: targetBean.scope || 'N/A',
+                role: targetBean.role || 'N/A',
+                kind: 'target'
+            },
+            ...(children.length > 0 && { children })
+        };
     }
 }

@@ -1,17 +1,7 @@
-import { TEMPLATES } from '../utils/constants.js';
+import TemplateEngine from '../utils/template-engine.js';
+import { NAV_STYLES } from '../utils/index.js';
 
 export default class Route {
-
-    static STYLES = {
-        sublink: {
-            active: 'text-primary',
-            inactive: 'text-gray-500 hover:text-gray-800'
-        },
-        parent: {
-            active: 'text-primary bg-primary-light border-l-2 border-primary',
-            inactive: 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
-        }
-    };
 
     constructor(config = {}) {
         this.activeRouteKey = null;
@@ -76,25 +66,27 @@ export default class Route {
         const targetHash = `#/${routeKey}`;
         if (window.location.hash === targetHash) {
             this.resolve();
-            return;
+        } else {
+            window.location.hash = targetHash;
         }
-        window.location.hash = targetHash;
     }
 
     /**
-     * Matches active route and loads associated template and lifecycle hooks.
+     * Parse location hash and render matching route.
      */
     async resolve() {
-        const hash = window.location.hash || `#/${this.defaultRoute}`;
-        const routeKey = hash.replace(/^#\/?/, '');
-        const route = this.routes[routeKey];
+        const hash = window.location.hash.slice(2) || 'dashboard';
+        const [routeKey, queryString] = hash.split('?');
+        const params = new URLSearchParams(queryString || '');
 
+        const route = this.routes[routeKey];
         if (!route) {
-            this.navigate(this.defaultRoute);
+            console.warn(`Route not found for key: ${routeKey}. Redirecting to dashboard.`);
+            window.location.hash = '#/dashboard';
             return;
         }
 
-        // 1. Run cleanup (onLeave) hook for the previous route
+        // 1. Execute onLeave hook of previous active route
         if (this.activeRouteKey && this.activeRouteKey !== routeKey) {
             try {
                 this.routes[this.activeRouteKey]?.onLeave?.();
@@ -108,17 +100,23 @@ export default class Route {
 
         // 2. Render route template if changed or container is empty
         if (!isSameRoute || !this.container.children().length) {
-            this.container.html(TEMPLATES.loading);
+            const loadingClone = TemplateEngine.clone('tpl-app-loading');
+            if (loadingClone) {
+                this.container.empty().append(loadingClone);
+            }
 
             try {
                 const html = await this._loadTemplate(routeKey, route.template);
                 this.container.html(html);
-                route.onEnter?.();
+                route.onEnter?.(params);
             } catch (error) {
                 console.error(`Routing error loading template for ${routeKey}:`, error);
                 this._renderError(error.message);
                 return;
             }
+        } else {
+            // If same route but hash params changed, execute onEnter with updated params
+            route.onEnter?.(params);
         }
 
         this.updateSidebarVisuals(routeKey);
@@ -144,8 +142,12 @@ export default class Route {
      * @private
      */
     _renderError(message) {
-        this.container.html(TEMPLATES.error(message));
-        this.container.find('#retry-load-btn').off('click').on('click', () => this.resolve());
+        const errorClone = TemplateEngine.clone('tpl-app-error');
+        if (errorClone) {
+            $(errorClone).find('[data-field="message"]').text(message);
+            this.container.empty().append(errorClone);
+            this.container.find('#retry-load-btn').off('click').on('click', () => this.resolve());
+        }
     }
 
     /**
@@ -153,7 +155,7 @@ export default class Route {
      * @param {string} activePage
      */
     updateSidebarVisuals(activePage) {
-        const { sublink, parent } = Route.STYLES;
+        const { sublink, parent } = NAV_STYLES;
 
         $('aside nav a').each((_, element) => {
             const $link = $(element);

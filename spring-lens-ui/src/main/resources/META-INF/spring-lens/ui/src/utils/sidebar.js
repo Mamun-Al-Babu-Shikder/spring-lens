@@ -1,0 +1,198 @@
+import TemplateEngine from './template-engine.js';
+import { DEPENDENCY_CATEGORY_COLORS } from './constants.js';
+import { capitalize, getBeanCategory, resolveBeanMetadata } from './utils.js';
+import GraphTreeBuilder from '../builder/graph-tree-builder.js';
+import beanDataStore from '../storage/bean-data-store.js';
+
+export const DEFAULT_SIDEBAR_SELECTORS = {
+    beanName: '#detail-bean-name',
+    type: '#detail-bean-type',
+    scope: '#detail-bean-scope',
+    role: '#detail-bean-role',
+    primary: '#detail-prop-primary',
+    lazyInit: '#detail-prop-lazy',
+    autowired: '#detail-prop-autowired',
+    contextId: '#detail-prop-context',
+    factoryBean: '#detail-factory-bean',
+    factoryMethod: '#detail-factory-method',
+    initMethod: '#detail-init-method',
+    destroyMethod: '#detail-destroy-method'
+};
+
+export default class Sidebar {
+
+    static formatDetails(beanInformation = {}) {
+        const {
+            beanName = '',
+            type = 'N/A',
+            scope,
+            role,
+            primary,
+            lazyInit,
+            autowireCandidate,
+            contextId = 'N/A',
+            factoryBeanName = '-',
+            factoryMethodName = '-',
+            initMethodName = '-',
+            destroyMethodName = '-'
+        } = beanInformation;
+
+        const cleanRole = role ? String(role).replace(/^ROLE_/, '') : '';
+        const displayRole = cleanRole ? capitalize(cleanRole) : 'N/A';
+        const displayScope = scope ? capitalize(scope) : 'N/A';
+
+        return {
+            beanName,
+            displayName: beanName,
+            type: type || 'N/A',
+            scope: displayScope,
+            role: displayRole,
+            primary: primary ? 'TRUE' : 'FALSE',
+            lazyInit: lazyInit ? 'TRUE' : 'FALSE',
+            autowired: autowireCandidate ? 'TRUE' : 'FALSE',
+            contextId: contextId || '-',
+            factoryBean: factoryBeanName || '-',
+            factoryMethod: factoryMethodName || '-',
+            initMethod: initMethodName || '-',
+            destroyMethod: destroyMethodName || '-'
+        };
+    }
+
+    /**
+     * Populates bean details text and titles in the sidebar.
+     * @param {Object} beanInformation - Bean definition metadata.
+     * @param {Object} selectorMap - Map of field names to DOM selector strings.
+     */
+    static populateDetails(beanInformation = {}, selectorMap = DEFAULT_SIDEBAR_SELECTORS) {
+        const details = this.formatDetails(beanInformation);
+
+        Object.entries(selectorMap).forEach(([field, selector]) => {
+            if (!selector || details[field] == null) return;
+            const $el = $(selector);
+            if (!$el.length) return;
+
+            $el.text(details[field]);
+            if (field === 'beanName' || field === 'type') {
+                $el.attr('title', details[field]);
+            }
+        });
+    }
+
+    /**
+     * Updates sidebar icon container with metadata icon and dynamic styling.
+     * @param {Object} bean - The bean metadata.
+     * @param {string} [iconSelector] - Selector for the icon element.
+     * @param {string} [containerSelector] - Selector for the icon container element.
+     */
+    static updateSidebarIcon(bean, iconSelector = '#sidebar-icon', containerSelector = '#sidebar-icon-container') {
+        const { icon, color } = resolveBeanMetadata(bean);
+
+        if (iconSelector) {
+            $(iconSelector).text(icon);
+        }
+        if (containerSelector) {
+            $(containerSelector).css({
+                backgroundColor: `${color}10`,
+                color,
+                borderColor: `${color}33`
+            });
+        }
+    }
+
+    /**
+     * Resolves the category badge/dot color for a given dependency bean.
+     * @param {string} beanName - Target dependency bean name.
+     * @param {string} [contextId] - Optional context ID.
+     * @returns {string} Tailwind color name (e.g. 'green', 'yellow', 'purple', 'blue').
+     */
+    static resolveDependencyCategoryColor(beanName, contextId) {
+        const record = beanDataStore.findBeanByName(beanName, contextId) || beanDataStore.getBean(beanName);
+        if (!record) return 'blue';
+
+        const category = getBeanCategory({
+            fullName: beanName,
+            meta: { type: record.type }
+        });
+
+        return DEPENDENCY_CATEGORY_COLORS[category] ?? 'blue';
+    }
+
+    /**
+     * Renders dependency or dependent list items into the specified container.
+     * @param {jQuery} $container - Target list container element.
+     * @param {Array<string>} beanNames - Array of dependency bean names.
+     * @param {Object} options - Configuration options.
+     */
+    static renderDependencyList($container, beanNames = [], options = {}) {
+        if (!$container?.length) return;
+        $container.empty();
+
+        const {
+            emptyText = 'None',
+            emptyTemplateId = null,
+            templateId = 'tpl-dep-list-item',
+            contextId = '',
+            action = null
+        } = options;
+
+        if (!beanNames || !beanNames.length) {
+            if (emptyTemplateId) {
+                const emptyClone = TemplateEngine.clone(emptyTemplateId);
+                if (emptyClone) {
+                    $(emptyClone).find('[data-field="message"]').text(emptyText);
+                    $container.append(emptyClone);
+                    return;
+                }
+            }
+            $container.html(`<div class="text-gray-400 dark:text-gray-500 text-xs p-3 italic">${emptyText}</div>`);
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        beanNames.forEach(depName => {
+            const clone = TemplateEngine.clone(templateId);
+            if (!clone) return;
+
+            const displayName = GraphTreeBuilder._displayName(depName);
+            const categoryColor = this.resolveDependencyCategoryColor(depName, contextId);
+            const $item = $(clone.firstElementChild);
+
+            if (action) {
+                $item.attr('data-action', action);
+            }
+            $item.attr('data-fullname', depName);
+            $item.find('[data-field="dot"]').addClass(`bg-${categoryColor}-500`);
+            $item.find('[data-field="name"]').text(displayName).attr('title', depName);
+
+            fragment.appendChild(clone);
+        });
+
+        $container.append(fragment);
+    }
+
+    /**
+     * Handles tab switching and toggles visible tab pane.
+     * @param {string} activeTab - Target tab identifier (e.g. 'properties').
+     * @param {Object} config - Configuration options for tabs and panes.
+     */
+    static switchTab(activeTab, config = {}) {
+        const {
+            tabSelector = '.tab-btn',
+            tabIdPrefix = 'tab-',
+            paneSelector = '.tab-pane',
+            paneIdPrefix = 'pane-',
+            activeClasses = 'text-primary dark:text-purple-400 border-b-2 border-primary font-bold',
+            inactiveClasses = 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium'
+        } = config;
+
+        $(tabSelector).each((_, element) => {
+            const isSelected = element.id === `${tabIdPrefix}${activeTab}`;
+            $(element)
+                .toggleClass(activeClasses, isSelected)
+                .toggleClass(inactiveClasses, !isSelected);
+        });
+
+        $(paneSelector).addClass('hidden');
+        $(`#${paneIdPrefix}${activeTab}`).removeClass('hidden');
+    }
+}

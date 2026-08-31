@@ -1,18 +1,21 @@
-import { NH, NW, NODE_STYLES, DEFAULT_NODE_STYLE, BEAN_TYPE_RULES } from "./constants.js";
+import { NH, NW, NODE_STYLES_TINT, NODE_STYLES_BADGE, DEFAULT_NODE_STYLE, BEAN_TYPE_RULES } from "./constants.js";
 
-// Static style mapping dictionary for dark mode to prevent runtime object allocations
-const DARK_NODE_STYLES = {
-    root: { fill: 'rgba(59, 130, 246, 0.15)', stroke: '#3b82f6', icon: '#60a5fa', text: '#93c5fd' },
-    context: { fill: 'rgba(99, 102, 241, 0.15)', stroke: '#6366f1', icon: '#818cf8', text: '#a5b4fc' },
-    leaf: { fill: 'rgba(234, 179, 8, 0.15)', stroke: '#eab308', icon: '#facc15', text: '#fef08a' },
-    intermediate: { fill: 'rgba(34, 197, 94, 0.15)', stroke: '#22c55e', icon: '#4ade80', text: '#86efac' }
+// Style mappings for Tinted theme in dark mode
+const DARK_NODE_STYLES_TINT = {
+    root: { fill: 'rgba(30, 58, 138, 0.32)', stroke: '#3b82f6', icon: '#60a5fa', text: '#93c5fd' },
+    context: { fill: 'rgba(67, 56, 202, 0.32)', stroke: '#6366f1', icon: '#818cf8', text: '#a5b4fc' },
+    intermediate: { fill: 'rgba(6, 78, 59, 0.32)', stroke: '#22c55e', icon: '#4ade80', text: '#86efac' },
+    leaf: { fill: 'rgba(120, 53, 15, 0.32)', stroke: '#f59e0b', icon: '#fbbf24', text: '#fde68a' },
+    adapter: { fill: 'rgba(88, 28, 135, 0.32)', stroke: '#a855f7', icon: '#c084fc', text: '#e9d5ff' }
 };
 
-const DEFAULT_DARK_NODE_STYLE = {
-    fill: 'rgba(168, 85, 247, 0.15)',
-    stroke: '#a855f7',
-    icon: '#c084fc',
-    text: '#e9d5ff'
+// Style mappings for Card/Badge theme in dark mode
+const DARK_NODE_STYLES_BADGE = {
+    root: { fill: 'rgba(15, 23, 42, 0.92)', stroke: '#3b82f6', icon: '#60a5fa', iconBg: 'rgba(59, 130, 246, 0.22)', text: '#f1f5f9' },
+    context: { fill: 'rgba(15, 23, 42, 0.92)', stroke: '#6366f1', icon: '#818cf8', iconBg: 'rgba(99, 102, 241, 0.22)', text: '#f1f5f9' },
+    intermediate: { fill: 'rgba(15, 23, 42, 0.92)', stroke: '#10b981', icon: '#34d399', iconBg: 'rgba(16, 185, 129, 0.22)', text: '#f1f5f9' },
+    leaf: { fill: 'rgba(15, 23, 42, 0.92)', stroke: '#f59e0b', icon: '#fbbf24', iconBg: 'rgba(245, 158, 11, 0.22)', text: '#f1f5f9' },
+    adapter: { fill: 'rgba(15, 23, 42, 0.92)', stroke: '#a855f7', icon: '#c084fc', iconBg: 'rgba(168, 85, 247, 0.22)', text: '#f1f5f9' }
 };
 
 export const css = (variableName) =>
@@ -85,43 +88,55 @@ export function getBeanCategory(node) {
     if (nodeData.meta?.type === 'context') return 'context';
     if (nodeData.meta?.type === 'root') return 'root';
 
+    // 1. Root origin check (depth 0 is the root node)
+    if (node.depth === 0) {
+        return 'root';
+    }
+
     const lowerName = fullName.toLowerCase();
     const lowerType = type.toLowerCase();
 
-    // 1. Adapter check
+    // 2. Adapter check
     if (lowerName.includes('adapter') || lowerType.includes('adapter')) {
         return 'adapter';
     }
 
-    // 2. Depth check for hierarchy tree nodes
-    if (node.depth !== undefined) {
-        if (node.depth <= 2) return 'root';
-    } else {
-        // Fallback for raw data objects using the global map
-        const record = window.allBeansMap?.get(fullName);
-        if (record) {
-            const deps = record.dependencies;
-            const dependents = record.dependents;
-
-            if (!deps || deps.length === 0) return 'leaf';
-            if (!dependents || dependents.length === 0) return 'root';
-        }
+    // 3. Child node presence check for tree nodes
+    const hasChildren = (node.children?.length ?? 0) > 0 || (node._children?.length ?? 0) > 0;
+    if (hasChildren) {
+        return 'intermediate';
     }
 
-    // 3. Child node presence check
-    const hasChildren = (node.children?.length ?? 0) > 0 || (node._children?.length ?? 0) > 0;
-    return hasChildren ? 'intermediate' : 'leaf';
+    // 4. Fallback check for raw data objects using the global map
+    const record = window.allBeansMap?.get(fullName);
+    if (record) {
+        const deps = record.dependencies;
+        const dependents = record.dependents;
+
+        if (dependents && dependents.length > 0 && deps && deps.length > 0) return 'intermediate';
+        if (!deps || deps.length === 0) return 'leaf';
+        if (!dependents || dependents.length === 0) return 'root';
+    }
+
+    return 'leaf';
 }
 
-export function nodeStyle(node) {
+export function nodeStyle(node, theme = null) {
     const isDark = document.documentElement.classList.contains('dark');
     const category = getBeanCategory(node);
+    const activeTheme = theme || localStorage.getItem('sl-node-theme') || 'tint';
 
-    if (isDark) {
-        return DARK_NODE_STYLES[category] ?? DEFAULT_DARK_NODE_STYLE;
+    if (activeTheme === 'badge') {
+        if (isDark) {
+            return DARK_NODE_STYLES_BADGE[category] ?? DARK_NODE_STYLES_BADGE.adapter;
+        }
+        return NODE_STYLES_BADGE[category] ?? NODE_STYLES_BADGE.adapter;
     }
 
-    return NODE_STYLES[category] ?? DEFAULT_NODE_STYLE;
+    if (isDark) {
+        return DARK_NODE_STYLES_TINT[category] ?? DARK_NODE_STYLES_TINT.adapter;
+    }
+    return NODE_STYLES_TINT[category] ?? NODE_STYLES_TINT.adapter;
 }
 
 export function tbLink({ source, target }) {
@@ -147,3 +162,22 @@ export function lrLink({ source, target }) {
 }
 
 export const tree = d3.tree();
+
+/**
+ * Triggers a browser file download of an object as formatted JSON.
+ * @param {string} filename - Target filename (e.g. 'spring-lens-report.json').
+ * @param {Object} data - Data object to serialize.
+ */
+export function downloadJson(filename, data) {
+    if (!data) return;
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+}
