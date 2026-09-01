@@ -1,6 +1,7 @@
 package com.sdlcpro.springlens.insight.bean;
 
 import com.sdlcpro.springlens.annotation.SpringLensInternalComponent;
+import com.sdlcpro.springlens.constant.SpringFrameworkModule;
 import com.sdlcpro.springlens.insight.support.matcher.ClassNameMatcher;
 import com.sdlcpro.springlens.insight.support.matcher.PackageMatcher;
 import com.sdlcpro.springlens.matcher.CompositeMatcher;
@@ -12,10 +13,8 @@ import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 
+import java.util.LinkedHashSet;
 import java.util.Set;
-
-import static com.sdlcpro.springlens.constant.SpringLensConstants.SPRING_FRAMEWORK_BASE_PACKAGE_PATTERNS;
-import static com.sdlcpro.springlens.constant.SpringLensConstants.SPRING_BOOT_BASE_PACKAGE_PATTERN;
 
 /**
  * Utility methods for inspecting Spring bean metadata, resolving runtime
@@ -145,9 +144,17 @@ public final class BeanInfoUtils {
             matcher.addExcludeMatcher(new ToolInternalComponentMatcher<>());
         }
 
-        if (!settings.includeFrameworkInternal()) {
-            matcher.addExcludeMatcher(new PackageMatcher<>(SPRING_FRAMEWORK_BASE_PACKAGE_PATTERNS));
-            matcher.addExcludeMatcher(new PackageMatcher<>(Set.of(SPRING_BOOT_BASE_PACKAGE_PATTERN)));
+        Set<SpringFrameworkModule> includeFrameworkModules = settings.includeFrameworkModules();
+        if (!includeFrameworkModules.contains(SpringFrameworkModule.ALL)) {
+            var excludePackagePatterns = new LinkedHashSet<String>();
+            var modules = SpringFrameworkModule.modules();
+            for (SpringFrameworkModule module : modules) {
+                if (!includeFrameworkModules.contains(module)) {
+                    excludePackagePatterns.add(module.getPackagePattern());
+                }
+            }
+
+            matcher.addExcludeMatcher(new PackageMatcher<>(excludePackagePatterns));
         }
 
         return matcher;
