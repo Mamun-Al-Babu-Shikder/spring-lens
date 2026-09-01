@@ -5,31 +5,36 @@ import {
     tree, tbLink, lrLink, nodeStyle,
     NW, NH, RX, GAP_X, GAP_Y, ICON, ZOOM_SCALE_EXTENT,
     PROGRESS_BADGE_STYLES, ALL_PROGRESS_BADGE_CLASSES, ALL_PROGRESS_DOT_CLASSES,
-    TemplateEngine, QueryParam, Sidebar, ToastNotification
+    TemplateEngine, QueryParam, Sidebar, ToastNotification, BeanSearchEngine, debounce,
+    resolveBeanMetadata
 } from '../../utils/index.js';
 
 export default class GraphController {
 
-    constructor(dependencyGraphApi, findBeanApi) {
+    constructor(dependencyGraphApi, beanDefinitions, findBeanDefinitions) {
+
+        this.beanDefinitions = beanDefinitions;
+        this.dependencyGraphApi = dependencyGraphApi;
+        this.findBeanDefinitionsApi = findBeanDefinitions;
+
         this.root = null;
         this.svg = null;
         this.gLink = null;
         this.gNode = null;
         this.zoom = null;
+
         this.totalElements = 0;
         this.beanDependencies = null;
         this.accumulatedBeans = [];
         this.beanDetailsCache = new Map();
-        this.selectedContextId = '';
         this.isLoadingRemaining = false;
-        this.findBeanDetailsApi = findBeanApi;
-        this.dependencyGraphApi = dependencyGraphApi;
+
+        this.selectedContextId = '';
         this.isHighlightPathActive = false;
         this.focusedNodeFullName = null;
+
         this.mode = localStorage.getItem('sl-layout') ?? 'tb';
         this.nodeTheme = localStorage.getItem('sl-node-theme') ?? 'tint';
-
-        this.initEvents();
     }
 
     initEvents() {
@@ -39,6 +44,7 @@ export default class GraphController {
     }
 
     async enter(params) {
+        this.initEvents();
         this._initSidebar();
         if (!this._initializeCanvas()) return;
 
@@ -96,12 +102,11 @@ export default class GraphController {
             return true;
         } catch (error) {
             console.error('Failed to initialize graph data:', error);
-            $('#beanGraph').html(`
-            <div class="p-5 text-red-500 font-semibold flex items-center gap-2">
-                <span>❌ Failed to load bean definitions:</span>
-                <span>${error.message}</span>
-            </div>
-        `);
+            const clone = TemplateEngine.clone('tpl-bean-graph-error');
+            if (clone) {
+                $(clone).find('[data-field="errorMessage"]').text(error.message);
+                $('#beanGraph').empty().append(clone);
+            }
             return false;
         }
     }
@@ -114,14 +119,14 @@ export default class GraphController {
 
     _handlePendingBeanFocus(params) {
         const targetBean = QueryParam.get(params, 'focus', 'search', 'bean');
+        const contextId = QueryParam.get(params, 'contextId', 'context') || '';
         if (!targetBean) return;
 
-        setTimeout(() => this.focusOnBean(targetBean), 300);
+        setTimeout(() => this.focusOnBean(targetBean, contextId, false), 300);
     }
 
-
     async fetchBeanDetails(contextId, beanName) {
-        if (!contextId || !beanName || !this.findBeanDetailsApi) return null;
+        if (!beanName || !contextId) return null;
 
         const cacheKey = `${contextId}:${beanName}`;
         if (this.beanDetailsCache.has(cacheKey)) {
@@ -129,16 +134,14 @@ export default class GraphController {
         }
 
         try {
-            const [baseUrl] = this.findBeanDetailsApi.split('?');
-            const queryParams = QueryParam.build({ contextId, beanName });
-            const requestUrl = `${baseUrl}?${queryParams.toString()}`;
-
-            const beanDetails = await httpClient.get(requestUrl);
+            const queryParams = QueryParam.build({ contextId: contextId, beanName }).toString();
+            const beanDetails = await httpClient.getWithQuery(this.findBeanDefinitionsApi, queryParams);
             if (!beanDetails) return null;
 
             this._updateBeanCaches(beanDetails, cacheKey);
             return beanDetails;
         } catch (error) {
+            console.warn(`Error fetching bean details for ${beanName}:`, error);
             this.beanDetailsCache.set(cacheKey, null);
             return null;
         }
@@ -263,15 +266,14 @@ export default class GraphController {
 
         try {
             const { totalPages = 1, pageNumber = 0, pageSize = 20 } = firstPageData;
-            const [baseApiEndpoint] = this.dependencyGraphApi.split('?');
 
             for (let targetPageIndex = pageNumber + 1; targetPageIndex < totalPages; targetPageIndex++) {
                 const searchParams = QueryParam.build({
                     pageNumber: targetPageIndex,
                     pageSize
-                });
-                const paginatedEndpointUrl = `${baseApiEndpoint}?${searchParams.toString()}`;
-                const fetchedPagePayload = await httpClient.get(paginatedEndpointUrl);
+                }).toString();
+
+                const fetchedPagePayload = await httpClient.getWithQuery(this.dependencyGraphApi, searchParams);
                 const fetchedBeanDefinitions = fetchedPagePayload?.content ?? [];
 
                 if (fetchedBeanDefinitions.length === 0) break;
@@ -519,7 +521,7 @@ export default class GraphController {
         const { name, meta = {} } = data;
         const { type, scope, role, deps, dependents } = meta;
 
-        const childrenCount = _children.length;
+        const childrenCount = _children?.length;
         const shortType = type ? type.slice(type.lastIndexOf('.') + 1) : '';
 
         const typeLabel = shortType ? `Type: ${shortType}` : '';
@@ -678,20 +680,15 @@ export default class GraphController {
             .attr('fill-opacity', 0)
             .on('click', async (event, node) => {
                 event.stopPropagation();
-
                 this.markNodeAsFocused(node);
 
-                const contextId = node.data?.contextId || node.data?.meta?.contextId;
-                const fullName = node.data?.fullName || node.data?.name;
+                const { contextId, fullName, meta } = node.data;
+                if (meta.type === "context") return null;
 
-                if (this.findBeanDetailsApi && fullName && node.data?.meta?.type !== 'context' && node.data?.meta?.type !== 'root') {
-                    const details = await this.fetchBeanDetails(contextId, fullName);
-                    if (details) {
-                        this._mergeBeanDetailsIntoTree(node, details);
-                    }
-                }
+                const details = await this.fetchBeanDetails(contextId, fullName);
+                if (details) this._mergeBeanDetailsIntoTree(node, details);
 
-                await this.selectNode(node);
+                await this.selectNodeAndShowDetails(node, details);
                 $tip.removeClass('show');
             })
             .on('mouseenter', (event, node) => {
@@ -753,15 +750,11 @@ export default class GraphController {
             .on('click', async (event, node) => {
                 event.stopPropagation();
 
-                const contextId = node.data?.contextId || node.data?.meta?.contextId;
-                const fullName = node.data?.fullName || node.data?.name;
+                const { contextId, fullName, meta } = node.data;
+                if (meta.type === "context") return null;
 
-                if (this.findBeanDetailsApi && fullName && node.data?.meta?.type !== 'context' && node.data?.meta?.type !== 'root') {
-                    const details = await this.fetchBeanDetails(contextId, fullName);
-                    if (details) {
-                        this._mergeBeanDetailsIntoTree(node, details);
-                    }
-                }
+                const details = await this.fetchBeanDetails(contextId, fullName);
+                if (details) this._mergeBeanDetailsIntoTree(node, details);
 
                 node.children = node.children ? null : node._children;
                 this.update(event, node);
@@ -811,7 +804,7 @@ export default class GraphController {
                 )
             ));
 
-        // Single sub-element queries with cached nodeStyle evaluations
+
         selection.select('.node-rect')
             .attr('x', ({ width }) => -width / 2)
             .attr('width', ({ width }) => width)
@@ -954,68 +947,57 @@ export default class GraphController {
         $('#zoom-percent').text(`${Math.round(k * 100)}%`);
     }
 
-    async selectNode(selectedHierarchyNode) {
+    async selectNodeAndShowDetails(selectedHierarchyNode, beanDetails) {
         this.selectedNodeRef = selectedHierarchyNode;
+        if (this.isHighlightPathActive) this.highlightPathForNode(selectedHierarchyNode);
 
-        if (this.isHighlightPathActive) {
-            this.highlightPathForNode(selectedHierarchyNode);
-        }
+        const { fullName, meta } = selectedHierarchyNode.data ?? {};
+        const { dependencies = [], dependents = [] } = beanDetails ?? {};
 
-        const {
-            name: displayName,
-            fullName,
-            contextId,
-            meta = {}
-        } = selectedHierarchyNode.data ?? {};
+        const isIgnoredType = meta?.type === 'context' || meta?.type === 'N/A';
+        const hasDetails = dependencies.length > 0 || dependents.length > 0;
 
-        if (!fullName || meta.type === 'context' || meta.type === 'root') {
-            this.closeSidebar();
-            return;
-        }
-
-        let storedRecord = beanDataStore.findBeanByName(fullName, contextId);
-        if (!storedRecord && this.findBeanDetailsApi) {
-            const details = await this.fetchBeanDetails(contextId, fullName);
-            if (details) {
-                this._mergeBeanDetailsIntoTree(selectedHierarchyNode, details);
-                storedRecord = details;
-            }
-        }
-
-        const mergedMeta = { ...meta, ...(storedRecord ?? {}) };
-        const initialDependencies = this._resolveInitialDependencyLists(fullName, contextId, mergedMeta);
-        const hasDependencies = Boolean(initialDependencies.dependencies && initialDependencies.dependencies.length > 0);
-        const hasDependents = Boolean(initialDependencies.dependents && initialDependencies.dependents.length > 0);
-
-        if (!this._hasBeanDetails(mergedMeta, storedRecord) || (!hasDependencies && !hasDependents)) {
+        if (isIgnoredType || !hasDetails) {
             this.closeSidebar();
             ToastNotification.show({
                 title: 'Bean Details',
-                message: `No additional details available for <span class="font-semibold text-gray-850 dark:text-gray-200">${displayName || fullName}</span>.`,
+                message: `No additional details available for <span class="font-semibold text-gray-850 dark:text-gray-200">${fullName}</span>.`,
                 type: 'sweet',
                 duration: 4000
             });
             return;
         }
 
-        this._openSidebarAndPopulateHeader(mergedMeta);
-        this._renderDependencyAccordions(initialDependencies.dependencies, initialDependencies.dependents, contextId);
+        this.showBeanDetails(beanDetails, selectedHierarchyNode);
     }
 
-    _hasBeanDetails(mergedMeta = {}, storedRecord = null) {
-        if (!mergedMeta) return false;
-        if (mergedMeta.type === 'context' || mergedMeta.type === 'root') return false;
+    showBeanDetails(beanDetails, hierarchyNode) {
+        const { contextId, dependencies, dependents } = beanDetails;
 
-        if (storedRecord && (storedRecord.beanName || storedRecord.name || (storedRecord.type && storedRecord.type !== 'N/A'))) {
-            return true;
+        if (hierarchyNode && beanDetails) {
+            this._mergeBeanDetailsIntoTree(hierarchyNode, beanDetails);
         }
 
-        const hasValidType = mergedMeta.type && mergedMeta.type !== 'N/A' && mergedMeta.type !== 'context' && mergedMeta.type !== 'root';
-        const hasDependencies = Array.isArray(mergedMeta.dependencies) && mergedMeta.dependencies.length > 0;
-        const hasRole = Boolean(mergedMeta.role);
-        const hasFactoryBean = Boolean(mergedMeta.factoryBeanName || mergedMeta.factoryMethodName);
+        this._openSidebarAndPopulateData(beanDetails);
+        this._renderDependencyAccordions(dependencies, dependents, contextId);
 
-        return Boolean(hasValidType || hasDependencies || hasRole || hasFactoryBean);
+        // If the node exists in the current graph tree layout, focus & highlight it
+        if (this.root) {
+            const targetNode = hierarchyNode || this.findNodeInTree(this.root, beanDetails.beanName);
+            if (targetNode) {
+                this.markNodeAsFocused(targetNode);
+                if (this.isHighlightPathActive) {
+                    this.highlightPathForNode(targetNode);
+                }
+            }
+        }
+    }
+
+    _openSidebarAndPopulateData(beanDetails = {}) {
+        this.openSidebar();
+        Sidebar.populateDetails(beanDetails);
+        Sidebar.updateSidebarIcon(beanDetails);
+        this.switchTab('properties');
     }
 
     _initSidebar() {
@@ -1034,38 +1016,18 @@ export default class GraphController {
         const $sidebar = $('#details-sidebar');
         if (!$sidebar.length) return;
         $sidebar.removeClass('w-0 max-w-0 opacity-0 pointer-events-none -mr-4 border-0')
-                .addClass('w-[360px] max-w-[360px] opacity-100 mr-0 border');
+            .addClass('w-[360px] max-w-[360px] opacity-100 mr-0 border');
     }
 
     closeSidebar(immediate = false) {
         const $sidebar = $('#details-sidebar');
         if (!$sidebar.length) return;
         $sidebar.removeClass('w-[360px] max-w-[360px] opacity-100 mr-0 border')
-                .addClass('w-0 max-w-0 opacity-0 pointer-events-none -mr-4 border-0');
-    }
-
-    _openSidebarAndPopulateHeader(meta = {}) {
-        this.openSidebar();
-        Sidebar.populateDetails(meta);
-        Sidebar.updateSidebarIcon(meta);
-        this.switchTab('properties');
+            .addClass('w-0 max-w-0 opacity-0 pointer-events-none -mr-4 border-0');
     }
 
     switchTab(tabName) {
         Sidebar.switchTab(tabName);
-    }
-
-    _resolveInitialDependencyLists(fullName, contextId, fallbackMeta = {}) {
-        if (!fullName) {
-            return { dependencies: [], dependents: [] };
-        }
-
-        const cachedRecord = beanDataStore.findBeanByName(fullName, contextId);
-
-        return {
-            dependencies: cachedRecord?.dependencies ?? fallbackMeta?.dependencies ?? [],
-            dependents: cachedRecord?.dependents ?? fallbackMeta?.dependents ?? []
-        };
     }
 
     _renderDependencyAccordions(dependencyNames = [], dependentNames = [], contextId = '') {
@@ -1123,52 +1085,60 @@ export default class GraphController {
         return normalizedNodeName === normalizedTargetName;
     }
 
-    focusOnBean(fullName) {
-        if (!this.root) return;
+    async focusOnBean(fullName, contextId = '', openSidebar = false) {
+        if (!fullName) return;
 
-        const targetNode = this.findNodeInTree(this.root, fullName);
-        if (!targetNode) {
-            console.warn('Bean not found in active tree layout:', fullName);
-            return;
-        }
+        if (this.root) {
+            const targetNode = this.findNodeInTree(this.root, fullName);
+            if (targetNode) {
+                // Expand collapsed parents along the upward ancestor path
+                let currentNode = targetNode.parent;
+                let needsUpdate = false;
 
-        // Expand collapsed parents along the upward ancestor path
-        let currentNode = targetNode.parent;
-        let needsUpdate = false;
+                while (currentNode) {
+                    if (currentNode._children && !currentNode.children) {
+                        currentNode.children = currentNode._children;
+                        needsUpdate = true;
+                    }
+                    currentNode = currentNode.parent;
+                }
 
-        while (currentNode) {
-            if (currentNode._children && !currentNode.children) {
-                currentNode.children = currentNode._children;
-                needsUpdate = true;
+                if (needsUpdate) {
+                    this.update(null, this.root);
+                }
+
+                // Measure viewport dimensions once
+                const $graph = $('#beanGraph');
+                const width = $graph.width() || 800;
+                const height = $graph.height() || 600;
+
+                const isTopBottom = this.mode === 'tb';
+                const { x: nodeX, y: nodeY } = targetNode;
+
+                const targetX = isTopBottom ? nodeX : nodeY;
+                const targetY = isTopBottom ? nodeY : nodeX;
+
+                const zoomScale = 1.3;
+                const translateX = width / 2 - targetX * zoomScale;
+                const translateY = height / 2 - targetY * zoomScale;
+
+                this.svg.transition()
+                    .duration(600)
+                    .call(this.zoom.transform, d3.zoomIdentity.translate(translateX, translateY).scale(zoomScale));
+
+                this.markNodeAsFocused(targetNode);
+
+                if (this.isHighlightPathActive) {
+                    this.highlightPathForNode(targetNode);
+                }
+            } else {
+                console.info(`Bean "${fullName}" not found in current graph layout.`);
             }
-            currentNode = currentNode.parent;
         }
 
-        if (needsUpdate) {
-            this.update(null, this.root);
+        if (openSidebar) {
+            this.showBeanDetails(fullName, contextId);
         }
-
-        // Measure viewport dimensions once
-        const $graph = $('#beanGraph');
-        const width = $graph.width() || 800;
-        const height = $graph.height() || 600;
-
-        const isTopBottom = this.mode === 'tb';
-        const { x: nodeX, y: nodeY } = targetNode;
-
-        const targetX = isTopBottom ? nodeX : nodeY;
-        const targetY = isTopBottom ? nodeY : nodeX;
-
-        const zoomScale = 1.3;
-        const translateX = width / 2 - targetX * zoomScale;
-        const translateY = height / 2 - targetY * zoomScale;
-
-        this.svg.transition()
-            .duration(600)
-            .call(this.zoom.transform, d3.zoomIdentity.translate(translateX, translateY).scale(zoomScale));
-
-        this.markNodeAsFocused(targetNode);
-        this.selectNode(targetNode);
     }
 
     markNodeAsFocused(targetNode) {
@@ -1247,69 +1217,88 @@ export default class GraphController {
     }
 
     _bindSearchHandlers() {
-        let searchDebounceTimer = null;
-        const DEBOUNCE_DELAY_MS = 150;
+        this._debouncedGraphSearch = debounce((query) => {
+            this._handleSearchInput(query);
+        }, 180);
 
-        $(document).on('input', '#search-input', (event) => {
-            clearTimeout(searchDebounceTimer);
-            searchDebounceTimer = setTimeout(() => {
-                this._handleSearchInput(event.target.value);
-            }, DEBOUNCE_DELAY_MS);
+        $(document).off('input.graphSearch', '#search-input').on('input.graphSearch', '#search-input', (event) => {
+            this._debouncedGraphSearch(event.target.value);
         });
 
-        $(document).on('keydown', '#search-input', (event) => {
+        $(document).off('keydown.graphSearch', '#search-input').on('keydown.graphSearch', '#search-input', (event) => {
             if (event.key === 'Enter') {
                 event.preventDefault();
+                this._debouncedGraphSearch?.flush();
                 const $firstSuggestion = $('#search-suggestions .suggestion-item').first();
                 if ($firstSuggestion.length) {
                     $firstSuggestion.trigger('click');
                 } else {
                     const query = $('#search-input').val()?.trim();
                     if (query) {
-                        this.focusOnBean(query);
+                        this.focusOnBean(query, this.selectedContextId, false);
                         $('#search-input').val('');
                         $('#search-suggestions').hide();
                     }
                 }
+            } else if (event.key === 'Escape') {
+                this._debouncedGraphSearch?.cancel();
+                $('#search-input').val('');
+                $('#search-suggestions').hide().empty();
             }
         });
 
         this._bindOutsideSearchDismissal();
     }
 
-    _handleSearchInput(rawQueryValue) {
+    async _handleSearchInput(rawQueryValue) {
         const $suggestionsBox = $('#search-suggestions');
-        const normalizedQuery = rawQueryValue.toLowerCase().trim();
+        const query = (rawQueryValue || '').trim();
 
-        if (!normalizedQuery || !this.root) {
+        if (!query) {
             $suggestionsBox.hide().empty();
             return;
         }
 
-        const matchingBeans = this._searchMatchingNodes(normalizedQuery, 12);
-        this._renderSearchSuggestions($suggestionsBox, matchingBeans);
+        // Show loading indicator
+        $suggestionsBox.html('<div class="p-2.5 text-gray-400 dark:text-gray-500 text-xs flex items-center gap-2"><span class="material-symbols-outlined text-[16px] animate-spin text-primary">progress_activity</span><span>Searching beans...</span></div>').show();
+
+        try {
+            const queryParams = QueryParam.build({
+                search: query,
+                pageSize: 12
+            }).toString();
+
+            const response = await httpClient.getWithQuery(this.beanDefinitions, queryParams);
+            const items = response?.content ?? (Array.isArray(response) ? response : []);
+
+            this._renderSearchSuggestions($suggestionsBox, items, query);
+        } catch (error) {
+            console.warn('Error fetching search suggestions from API:', error);
+            // Fallback to in-memory matching if API is offline
+            const matchingBeans = this._searchMatchingNodes(query, 12);
+            this._renderSearchSuggestions($suggestionsBox, matchingBeans, query);
+        }
     }
 
     _searchMatchingNodes(searchQuery, maxResultsCount) {
-        const matchedBeans = [];
+        const candidateBeans = [];
         const visitedFullNames = new Set();
         const traversalStack = [this.root];
 
-        while (traversalStack.length > 0 && matchedBeans.length < maxResultsCount) {
+        while (traversalStack.length > 0) {
             const currentNode = traversalStack.pop();
             const nodeData = currentNode.data ?? {};
             const { fullName, meta = {} } = nodeData;
 
             if (this._isSearchCandidate(fullName, visitedFullNames)) {
                 visitedFullNames.add(fullName);
-
                 const displayName = GraphTreeBuilder._displayName(fullName);
-                if (this._isBeanMatchingQuery(fullName, displayName, searchQuery)) {
-                    matchedBeans.push({
-                        fullName,
-                        displayName
-                    });
-                }
+                candidateBeans.push({
+                    beanName: displayName,
+                    fullName,
+                    type: meta.type || '',
+                    scope: meta.scope || ''
+                });
             }
 
             const childNodes = currentNode.children ?? currentNode._children;
@@ -1320,7 +1309,17 @@ export default class GraphController {
             }
         }
 
-        return matchedBeans;
+        const results = BeanSearchEngine.search(candidateBeans, searchQuery, {
+            limit: maxResultsCount,
+            scoreResults: true
+        });
+
+        return results.map(b => ({
+            beanName: b.beanName,
+            fullName: b.fullName,
+            type: b.type,
+            scope: b.scope
+        }));
     }
 
     _isSearchCandidate(fullName, visitedFullNames) {
@@ -1330,37 +1329,40 @@ export default class GraphController {
         );
     }
 
-    _isBeanMatchingQuery(fullName, displayName, searchQuery) {
-        return (
-            displayName.toLowerCase().includes(searchQuery) ||
-            fullName.toLowerCase().includes(searchQuery)
-        );
-    }
-
-    _renderSearchSuggestions($suggestionsBox, matchingBeans) {
-        if (matchingBeans.length === 0) {
+    _renderSearchSuggestions($suggestionsBox, matchingBeans, query = '') {
+        if (!matchingBeans || matchingBeans.length === 0) {
             $suggestionsBox
-                .html('<div class="p-2 text-gray-400 dark:text-gray-500 text-xs">No matching beans in loaded tree</div>')
+                .html('<div class="p-2.5 text-gray-400 dark:text-gray-500 text-xs italic">No matching beans found</div>')
                 .show();
             return;
         }
 
         $suggestionsBox.empty();
         const fragment = document.createDocumentFragment();
-        matchingBeans.forEach(beanMatch => {
-            const clone = TemplateEngine.clone('tpl-suggestion-item');
-            if (clone) {
-                const $item = $(clone.firstElementChild);
-                $item.attr('data-fullname', beanMatch.fullName);
-                $item.find('[data-field="name"]').text(beanMatch.displayName);
-                fragment.appendChild(clone);
-            } else {
-                const itemElem = document.createElement('div');
-                itemElem.className = 'suggestion-item p-2 hover:bg-gray-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors border-b border-gray-50 dark:border-slate-800/50 last:border-b-0';
-                itemElem.setAttribute('data-fullname', beanMatch.fullName);
-                itemElem.innerHTML = `<strong class="text-xs font-semibold text-gray-700 dark:text-gray-300 block">${beanMatch.displayName}</strong>`;
-                fragment.appendChild(itemElem);
-            }
+        matchingBeans.forEach(matchingBean => {
+            const { contextId, beanName, type, scope } = matchingBean;
+            const meta = resolveBeanMetadata({ beanName, type: type });
+
+            const itemElem = document.createElement('div');
+            itemElem.className = 'suggestion-item px-3 py-2 text-xs hover:bg-purple-50/60 dark:hover:bg-purple-950/40 cursor-pointer flex items-center justify-between gap-2 border-b border-gray-100 dark:border-slate-800/60 last:border-b-0 transition-colors';
+            itemElem.setAttribute('data-fullname', beanName);
+            itemElem.setAttribute('data-context-id', contextId);
+
+            const highlightedName = BeanSearchEngine.highlight(beanName, query);
+            const shortType = type ? type.split('.').pop() : '';
+
+            itemElem.innerHTML = `
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="material-symbols-outlined text-[16px] flex-shrink-0" style="color: ${meta.color}">${meta.icon}</span>
+                    <div class="min-w-0">
+                        <div class="font-semibold text-gray-800 dark:text-gray-200 truncate">${highlightedName}</div>
+                        ${shortType ? `<div class="text-[10px] text-gray-400 dark:text-gray-500 font-mono truncate">${shortType}</div>` : ''}
+                    </div>
+                </div>
+                ${scope ? `<span class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 uppercase">${scope}</span>` : ''}
+            `;
+
+            fragment.appendChild(itemElem);
         });
 
         $suggestionsBox.append(fragment).show();
@@ -1395,14 +1397,21 @@ export default class GraphController {
 
         event.stopPropagation();
 
-        if ($navigationLink.hasClass('suggestion-item')) {
+        const isSuggestion = $navigationLink.hasClass('suggestion-item');
+        if (isSuggestion) {
             $('#search-input').val('');
             $('#search-suggestions').hide();
         }
 
-        const targetBeanFullName = $navigationLink.data('fullname');
+        const targetBeanFullName = $navigationLink.data('fullname') || $navigationLink.attr('data-fullname');
+        const targetContextId = $navigationLink.data('context-id') || $navigationLink.attr('data-context-id') || this.selectedContextId || '';
+
         if (targetBeanFullName) {
-            this.focusOnBean(targetBeanFullName);
+            if (isSuggestion) {
+                this.focusOnBean(targetBeanFullName, targetContextId, false);
+            } else {
+                this.showBeanDetails(targetBeanFullName, targetContextId);
+            }
         }
 
         return true;
@@ -1538,6 +1547,7 @@ export default class GraphController {
     leave() {
         this.closeSidebar();
         this.clearFocusedNode();
+        this._debouncedGraphSearch?.cancel();
         $('#search-input').val('');
         $('#search-results').addClass('hidden').empty();
         $('#tip').removeClass('show');

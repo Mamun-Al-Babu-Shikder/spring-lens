@@ -10,7 +10,7 @@
                 <input type="text" id="search-input" placeholder="Search bean in graph..."
                     class="pl-9 pr-3 py-1.5 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all w-44 focus:w-60 shadow-xs" />
                 <div id="search-suggestions"
-                    class="absolute left-0 top-full mt-1.5 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl shadow-xl max-h-60 w-72 overflow-y-auto custom-scrollbar z-50 text-xs hidden">
+                    class="absolute left-0 top-full mt-1.5 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl shadow-xl max-h-72 w-80 overflow-y-auto custom-scrollbar z-50 text-xs hidden">
                 </div>
             </div>
 
@@ -30,14 +30,17 @@
             <button
                 class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/80 hover:border-gray-300 dark:hover:border-slate-600 shadow-xs transition-all cursor-pointer whitespace-nowrap"
                 id="btn-collapse" title="Collapse All Nodes">
-                <span class="material-symbols-outlined text-[16px] text-gray-500 dark:text-gray-400">unfold_less</span> Collapse
+                <span class="material-symbols-outlined text-[16px] text-gray-500 dark:text-gray-400">unfold_less</span>
+                Collapse
             </button>
 
             <!-- Reset Button -->
             <button
                 class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/80 hover:border-gray-300 dark:hover:border-slate-600 shadow-xs transition-all cursor-pointer whitespace-nowrap"
                 id="btn-reset" title="Reset View & Graph">
-                <span class="material-symbols-outlined text-[16px] text-gray-500 dark:text-gray-400">center_focus_strong</span> Reset
+                <span
+                    class="material-symbols-outlined text-[16px] text-gray-500 dark:text-gray-400">center_focus_strong</span>
+                Reset
             </button>
 
             <!-- Layout Toggle group -->
@@ -74,12 +77,14 @@
             <button
                 class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/80 hover:border-gray-300 dark:hover:border-slate-600 shadow-xs transition-all cursor-pointer whitespace-nowrap"
                 id="btn-highlight-path" title="Toggle Path Highlighting">
-                <span class="material-symbols-outlined text-[16px] text-purple-500 dark:text-purple-400">insights</span> Highlight Path
+                <span class="material-symbols-outlined text-[16px] text-purple-500 dark:text-purple-400">insights</span>
+                Highlight Path
             </button>
         </div>
 
         <!-- Toolbar Right Statuses -->
-        <div class="flex items-center gap-2.5 text-xs font-medium text-gray-600 dark:text-gray-300 flex-shrink-0 whitespace-nowrap">
+        <div
+            class="flex items-center gap-2.5 text-xs font-medium text-gray-600 dark:text-gray-300 flex-shrink-0 whitespace-nowrap">
             <!-- Chunk Loading Progress Badge -->
             <div id="chunk-progress-badge"
                 class="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 px-3 py-1.5 rounded-xl border border-amber-200/80 dark:border-amber-900/40 transition-all shadow-xs">
@@ -173,7 +178,8 @@
 </template>
 
 <template id="tpl-graph-dep-item">
-    <div class="flex items-center gap-2 py-2 px-2 text-xs border-b border-gray-50 dark:border-slate-800/60 last:border-b-0">
+    <div
+        class="flex items-center gap-2 py-2 px-2 text-xs border-b border-gray-50 dark:border-slate-800/60 last:border-b-0">
         <span class="w-2 h-2 rounded-full flex-shrink-0" data-field="dot"></span>
         <span class="font-mono text-[11px] text-gray-700 dark:text-gray-300 break-all" data-field="name"></span>
     </div>
@@ -183,5 +189,12 @@
     <div
         class="suggestion-item p-2.5 hover:bg-purple-50/60 dark:hover:bg-purple-950/30 cursor-pointer transition-colors border-b border-gray-50 dark:border-slate-800/50 last:border-b-0">
         <strong class="text-xs font-semibold text-gray-700 dark:text-gray-300 block" data-field="name"></strong>
+    </div>
+</template>
+
+<template id="tpl-bean-graph-error">
+    <div class="p-5 text-red-500 font-semibold flex items-center gap-2">
+        <span>❌ Failed to load bean definitions:</span>
+        <span data-field="errorMessage"></span>
     </div>
 </template>
