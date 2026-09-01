@@ -1,17 +1,20 @@
 import httpClient from '../../client/http-client.js';
 import {
-    CLASSES,
+    CSS_CLASSES,
+    CONDITION_STATUS_THEMES,
     TemplateEngine,
     QueryParam,
-    Pagination
+    Pagination,
+    BeanSearchEngine,
+    debounce
 } from '../../utils/index.js';
 
 
 export default class ConditionalEvaluationController {
 
     constructor(conditionalEvaluationApiUrl, searchConditionalEvaluationApiUrl) {
-        this.conditionalBeans = conditionalEvaluationApiUrl;
-        this.conditionalBeansUrl = searchConditionalEvaluationApiUrl;
+        this.conditionEvaluationApiUrl = conditionalEvaluationApiUrl;
+        this.searchConditionalEvaluationApiUrl = searchConditionalEvaluationApiUrl;
 
         // Active data state
         this.conditions = [];
@@ -44,7 +47,10 @@ export default class ConditionalEvaluationController {
             totalConditions: 0
         };
 
-        this._searchDebounceTimer = null;
+        this._debouncedSearch = debounce(() => {
+            this.currentPage = 1;
+            this.fetchConditionEvaluationData();
+        }, 200);
     }
 
     _resetFilterState() {
@@ -104,7 +110,7 @@ export default class ConditionalEvaluationController {
                 pageSize: 1000
             });
             const responseData = await httpClient.getWithQuery(
-                this.conditionalBeans,
+                this.conditionEvaluationApiUrl,
                 queryParams.toString()
             );
 
@@ -150,7 +156,7 @@ export default class ConditionalEvaluationController {
 
         try {
             const responseData = await httpClient.getWithQuery(
-                this.conditionalBeans,
+                this.conditionEvaluationApiUrl,
                 queryParams.toString()
             );
 
@@ -263,8 +269,8 @@ export default class ConditionalEvaluationController {
             const outcome = $btn.data('outcome') || '';
             const isActive = outcome === activeOutcome;
 
-            $btn.toggleClass(CLASSES.pillActive, isActive)
-                .toggleClass(CLASSES.pillInactive, !isActive);
+            $btn.toggleClass(CSS_CLASSES.pillActive, isActive)
+                .toggleClass(CSS_CLASSES.pillInactive, !isActive);
         });
 
         this.renderTabCounts();
@@ -393,7 +399,7 @@ export default class ConditionalEvaluationController {
             && this.selectedCondition.contextId === contextId;
 
         if (isSelected) {
-            $row.addClass(CLASSES.rowActive);
+            $row.addClass(CSS_CLASSES.rowActive);
         }
 
         $row.attr({
@@ -407,16 +413,12 @@ export default class ConditionalEvaluationController {
         $row.find('[data-field="packageName"]').text(packageName).attr('title', packageName);
 
         // Set Status Badge
-        const $statusBadge = $row.find('[data-field="statusBadge"]');
-        if (isMatched) {
-            $statusBadge
-                .addClass('bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/40')
-                .html('<span class="material-symbols-outlined text-[14px]">check</span> Matched');
-        } else {
-            $statusBadge
-                .addClass('bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800/40')
-                .html('<span class="material-symbols-outlined text-[14px]">close</span> Did Not Match');
-            $row.addClass('bg-red-50/10 dark:bg-red-950/5');
+        const statusTheme = isMatched ? CONDITION_STATUS_THEMES.matched : CONDITION_STATUS_THEMES.notMatched;
+        $row.find('[data-field="statusBadge"]').addClass(statusTheme.badge);
+        $row.find('[data-field="statusIcon"]').text(statusTheme.icon);
+        $row.find('[data-field="statusText"]').text(statusTheme.label);
+        if (statusTheme.rowBg) {
+            $row.addClass(statusTheme.rowBg);
         }
 
         // Set Conditions Ratio & Progress Bar
@@ -544,16 +546,16 @@ export default class ConditionalEvaluationController {
         }
 
         // Highlight active row in table
-        $('.condition-row').removeClass(CLASSES.rowActive);
-        $(`.condition-row[data-context-id="${contextId}"][data-source="${source}"]`).addClass(CLASSES.rowActive);
+        $('.condition-row').removeClass(CSS_CLASSES.rowActive);
+        $(`.condition-row[data-context-id="${contextId}"][data-source="${source}"]`).addClass(CSS_CLASSES.rowActive);
 
         // Find from loaded list or fetch from API
         let condition = this.conditions.find(c => c.contextId === contextId && c.source === source);
 
-        if (!condition && this.conditionalBeansUrl) {
+        if (!condition && this.searchConditionalEvaluationApiUrl) {
             try {
                 const queryParams = QueryParam.build({ contextId, source });
-                condition = await httpClient.getWithQuery(this.conditionalBeansUrl, queryParams.toString());
+                condition = await httpClient.getWithQuery(this.searchConditionalEvaluationApiUrl, queryParams.toString());
             } catch (err) {
                 console.warn('Could not fetch single condition snapshot:', err);
             }
@@ -571,6 +573,8 @@ export default class ConditionalEvaluationController {
      */
     renderDetailPanel(condition) {
         const $panel = $('#condition-detail-panel');
+        const $conditionDetailsClassName =  $('#condition-detail-class-name');
+
         if (!$panel.length) return;
 
         const { source, contextId, outcome, matches = [] } = condition;
@@ -580,26 +584,22 @@ export default class ConditionalEvaluationController {
         const displayClassName = memberName ? `${className}#${memberName}` : className;
 
         // Populate Header
-        $('#condition-detail-class-name').text(displayClassName);
+        $conditionDetailsClassName.text(displayClassName);
         $('#condition-detail-package-name').text(packageName || 'default package');
         $('#condition-detail-context-badge').text(contextId || 'SpringContext');
         $('#condition-detail-context-id').text(contextId || '-');
         $('#condition-detail-source-full').text(source);
 
         // Status Badge
-        const $statusBadge = $('#condition-detail-status-badge');
-        $statusBadge.removeClass().addClass('px-2.5 py-0.5 rounded-full text-xs font-medium border inline-flex items-center gap-1');
-        if (isMatched) {
-            $statusBadge
-                .addClass('bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/40')
-                .html('<span class="material-symbols-outlined text-[14px]">check</span> Matched');
-            $('#condition-detail-class-name').removeClass('text-red-600 dark:text-red-400').addClass('text-emerald-600 dark:text-emerald-400');
-        } else {
-            $statusBadge
-                .addClass('bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800/40')
-                .html('<span class="material-symbols-outlined text-[14px]">close</span> Did Not Match');
-            $('#condition-detail-class-name').removeClass('text-emerald-600 dark:text-emerald-400').addClass('text-red-600 dark:text-red-400');
-        }
+        const statusTheme = isMatched ? CONDITION_STATUS_THEMES.matched : CONDITION_STATUS_THEMES.notMatched;
+        $('#condition-detail-status-badge')
+            .removeClass()
+            .addClass(`px-2.5 py-0.5 rounded-full text-xs font-medium border inline-flex items-center gap-1 ${statusTheme.badge}`);
+        $('#condition-detail-status-icon').text(statusTheme.icon);
+        $('#condition-detail-status-text').text(statusTheme.label);
+        $conditionDetailsClassName
+            .toggleClass('text-emerald-600 dark:text-emerald-400', isMatched)
+            .toggleClass('text-red-600 dark:text-red-400', !isMatched);
 
         // Summary Icon & Reason Text
         const failedMatch = matches.find(m => !m.matched);
@@ -671,7 +671,7 @@ export default class ConditionalEvaluationController {
      */
     closeDetail() {
         $('#condition-detail-panel').addClass('hidden').hide();
-        $('.condition-row').removeClass(CLASSES.rowActive);
+        $('.condition-row').removeClass(CSS_CLASSES.rowActive);
         this.selectedCondition = null;
     }
 
@@ -743,12 +743,21 @@ export default class ConditionalEvaluationController {
      */
     _bindSearchInput() {
         this._on('#condition-search-input', 'input', (e) => {
-            clearTimeout(this._searchDebounceTimer);
             this.searchQuery = e.target.value.trim();
-            this._searchDebounceTimer = setTimeout(() => {
+            this._debouncedSearch();
+        });
+
+        this._on('#condition-search-input', 'keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this._debouncedSearch.flush();
+            } else if (e.key === 'Escape') {
+                this._debouncedSearch.cancel();
+                this.searchQuery = '';
+                $('#condition-search-input').val('');
                 this.currentPage = 1;
                 this.fetchConditionEvaluationData();
-            }, 300);
+            }
         });
     }
 
@@ -859,9 +868,7 @@ export default class ConditionalEvaluationController {
     leave() {
         this.closeDetail();
         this._resetFilterState();
-        if (this._searchDebounceTimer) {
-            clearTimeout(this._searchDebounceTimer);
-        }
+        this._debouncedSearch?.cancel();
         $(document).off('.conditionReports');
         $('#condition-search-input, #condition-group-by, #condition-page-size').off('.conditionReports');
     }

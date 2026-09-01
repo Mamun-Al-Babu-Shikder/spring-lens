@@ -45,26 +45,53 @@
     gap: 0.5rem;
 }
 
+/* Active navigation and submenu icon colors */
+aside nav a.text-primary .material-symbols-outlined,
+.submenu a.text-primary .material-symbols-outlined {
+    color: #6b46c1 !important;
+}
+
+.dark aside nav a.dark\:text-purple-300 .material-symbols-outlined,
+.dark .submenu a.dark\:text-purple-300 .material-symbols-outlined {
+    color: #d8b4fe !important;
+}
+
 tr.bg-primary-light\/40 td:first-child,
 tr.dark\:bg-primary\/20 td:first-child {
     border-left: 2px solid #6b46c1 !important;
 }
 
 /* Smooth transitions for theme switching */
-body, aside, main, header, .card, button, input, select, table, tr, th, td, div {
+body,
+aside,
+main,
+header,
+.card,
+button,
+input,
+select,
+table,
+tr,
+th,
+td,
+div {
     transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
 }
 
 /* Custom scrollbars in dark mode */
 .dark .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #334155; /* Slate 700 */
+    background: #334155;
+    /* Slate 700 */
 }
+
 .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #475569; /* Slate 600 */
+    background: #475569;
+    /* Slate 600 */
 }
 
 /* Graph node & link highlight path styles */
-g.node, path.link {
+g.node,
+path.link {
     transition: opacity 0.2s ease, stroke 0.2s ease, stroke-width 0.2s ease;
 }
 
@@ -143,10 +170,13 @@ g.node.node-focused text.node-text {
 }
 
 @keyframes node-focused-pulse {
-    0%, 100% {
+
+    0%,
+    100% {
         stroke-width: 3px;
         filter: drop-shadow(0 0 8px var(--node-color, #6b46c1)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
     }
+
     50% {
         stroke-width: 4px;
         filter: drop-shadow(0 0 18px var(--node-color, #6b46c1)) drop-shadow(0 4px 10px rgba(0, 0, 0, 0.2));
@@ -154,10 +184,13 @@ g.node.node-focused text.node-text {
 }
 
 @keyframes node-focused-pulse-dark {
-    0%, 100% {
+
+    0%,
+    100% {
         stroke-width: 3px;
         filter: drop-shadow(0 0 10px var(--node-color, #a855f7)) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3));
     }
+
     50% {
         stroke-width: 4px;
         filter: drop-shadow(0 0 22px var(--node-color, #a855f7)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));

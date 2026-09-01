@@ -1,14 +1,10 @@
-/**
- * HttpClient
- * Dedicated HTTP client responsible solely for handling API calls and returning pure data payloads.
- */
 class HttpClient {
     async get(endpointUrl) {
         const response = await fetch(endpointUrl);
         if (!response.ok) {
             const error = new Error(`HTTP ${response.status}: ${response.statusText}`);
             error.status = response.status;
-            throw error;
+            throw error
         }
         return await response.json();
     }

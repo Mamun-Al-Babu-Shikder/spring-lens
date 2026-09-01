@@ -21,6 +21,26 @@ export const DEFAULT_SIDEBAR_SELECTORS = {
 
 export default class Sidebar {
 
+    /**
+     * Populates bean details text and titles in the sidebar.
+     * @param {Object} beanInformation - Bean definition metadata.
+     * @param {Object} selectorMap - Map of field names to DOM selector strings.
+     */
+    static populateDetails(beanInformation = {}, selectorMap = DEFAULT_SIDEBAR_SELECTORS) {
+        const details = this.formatDetails(beanInformation);
+
+        Object.entries(selectorMap).forEach(([field, selector]) => {
+            if (!selector || details[field] == null) return;
+            const $el = $(selector);
+            if (!$el.length) return;
+
+            $el.text(details[field]);
+            if (field === 'beanName' || field === 'type') {
+                $el.attr('title', details[field]);
+            }
+        });
+    }
+
     static formatDetails(beanInformation = {}) {
         const {
             beanName = '',
@@ -58,32 +78,6 @@ export default class Sidebar {
         };
     }
 
-    /**
-     * Populates bean details text and titles in the sidebar.
-     * @param {Object} beanInformation - Bean definition metadata.
-     * @param {Object} selectorMap - Map of field names to DOM selector strings.
-     */
-    static populateDetails(beanInformation = {}, selectorMap = DEFAULT_SIDEBAR_SELECTORS) {
-        const details = this.formatDetails(beanInformation);
-
-        Object.entries(selectorMap).forEach(([field, selector]) => {
-            if (!selector || details[field] == null) return;
-            const $el = $(selector);
-            if (!$el.length) return;
-
-            $el.text(details[field]);
-            if (field === 'beanName' || field === 'type') {
-                $el.attr('title', details[field]);
-            }
-        });
-    }
-
-    /**
-     * Updates sidebar icon container with metadata icon and dynamic styling.
-     * @param {Object} bean - The bean metadata.
-     * @param {string} [iconSelector] - Selector for the icon element.
-     * @param {string} [containerSelector] - Selector for the icon container element.
-     */
     static updateSidebarIcon(bean, iconSelector = '#sidebar-icon', containerSelector = '#sidebar-icon-container') {
         const { icon, color } = resolveBeanMetadata(bean);
 
@@ -99,12 +93,6 @@ export default class Sidebar {
         }
     }
 
-    /**
-     * Resolves the category badge/dot color for a given dependency bean.
-     * @param {string} beanName - Target dependency bean name.
-     * @param {string} [contextId] - Optional context ID.
-     * @returns {string} Tailwind color name (e.g. 'green', 'yellow', 'purple', 'blue').
-     */
     static resolveDependencyCategoryColor(beanName, contextId) {
         const record = beanDataStore.findBeanByName(beanName, contextId) || beanDataStore.getBean(beanName);
         if (!record) return 'blue';
@@ -117,12 +105,6 @@ export default class Sidebar {
         return DEPENDENCY_CATEGORY_COLORS[category] ?? 'blue';
     }
 
-    /**
-     * Renders dependency or dependent list items into the specified container.
-     * @param {jQuery} $container - Target list container element.
-     * @param {Array<string>} beanNames - Array of dependency bean names.
-     * @param {Object} options - Configuration options.
-     */
     static renderDependencyList($container, beanNames = [], options = {}) {
         if (!$container?.length) return;
         $container.empty();
@@ -170,11 +152,6 @@ export default class Sidebar {
         $container.append(fragment);
     }
 
-    /**
-     * Handles tab switching and toggles visible tab pane.
-     * @param {string} activeTab - Target tab identifier (e.g. 'properties').
-     * @param {Object} config - Configuration options for tabs and panes.
-     */
     static switchTab(activeTab, config = {}) {
         const {
             tabSelector = '.tab-btn',
