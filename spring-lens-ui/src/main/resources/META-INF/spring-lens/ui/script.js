@@ -25,27 +25,11 @@ $(document).ready(() => {
         FIND_CONDITIONAL_REPORTS : API_BASE_URL + "/conditions/find",
     }
 
-    let applicationInfo = "http://localhost:8083/spring-lens/api/application";
-    let definitions = "http://localhost:8083/spring-lens/api/beans/definitions";
-    let definitionsSummary = "http://localhost:8083/spring-lens/api/beans/definitions/summary";
-    let graphDependencies = "http://localhost:8083/spring-lens/api/beans/definitions/dependencies";
-    let findDependencies = "http://localhost:8083/spring-lens/api/beans/definitions/find";
-    let beansInstances = "http://localhost:8083/spring-lens/api/beans/instances";
-    let findBeanInstances = "http://localhost:8083/spring-lens/api/beans/instances/find";
-    let beansConditions = "http://localhost:8083/spring-lens/api/beans/conditions";
-    let searchBeanConditions = "http://localhost:8083/spring-lens/api/beans/conditions/find";
-
-    const dashboard = new DashboardController({ applicationInfo, definitions, beansInstances, graphDependencies, beansConditions, definitionsSummary });
-    const beanDefinitions = new BeanDefinitions(definitions, definitionsSummary, findDependencies);
-    const beanDependencyGraph = new GraphController(graphDependencies, definitions, findDependencies);
-    const beanInstance = new InstanceController(beansInstances, findBeanInstances, findDependencies);
-    const conditionEvaluation = new ConditionalEvaluationController(beansConditions, searchBeanConditions);
-
-    // const dashboard = new DashboardController(ENDPOINTS);
-    // const beanInstance = new InstanceController(ENDPOINTS.BEAN_INSTANCE, ENDPOINTS.FIND_BEAN_INSTANCE);
-    // const beanDefinitions = new BeanDefinitions(ENDPOINTS.BEAN_DEFINITION, ENDPOINTS.SUMMARY_BEAN_DEFINITION, ENDPOINTS.FIND_BEAN_DEFINITION);
-    // const beanDependencyGraph = new GraphController(ENDPOINTS.GRAPH_DEPENDENCIES, ENDPOINTS.BEAN_DEFINITION, ENDPOINTS.FIND_BEAN_DEFINITION);
-    // const conditionEvaluation = new ConditionalEvaluationController(ENDPOINTS.CONDITIONAL_REPORTS, ENDPOINTS.FIND_CONDITIONAL_REPORTS);
+    const dashboard = new DashboardController(ENDPOINTS);
+    const beanInstance = new InstanceController(ENDPOINTS.BEAN_INSTANCE, ENDPOINTS.FIND_BEAN_INSTANCE);
+    const beanDefinitions = new BeanDefinitions(ENDPOINTS.BEAN_DEFINITION, ENDPOINTS.SUMMARY_BEAN_DEFINITION, ENDPOINTS.FIND_BEAN_DEFINITION);
+    const beanDependencyGraph = new GraphController(ENDPOINTS.GRAPH_DEPENDENCIES, ENDPOINTS.BEAN_DEFINITION, ENDPOINTS.FIND_BEAN_DEFINITION);
+    const conditionEvaluation = new ConditionalEvaluationController(ENDPOINTS.CONDITIONAL_REPORTS, ENDPOINTS.FIND_CONDITIONAL_REPORTS);
 
     const appRouter = new Route({
         container: '#main-content',
