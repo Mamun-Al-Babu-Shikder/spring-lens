@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Role;
 
 @SpringLensInternalComponent
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnClass({ BeanInstanceInfoRestController.class })
+@ConditionalOnClass({BeanInstanceInfoRestController.class})
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 class BeanInstanceInfoHttpExposureConfiguration {
 
