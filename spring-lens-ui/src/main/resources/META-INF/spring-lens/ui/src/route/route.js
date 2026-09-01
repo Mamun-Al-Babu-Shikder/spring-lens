@@ -45,15 +45,10 @@ export default class Route {
             }
 
             const isVisible = $submenu.is(':visible');
-            const isAlreadyActive = this.activeRouteKey === page;
+            this._toggleSubmenu($submenu, $target, !isVisible);
 
-            if (isVisible && isAlreadyActive) {
-                this._toggleSubmenu($submenu, $target, false);
-            } else {
-                if (!isVisible) {
-                    this._toggleSubmenu($submenu, $target, true);
-                }
-                if (page) this.navigate(page);
+            if (page) {
+                this.navigate(page);
             }
         });
     }
@@ -157,7 +152,7 @@ export default class Route {
     updateSidebarVisuals(activePage) {
         const { sublink, parent } = NAV_STYLES;
 
-        $('aside nav a').each((_, element) => {
+        $('aside nav a, aside nav button, aside nav .parent-link').each((_, element) => {
             const $link = $(element);
             const pageAttr = $link.data('page');
             const isSubLink = $link.parent().hasClass('submenu');
@@ -177,12 +172,13 @@ export default class Route {
             const isParent = $link.hasClass('parent-link');
             const $submenu = isParent ? $link.next('.submenu') : $();
             const hasActiveChild = $submenu.length > 0 && $submenu.find(`[data-page="${activePage}"]`).length > 0;
-            const isParentActive = isActive || hasActiveChild;
 
-            $link.toggleClass(parent.active, isParentActive)
-                .toggleClass(parent.inactive, !isParentActive);
+            if (!isParent && pageAttr) {
+                $link.toggleClass(parent.active, isActive)
+                    .toggleClass(parent.inactive, !isActive);
+            }
 
-            if (isParentActive && isParent) {
+            if (hasActiveChild && isParent) {
                 this._toggleSubmenu($submenu, $link, true);
             }
         });
@@ -191,9 +187,8 @@ export default class Route {
         $('.submenu').each((_, element) => {
             const $submenu = $(element);
             const hasActiveChild = $submenu.find(`[data-page="${activePage}"]`).length > 0;
-            const isParentActive = $submenu.prev(`.parent-link[data-page="${activePage}"]`).length > 0;
 
-            if (!hasActiveChild && !isParentActive) {
+            if (!hasActiveChild) {
                 this._toggleSubmenu($submenu, $submenu.prev('.parent-link'), false);
             }
         });

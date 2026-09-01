@@ -2,8 +2,8 @@ import httpClient from '../../client/http-client.js';
 import GraphTreeBuilder from '../../builder/graph-tree-builder.js';
 import beanDataStore from '../../storage/bean-data-store.js';
 import {
-    CLASSES, DURATION_BAR_RULES, capitalize, resolveBeanMetadata, downloadJson,
-    TemplateEngine, QueryParam, Pagination
+    CSS_CLASSES, DURATION_BAR_RULES, capitalize, resolveBeanMetadata, downloadJson,
+    TemplateEngine, QueryParam, Pagination, BeanSearchEngine, debounce
 } from '../../utils/index.js';
 
 export default class InstanceController {
@@ -34,7 +34,7 @@ export default class InstanceController {
         };
 
         this.maxTimeMs = 100;
-        this._searchDebounceTimer = null;
+        this._debouncedSearch = debounce(() => this._resetPageAndFetch(), 200);
         this.beanInstanceApi = beanInstanceApi;
         this.beanInstanceFindApi = beanInstanceFindApi;
         this.beanDefinitionFindApi = beanDefinitionFindApi;
@@ -299,7 +299,7 @@ export default class InstanceController {
             && (this.selectedContextId === contextId);
 
         if (isSelected) {
-            $row.addClass(CLASSES.rowActive);
+            $row.addClass(CSS_CLASSES.rowActive);
         }
 
         $row.attr({
@@ -378,8 +378,8 @@ export default class InstanceController {
         this.selectedContextId = contextId;
         this.selectedBeanName = beanName;
 
-        $('.time-row').removeClass(CLASSES.rowActive);
-        $(`.time-row[data-context-id="${contextId}"][data-bean-name="${beanName}"]`).addClass(CLASSES.rowActive);
+        $('.time-row').removeClass(CSS_CLASSES.rowActive);
+        $(`.time-row[data-context-id="${contextId}"][data-bean-name="${beanName}"]`).addClass(CSS_CLASSES.rowActive);
 
         try {
             const queryParams = QueryParam.build({ contextId, beanName });
@@ -507,9 +507,20 @@ export default class InstanceController {
      */
     _bindSearchInput() {
         this._on('#time-search-input', 'input', (e) => {
-            clearTimeout(this._searchDebounceTimer);
             this.searchQuery = e.target.value.trim();
-            this._searchDebounceTimer = setTimeout(() => this._resetPageAndFetch(), 300);
+            this._debouncedSearch();
+        });
+
+        this._on('#time-search-input', 'keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this._debouncedSearch.flush();
+            } else if (e.key === 'Escape') {
+                this._debouncedSearch.cancel();
+                this.searchQuery = '';
+                $('#time-search-input').val('');
+                this._resetPageAndFetch();
+            }
         });
     }
 
@@ -609,7 +620,7 @@ export default class InstanceController {
         this.selectedBeanName = null;
         this.selectedContextId = null;
         this.selectedBeanInstance = null;
-        $('.time-row').removeClass(CLASSES.rowActive);
+        $('.time-row').removeClass(CSS_CLASSES.rowActive);
 
         if (!$sidebar.length) return;
 
@@ -863,9 +874,7 @@ export default class InstanceController {
         this._handleCloseSidebar(true);
         this.closeBeanDefinitionModal();
         this._resetFilterState();
-        if (this._searchDebounceTimer) {
-            clearTimeout(this._searchDebounceTimer);
-        }
+        this._debouncedSearch?.cancel();
         $(document).off('.beanInstances');
         $('#time-search-input, #time-filter-scope, #time-filter-duration, #time-sort-by, #time-filter-size').off('.beanInstances');
     }

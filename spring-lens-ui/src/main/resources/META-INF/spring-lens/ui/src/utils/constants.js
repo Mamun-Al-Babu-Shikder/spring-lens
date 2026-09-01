@@ -1,25 +1,25 @@
-// UI layout constants for Spring Lens
-export const NW = 208;
-export const NH = 46;
-export const RX = 12;
-export const GAP_X = 36;
-export const GAP_Y = 80;
-export const ICON = 'M10 2l8 4v8l-8 4-8-4V6l8-4z M2 6l8 4 M18 6l-8 4 M10 10v8';
-export const ZOOM_SCALE_EXTENT = [0.05, 4];
-export const METHOD_PILL_STYLES = {
-    get: 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border-blue-100 dark:border-blue-900/30',
-    post: 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border-green-100 dark:border-green-900/30',
-    put: 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border-amber-100 dark:border-amber-900/30',
-    delete: 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border-red-100 dark:border-red-900/30'
+const NW = 208;
+const NH = 46;
+const RX = 12;
+const GAP_X = 36;
+const GAP_Y = 80;
+const ICON = 'M10 2l8 4v8l-8 4-8-4V6l8-4z M2 6l8 4 M18 6l-8 4 M10 10v8';
+const ZOOM_SCALE_EXTENT = [0.05, 4];
+const CONDITION_STATUS_THEMES = {
+    matched: {
+        badge: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/40',
+        icon: 'check',
+        label: 'Matched'
+    },
+    notMatched: {
+        badge: 'bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 border-red-200 dark:border-red-800/40',
+        icon: 'close',
+        label: 'Did Not Match',
+        rowBg: 'bg-red-50/10 dark:bg-red-950/5'
+    }
 };
 
-export const STATUS_PILL_STYLES = {
-    green: 'bg-success-light dark:bg-success/10 text-success dark:text-success border-success/15 dark:border-success/30',
-    amber: 'bg-amber-50 dark:bg-amber-950/20 text-warning dark:text-warning border-warning/15 dark:border-warning/30',
-    red: 'bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/35'
-};
-
-export const NODE_STYLES_TINT = {
+const NODE_STYLES_TINT = {
     root: { fill: '#eff6ff', stroke: '#3b82f6', icon: '#2563eb', text: '#1d4ed8' },
     context: { fill: '#eef2ff', stroke: '#6366f1', icon: '#4f46e5', text: '#4338ca' },
     leaf: { fill: '#fffbeb', stroke: '#f59e0b', icon: '#d97706', text: '#b45309' },
@@ -27,7 +27,7 @@ export const NODE_STYLES_TINT = {
     adapter: { fill: '#faf5ff', stroke: '#a855f7', icon: '#9333ea', text: '#7e22ce' }
 };
 
-export const NODE_STYLES_BADGE = {
+const NODE_STYLES_BADGE = {
     root: { fill: '#ffffff', stroke: '#3b82f6', icon: '#2563eb', iconBg: '#eff6ff', text: '#0f172a' },
     context: { fill: '#ffffff', stroke: '#6366f1', icon: '#4f46e5', iconBg: '#eef2ff', text: '#0f172a' },
     leaf: { fill: '#ffffff', stroke: '#f59e0b', icon: '#d97706', iconBg: '#fffbeb', text: '#0f172a' },
@@ -35,10 +35,9 @@ export const NODE_STYLES_BADGE = {
     adapter: { fill: '#ffffff', stroke: '#a855f7', icon: '#9333ea', iconBg: '#faf5ff', text: '#0f172a' }
 };
 
-export const NODE_STYLES = NODE_STYLES_TINT;
-export const DEFAULT_NODE_STYLE = { fill: '#faf5ff', stroke: '#a855f7', icon: '#9333ea', text: '#7e22ce' };
+const DEFAULT_NODE_STYLE = { fill: '#faf5ff', stroke: '#a855f7', icon: '#9333ea', text: '#7e22ce' };
 
-export const NAV_STYLES = {
+const NAV_STYLES = {
     sublink: {
         active: 'bg-primary/10 dark:bg-purple-950/40 text-primary dark:text-purple-300 font-bold border border-primary/20 shadow-xs',
         inactive: 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100/70 dark:hover:bg-slate-800/60 font-medium'
@@ -49,7 +48,7 @@ export const NAV_STYLES = {
     }
 };
 
-export const CLASSES = {
+const CSS_CLASSES = {
     navActive: NAV_STYLES.parent.active,
     navInactive: NAV_STYLES.parent.inactive,
     subnavActive: NAV_STYLES.sublink.active,
@@ -62,9 +61,7 @@ export const CLASSES = {
     pillInactive: 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800 font-semibold border border-transparent'
 };
 
-
-
-export const BEAN_TYPE_RULES = [
+const BEAN_TYPE_RULES = [
     { keywords: ['datasource', 'connection'], icon: 'database', color: '#10b981' },
     { keywords: ['security', 'auth'], icon: 'lock', color: '#f59e0b' },
     { keywords: ['controller', 'rest'], icon: 'api', color: '#3b82f6' },
@@ -83,7 +80,7 @@ export const BEAN_TYPE_RULES = [
     { keywords: ['producer', 'consumer', 'listener'], icon: 'hearing', color: '#ec4899' }
 ];
 
-export const SCOPE_COLORS = {
+const SCOPE_COLORS = {
     'Singleton': '#6b46c1',
     'Prototype': '#3b82f6',
     'Request': '#f59e0b',
@@ -91,20 +88,20 @@ export const SCOPE_COLORS = {
     'Unknown': '#cbd5e1'
 };
 
-export const ROLE_COLORS = {
+const ROLE_COLORS = {
     'Application': '#3b82f6',
     'Support': '#f59e0b',
     'Infrastructure': '#e2e8f0',
     'Unknown': '#cbd5e1'
 };
 
-export const LOADING_MODE_COLORS = {
+const LOADING_MODE_COLORS = {
     'Lazy': '#a855f7',
     'Eager': '#3b82f6',
     'Unknown': '#cbd5e1'
 };
 
-export const SCOPE_STYLES = {
+const SCOPE_STYLES = {
     singleton: {
         bg: '#f3e8ff', fg: '#7e22ce', border: '#d8b4fe',
         darkBg: 'rgba(126, 34, 206, 0.15)', darkFg: '#d8b4fe', darkBorder: 'rgba(126, 34, 206, 0.3)'
@@ -123,19 +120,19 @@ export const SCOPE_STYLES = {
     }
 };
 
-export const DEFAULT_SCOPE_STYLE = {
+const DEFAULT_SCOPE_STYLE = {
     bg: '#f8fafc', fg: '#475569', border: '#e2e8f0',
     darkBg: 'rgba(71, 85, 105, 0.15)', darkFg: '#cbd5e1', darkBorder: 'rgba(71, 85, 105, 0.3)'
 };
 
-export const DEPENDENCY_CATEGORY_COLORS = {
+const DEPENDENCY_CATEGORY_COLORS = {
     root: 'blue',
     intermediate: 'green',
     leaf: 'yellow',
     adapter: 'purple'
 };
 
-export const CONTEXT_THEME_COLORS = [
+const CONTEXT_THEME_COLORS = [
     'bg-primary',
     'bg-blue-500',
     'bg-emerald-500',
@@ -146,7 +143,7 @@ export const CONTEXT_THEME_COLORS = [
     'bg-teal-500'
 ];
 
-export const GRAPH_NODE_THEMES_TINT = {
+const GRAPH_NODE_THEMES_TINT = {
     dark: {
         target: { fill: 'rgba(30, 58, 138, 0.32)', stroke: '#3b82f6', icon: '#60a5fa', text: '#93c5fd' },
         dependency: { fill: 'rgba(6, 78, 59, 0.32)', stroke: '#22c55e', icon: '#4ade80', text: '#86efac' },
@@ -161,7 +158,7 @@ export const GRAPH_NODE_THEMES_TINT = {
     },
 };
 
-export const GRAPH_NODE_THEMES_BADGE = {
+const GRAPH_NODE_THEMES_BADGE = {
     dark: {
         target: { fill: 'rgba(15, 23, 42, 0.92)', stroke: '#3b82f6', icon: '#60a5fa', iconBg: 'rgba(59, 130, 246, 0.22)', text: '#f1f5f9' },
         dependency: { fill: 'rgba(15, 23, 42, 0.92)', stroke: '#22c55e', icon: '#4ade80', iconBg: 'rgba(34, 197, 94, 0.22)', text: '#f1f5f9' },
@@ -176,16 +173,16 @@ export const GRAPH_NODE_THEMES_BADGE = {
     },
 };
 
-export const GRAPH_NODE_THEMES = GRAPH_NODE_THEMES_TINT;
+const GRAPH_NODE_THEMES = GRAPH_NODE_THEMES_TINT;
 
-export const DURATION_BAR_RULES = [
+const DURATION_BAR_RULES = [
     { minDurationMs: 50, classes: 'bg-red-500 hover:bg-red-600' },
     { minDurationMs: 10, classes: 'bg-orange-500 hover:bg-orange-600' },
     { minDurationMs: 1, classes: 'bg-blue-500 hover:bg-blue-600' },
     { minDurationMs: 0, classes: 'bg-primary hover:bg-primary/95' }
 ];
 
-export const PROGRESS_BADGE_STYLES = {
+const PROGRESS_BADGE_STYLES = {
     error: {
         badge: 'bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-900/30',
         dot: 'bg-red-500'
@@ -200,5 +197,55 @@ export const PROGRESS_BADGE_STYLES = {
     }
 };
 
-export const ALL_PROGRESS_BADGE_CLASSES = Object.values(PROGRESS_BADGE_STYLES).map(s => s.badge).join(' ');
-export const ALL_PROGRESS_DOT_CLASSES = Object.values(PROGRESS_BADGE_STYLES).map(s => s.dot).join(' ');
+const ALL_PROGRESS_BADGE_CLASSES = Object.values(PROGRESS_BADGE_STYLES).map(s => s.badge).join(' ');
+const ALL_PROGRESS_DOT_CLASSES = Object.values(PROGRESS_BADGE_STYLES).map(s => s.dot).join(' ');
+
+const LATENCY_THEME_RULES = [
+    {
+        minDurationMs: 50,
+        bar: 'bg-red-500',
+        badge: 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800'
+    },
+    {
+        minDurationMs: 10,
+        bar: 'bg-amber-500',
+        badge: 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800'
+    },
+    {
+        minDurationMs: 0,
+        bar: 'bg-emerald-500',
+        badge: 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
+    }
+];
+
+export {
+    NW,
+    NH,
+    RX,
+    GAP_X,
+    GAP_Y,
+    ICON,
+    ZOOM_SCALE_EXTENT,
+    CONDITION_STATUS_THEMES,
+    NODE_STYLES_TINT,
+    NODE_STYLES_BADGE,
+    DEFAULT_NODE_STYLE,
+    NAV_STYLES,
+    CSS_CLASSES,
+    BEAN_TYPE_RULES,
+    SCOPE_COLORS,
+    ROLE_COLORS,
+    LOADING_MODE_COLORS,
+    SCOPE_STYLES,
+    DEFAULT_SCOPE_STYLE,
+    DEPENDENCY_CATEGORY_COLORS,
+    CONTEXT_THEME_COLORS,
+    GRAPH_NODE_THEMES_TINT,
+    GRAPH_NODE_THEMES_BADGE,
+    GRAPH_NODE_THEMES,
+    DURATION_BAR_RULES,
+    PROGRESS_BADGE_STYLES,
+    ALL_PROGRESS_BADGE_CLASSES,
+    ALL_PROGRESS_DOT_CLASSES,
+    LATENCY_THEME_RULES
+};

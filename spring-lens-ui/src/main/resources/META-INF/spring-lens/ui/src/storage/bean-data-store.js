@@ -8,11 +8,6 @@ class BeanDataStore {
         window.allBeansMap = this.beansMap;
     }
 
-    setBeans(beans) {
-        this.clearBeans();
-        this.addBeans(beans);
-    }
-
     addBeans(beans) {
         if (!beans) return;
 
@@ -67,27 +62,8 @@ class BeanDataStore {
         return this.beansMap.get(beanName) || null;
     }
 
-    getAllBeans() {
-        return Array.from(new Set(this.beansMap.values()));
-    }
-
     has(key) {
         return this.beansMap.has(key);
-    }
-
-    get size() {
-        return this.beansMap.size;
-    }
-
-    values() {
-        return this.beansMap.values();
-    }
-
-    clearBeans() {
-        this.beansMap.clear();
-        if (window.allBeansMap) {
-            window.allBeansMap = this.beansMap;
-        }
     }
 }
 

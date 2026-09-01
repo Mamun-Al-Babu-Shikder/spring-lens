@@ -1,4 +1,7 @@
-import { NH, NW, NODE_STYLES_TINT, NODE_STYLES_BADGE, DEFAULT_NODE_STYLE, BEAN_TYPE_RULES } from "./constants.js";
+import {
+    NH, NW, NODE_STYLES_TINT, NODE_STYLES_BADGE, BEAN_TYPE_RULES, SCOPE_STYLES, DEFAULT_SCOPE_STYLE, LATENCY_THEME_RULES
+} from "./constants.js";
+import { debounce } from "./bean-search-engine.js";
 
 // Style mappings for Tinted theme in dark mode
 const DARK_NODE_STYLES_TINT = {
@@ -18,15 +21,15 @@ const DARK_NODE_STYLES_BADGE = {
     adapter: { fill: 'rgba(15, 23, 42, 0.92)', stroke: '#a855f7', icon: '#c084fc', iconBg: 'rgba(168, 85, 247, 0.22)', text: '#f1f5f9' }
 };
 
-export const css = (variableName) =>
+const css = (variableName) =>
     getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
 
-export function capitalize(str) {
+function capitalize(str) {
     if (!str) return '';
     return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
 
-export function formatPercentage(count, total) {
+function formatPercentage(count, total) {
     if (!total) return '0%';
 
     const pctVal = (count / total) * 100;
@@ -37,12 +40,22 @@ export function formatPercentage(count, total) {
     return `${Math.round(pctVal)}%`;
 }
 
+function resolveScopeStyle(scope) {
+    const isDark = document.documentElement.classList.contains('dark');
+    const style = SCOPE_STYLES[scope?.toLowerCase()] ?? DEFAULT_SCOPE_STYLE;
+    return {
+        backgroundColor: isDark ? (style.darkBg || 'rgba(71, 85, 105, 0.15)') : style.bg,
+        color: isDark ? (style.darkFg || '#cbd5e1') : style.fg,
+        borderColor: isDark ? (style.darkBorder || 'rgba(71, 85, 105, 0.3)') : style.border
+    };
+}
+
 /**
  * Resolves metadata (icon and color) for a bean based on rule keyword matches or fallback styles.
  * @param {Object|null} bean - Target bean object.
  * @returns {{ icon: string, color: string }} Icon name and hex/CSS color.
  */
-export function resolveBeanMetadata(bean) {
+function resolveBeanMetadata(bean) {
     if (!bean) return { icon: 'extension', color: '#6b46c1' };
 
     const { beanName = '', type = '' } = bean;
@@ -72,13 +85,7 @@ export function resolveBeanMetadata(bean) {
     };
 }
 
-
-/**
- * Categorizes a graph node or bean definition into a semantic layout type ('adapter', 'root', 'intermediate', or 'leaf').
- * @param {Object|d3.HierarchyNode|null} node - Hierarchy node or bean object.
- * @returns {string} Category label string.
- */
-export function getBeanCategory(node) {
+function getBeanCategory(node) {
     if (!node) return 'leaf';
 
     const nodeData = node.data ?? node;
@@ -121,7 +128,7 @@ export function getBeanCategory(node) {
     return 'leaf';
 }
 
-export function nodeStyle(node, theme = null) {
+function nodeStyle(node, theme = null) {
     const isDark = document.documentElement.classList.contains('dark');
     const category = getBeanCategory(node);
     const activeTheme = theme || localStorage.getItem('sl-node-theme') || 'tint';
@@ -139,7 +146,7 @@ export function nodeStyle(node, theme = null) {
     return NODE_STYLES_TINT[category] ?? NODE_STYLES_TINT.adapter;
 }
 
-export function tbLink({ source, target }) {
+function tbLink({ source, target }) {
     const sx = source.x;
     const sy = source.y + NH / 2;
     const tx = target.x;
@@ -149,7 +156,7 @@ export function tbLink({ source, target }) {
     return `M${sx},${sy} C${sx},${my} ${tx},${my} ${tx},${ty}`;
 }
 
-export function lrLink({ source, target }) {
+function lrLink({ source, target }) {
     const sWidth = source.width ?? NW;
     const tWidth = target.width ?? NW;
     const sx = source.y + sWidth / 2;
@@ -161,14 +168,9 @@ export function lrLink({ source, target }) {
     return `M${sx},${sy} C${mx},${sy} ${mx},${ty} ${tx},${ty}`;
 }
 
-export const tree = d3.tree();
+const tree = d3.tree();
 
-/**
- * Triggers a browser file download of an object as formatted JSON.
- * @param {string} filename - Target filename (e.g. 'spring-lens-report.json').
- * @param {Object} data - Data object to serialize.
- */
-export function downloadJson(filename, data) {
+function downloadJson(filename, data) {
     if (!data) return;
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -181,3 +183,24 @@ export function downloadJson(filename, data) {
     anchor.remove();
     URL.revokeObjectURL(url);
 }
+
+function resolveLatencyTheme(durationMs) {
+    const rule = LATENCY_THEME_RULES.find(r => durationMs >= r.minDurationMs);
+    return rule ?? LATENCY_THEME_RULES[LATENCY_THEME_RULES.length - 1];
+}
+
+export {
+    debounce,
+    css,
+    capitalize,
+    formatPercentage,
+    resolveScopeStyle,
+    resolveBeanMetadata,
+    getBeanCategory,
+    nodeStyle,
+    tbLink,
+    lrLink,
+    tree,
+    downloadJson,
+    resolveLatencyTheme
+};

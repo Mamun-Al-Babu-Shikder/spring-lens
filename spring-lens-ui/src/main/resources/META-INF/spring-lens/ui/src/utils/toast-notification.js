@@ -1,3 +1,5 @@
+import TemplateEngine from './template-engine.js';
+
 export default class ToastNotification {
     static _lastToastTime = 0;
     static _lastToastMessage = '';
@@ -64,67 +66,48 @@ export default class ToastNotification {
 
         let $container = $('#sl-toast-container');
         if (!$container.length) {
-            $container = $(`
-                <div id="sl-toast-container" 
-                     class="fixed top-5 right-5 z-[99999] flex flex-col gap-3 max-w-sm sm:max-w-md w-full pointer-events-none px-4 sm:px-0"
-                     aria-live="polite" 
-                     aria-atomic="true">
-                </div>
-            `);
-            $('body').append($container);
+            const containerClone = TemplateEngine.clone('tpl-toast-container');
+            if (containerClone) {
+                $('body').append(containerClone);
+                $container = $('#sl-toast-container');
+            }
         }
 
         const config = this.TYPES[type] || this.TYPES.sweet;
         const toastId = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         const hasAction = action && typeof action.label === 'string';
 
-        const $toast = $(`
-            <div id="${toastId}" 
-                 class="pointer-events-auto relative group overflow-hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-gray-200/90 dark:border-slate-800/90 rounded-2xl shadow-xl shadow-slate-950/10 dark:shadow-black/40 transform translate-x-8 opacity-0 scale-95 transition-all duration-300 ease-out flex flex-col"
-                 style="box-shadow: 0 10px 25px -5px ${config.glowColor}, 0 8px 10px -6px rgba(0, 0, 0, 0.1);">
-                
-                <!-- Main Body -->
-                <div class="p-4 flex items-start gap-3.5">
-                    <!-- Accent Icon Avatar -->
-                    <div class="w-10 h-10 rounded-xl ${config.bgIcon} ${config.textIcon} ${config.borderIcon} border flex items-center justify-center flex-shrink-0 shadow-xs mt-0.5">
-                        <span class="material-symbols-outlined text-[20px]">${config.name}</span>
-                    </div>
+        const clone = TemplateEngine.clone('tpl-toast-item');
+        if (!clone) return;
 
-                    <!-- Content Details -->
-                    <div class="flex-1 min-w-0 pr-1">
-                        ${title ? `
-                            <div class="flex items-center gap-2 mb-1">
-                                <h4 class="text-xs font-bold text-gray-900 dark:text-white tracking-tight">${title}</h4>
-                            </div>
-                        ` : ''}
-                        <div class="text-xs text-gray-600 dark:text-gray-300 leading-relaxed break-words">${message}</div>
+        const $toast = $(clone.firstElementChild || clone.children[0]);
+        $toast.attr('id', toastId);
+        $toast.css('box-shadow', `0 10px 25px -5px ${config.glowColor}, 0 8px 10px -6px rgba(0, 0, 0, 0.1)`);
 
-                        ${hasAction ? `
-                            <div class="mt-2.5 pt-2 border-t border-gray-100 dark:border-slate-800">
-                                <button type="button" class="btn-toast-action px-3 py-1 bg-gradient-to-r ${config.accentGradient} text-white rounded-lg text-[11px] font-bold shadow-xs hover:opacity-95 active:scale-95 transition-all cursor-pointer">
-                                    ${action.label}
-                                </button>
-                            </div>
-                        ` : ''}
-                    </div>
+        $toast.find('[data-field="iconAvatar"]').addClass(`${config.bgIcon} ${config.textIcon} ${config.borderIcon}`);
+        $toast.find('[data-field="iconName"]').text(config.name);
 
-                    <!-- Close Button -->
-                    <button type="button" 
-                            class="btn-toast-close w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors -mr-1 -mt-1 flex-shrink-0 cursor-pointer"
-                            title="Dismiss notification">
-                        <span class="material-symbols-outlined text-[17px]">close</span>
-                    </button>
-                </div>
+        if (title) {
+            $toast.find('[data-field="title"]').text(title);
+        } else {
+            $toast.find('[data-field="titleContainer"]').remove();
+        }
 
-                <!-- Interactive Progress Countdown Bar -->
-                ${duration > 0 ? `
-                    <div class="h-[3px] w-full bg-gray-100 dark:bg-slate-800/80 overflow-hidden relative flex-shrink-0">
-                        <div class="toast-progress-bar h-full rounded-r-full"
-                             style="width: 100%; background: ${config.progressGradient}; transform-origin: left center;"></div>
-                    </div>
-                ` : ''}
-            </div>
-        `);
+        $toast.find('[data-field="message"]').html(message);
+
+        if (hasAction) {
+            $toast.find('[data-field="actionButton"]')
+                .addClass(`bg-gradient-to-r ${config.accentGradient}`)
+                .text(action.label);
+        } else {
+            $toast.find('[data-field="actionContainer"]').remove();
+        }
+
+        if (duration > 0) {
+            $toast.find('[data-field="progressBar"]').css('background', config.progressGradient);
+        } else {
+            $toast.find('[data-field="progressContainer"]').remove();
+        }
 
         // Action CTA click handler
         if (hasAction && typeof action.onClick === 'function') {
@@ -205,7 +188,7 @@ export default class ToastNotification {
         // Animate entrance and start progress bar
         requestAnimationFrame(() => {
             $toast.removeClass('translate-x-8 opacity-0 scale-95')
-                  .addClass('translate-x-0 opacity-100 scale-100');
+                .addClass('translate-x-0 opacity-100 scale-100');
 
             if (duration > 0) {
                 // Short initial delay before progress bar starts shrinking for visual clarity
@@ -226,7 +209,7 @@ export default class ToastNotification {
         $toast.data('dismissing', true);
 
         $toast.removeClass('translate-x-0 opacity-100 scale-100')
-              .addClass('translate-x-10 opacity-0 scale-90');
+            .addClass('translate-x-10 opacity-0 scale-90');
 
         setTimeout(() => {
             this._activeToasts.delete($toast);

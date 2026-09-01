@@ -131,7 +131,7 @@ export default class GraphTreeBuilder {
     }
 
     static _normalizeBean(bean = {}) {
-         const { name, beanName, type, className, beanType, scope, dependencies } = bean;
+        const { name, beanName, type, className, beanType, scope, dependencies } = bean;
 
         return {
             name: name || beanName || '',

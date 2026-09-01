@@ -2,13 +2,16 @@ import httpClient from '../../client/http-client.js';
 import GraphTreeBuilder from '../../builder/graph-tree-builder.js';
 import {
     resolveBeanMetadata,
+    resolveLatencyTheme,
     capitalize,
     formatPercentage,
     SCOPE_COLORS,
     ROLE_COLORS,
     LOADING_MODE_COLORS,
     QueryParam,
-    TemplateEngine
+    TemplateEngine,
+    BeanSearchEngine,
+    debounce
 } from '../../utils/index.js';
 
 export default class DashboardController {
@@ -18,12 +21,12 @@ export default class DashboardController {
      */
     constructor(ENDPOINTS = {}) {
         this.endpoints = {
-            application         : ENDPOINTS.APPLICATION_INFO,
-            definitions         : ENDPOINTS.BEAN_DEFINITION,
-            instances           : ENDPOINTS.BEAN_INSTANCE,
-            conditions          : ENDPOINTS.CONDITIONAL_REPORTS,
-            dependencies        : ENDPOINTS.GRAPH_DEPENDENCIES,
-            definitionsSummary  : ENDPOINTS.SUMMARY_BEAN_DEFINITION
+            application: ENDPOINTS.applicationInfo,
+            definitions: ENDPOINTS.definitions,
+            instances: ENDPOINTS.beansInstances,
+            conditions: ENDPOINTS.beansConditions,
+            dependencies: ENDPOINTS.graphDependencies,
+            definitionsSummary: ENDPOINTS.definitionsSummary
         };
 
         this.applicationData = null;
@@ -38,7 +41,7 @@ export default class DashboardController {
         this.radialSvg = null;
         this.radialInitialTransform = null;
         this.uptimeInterval = null;
-        this.searchDebounceTimer = null;
+        this._debouncedQuickSearch = debounce((query) => this.handleQuickSearch(query), 200);
         this._boundThemeHandler = null;
     }
 
@@ -54,7 +57,7 @@ export default class DashboardController {
     async enter() {
         try {
             this._resetQuickSearch();
-            this.initEvents();
+            this._bindEventListeners();
             await this.loadAllDashboardData();
         } catch (error) {
             console.error('Failed to initialize DashboardController:', error);
@@ -62,11 +65,10 @@ export default class DashboardController {
     }
 
     /**
-     * Called when navigating away from dashboard.
+     * Cleans up chart instances, D3 simulations, intervals, and event listeners.
      */
     leave() {
-        this._resetQuickSearch();
-        // 1. Destroy charts and simulations
+        // 1. Destroy active charts & simulations
         this.chartInstance?.destroy();
         this.forceSimulation?.stop();
         this.chartInstance = null;
@@ -79,9 +81,8 @@ export default class DashboardController {
 
         // 3. Clear timers
         clearInterval(this.uptimeInterval);
-        clearTimeout(this.searchDebounceTimer);
         this.uptimeInterval = null;
-        this.searchDebounceTimer = null;
+        this._debouncedQuickSearch?.cancel();
 
         // 4. Clean up native listeners
         if (this._boundThemeHandler) {
@@ -94,39 +95,22 @@ export default class DashboardController {
     }
 
     /**
-     * Binds DOM and system event handlers.
+     * Binds DOM interaction handlers with the '.dashboard' namespace.
+     * @private
      */
-    initEvents() {
+    _bindEventListeners() {
         const $doc = $(document);
 
-        // 1. Clean up any previous dashboard bindings first (prevents duplicate triggers)
+        // 1. Unbind any previous dashboard listeners to avoid duplicates
         $doc.off('.dashboard');
 
-        // 2. Declarative Click Actions Map
+        // 2. Setup standard click actions
         const clickActions = {
-            '#btn-refresh-dashboard': async () => {
-                const $icon = $('#refresh-icon').addClass('animate-spin');
-                try {
-                    await this.loadAllDashboardData();
-                } finally {
-                    setTimeout(() => $icon.removeClass('animate-spin'), 400);
-                }
-            },
-
-            // Chart View Mode Toggles (delegated via data-chart-mode)
-            '[data-chart-mode]': (e) => {
-                const mode = $(e.currentTarget).data('chart-mode');
-                if (mode) this._setChartMode(mode);
-            },
-
-            // Radial Tree Zoom Controls
-            '#btn-radial-zoom-in': () => this._zoomRadial(1.3),
-            '#btn-radial-zoom-out': () => this._zoomRadial(0.7),
+            '#db-btn-retry': () => this.enter(),
+            '#btn-radial-zoom-in': () => this._zoomRadial(1.25),
+            '#btn-radial-zoom-out': () => this._zoomRadial(0.8),
             '#btn-radial-reset': () => this._resetRadialZoom(),
-
-            // Quick Navigation Rows
-            '.slowest-bean-item': () => { window.location.hash = '#/timeline'; },
-            '.hub-bean-item': () => { window.location.hash = '#/definitions'; }
+            '#db-clear-search': () => this._resetQuickSearch()
         };
 
         // 3. Register click events with the '.dashboard' namespace
@@ -137,13 +121,28 @@ export default class DashboardController {
         // 4. Debounced Search Input with the '.dashboard' namespace
         $doc.on('input.dashboard', '#db-quick-search-input', (e) => {
             const query = (e.target?.value ?? '').trim();
-            clearTimeout(this.searchDebounceTimer);
-            this.searchDebounceTimer = setTimeout(() => {
-                this.handleQuickSearch(query);
-            }, 200);
+            this._debouncedQuickSearch(query);
         });
 
-        // 5. Theme Change Listener (safe duplicate prevention)
+        $doc.on('keydown.dashboard', '#db-quick-search-input', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this._debouncedQuickSearch.flush();
+            } else if (e.key === 'Escape') {
+                this._debouncedQuickSearch.cancel();
+                this._resetQuickSearch();
+            }
+        });
+
+        // 5. Chart Mode Toggle Handler with the '.dashboard' namespace
+        $doc.on('click.dashboard', '#chart-mode-toggle [data-chart-mode]', (e) => {
+            const mode = $(e.currentTarget).data('chart-mode') || $(e.currentTarget).attr('data-chart-mode');
+            if (mode) {
+                this._setChartMode(mode);
+            }
+        });
+
+        // 6. Theme Change Listener (safe duplicate prevention)
         if (this._boundThemeHandler) {
             document.removeEventListener('themechanged', this._boundThemeHandler);
         }
@@ -160,6 +159,18 @@ export default class DashboardController {
     _zoomRadial(scaleFactor) {
         if (this.radialSvg && this.radialZoom) {
             this.radialSvg.transition().duration(250).call(this.radialZoom.scaleBy, scaleFactor);
+        }
+    }
+
+    /**
+     * Helper to reset the radial D3 SVG zoom to its initial transform
+     */
+    _resetRadialZoom() {
+        if (this.radialSvg && this.radialZoom && this.radialInitialTransform) {
+            this.radialSvg.transition().duration(300).call(this.radialZoom.transform, this.radialInitialTransform);
+            if (this.forceSimulation) {
+                this.forceSimulation.alpha(0.3).restart();
+            }
         }
     }
 
@@ -350,8 +361,8 @@ export default class DashboardController {
         $('#kpi-definitions-count').text(total.toLocaleString());
 
         const scopes = summary.scopeDistribution || {};
-        const singletons = scopes.singleton || scopes.SINGLETON || 0;
-        const prototypes = scopes.prototype || scopes.PROTOTYPE || 0;
+        const singletons = scopes.singleton || 0;
+        const prototypes = scopes.prototype || 0;
 
         $('#kpi-def-singletons').text(singletons.toLocaleString());
         $('#kpi-def-prototypes').text(prototypes.toLocaleString());
@@ -483,7 +494,8 @@ export default class DashboardController {
         const inactiveCls = 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white';
 
         $('#chart-mode-toggle [data-chart-mode]').each(function () {
-            const isCurrent = $(this).data('chart-mode') === mode;
+            const btnMode = $(this).data('chart-mode') || $(this).attr('data-chart-mode');
+            const isCurrent = btnMode === mode;
             $(this)
                 .toggleClass(activeCls, isCurrent)
                 .toggleClass(inactiveCls, !isCurrent)
@@ -562,7 +574,7 @@ export default class DashboardController {
             const $badge = $row.find('[data-field="latency-badge"]').text(formattedDuration);
 
             // Apply latency theme classes cleanly via helper
-            const theme = this._resolveLatencyTheme(durationMs);
+            const theme = resolveLatencyTheme(durationMs);
             $bar.addClass(theme.bar);
             $badge.addClass(theme.badge);
 
@@ -580,25 +592,6 @@ export default class DashboardController {
         });
 
         $list.append(fragment);
-    }
-
-    _resolveLatencyTheme(durationMs) {
-        if (durationMs >= 50) {
-            return {
-                bar: 'bg-red-500',
-                badge: 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800'
-            };
-        }
-        if (durationMs >= 10) {
-            return {
-                bar: 'bg-amber-500',
-                badge: 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800'
-            };
-        }
-        return {
-            bar: 'bg-emerald-500',
-            badge: 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800'
-        };
     }
 
     /**
@@ -800,7 +793,7 @@ export default class DashboardController {
                     .css('color', meta.color)
                     .text(meta.icon);
                 $chip.find('[data-field="name"]')
-                    .text(beanName)
+                    .html(BeanSearchEngine.highlight(beanName, query))
                     .attr('title', beanName);
 
                 // Def button & chip body -> Definitions page with URL params
@@ -924,7 +917,7 @@ export default class DashboardController {
 
     /**
      * Renders Interactive D3 Force-Directed Tree with Precision Spring Root Core and Natural 3D Glass Orbs.
-     * Node labels are removed from canvas and presented via floating glassmorphic tooltips.
+     * Node labels are removed from canvas and presented via floating glass morphia tooltips.
      */
     renderRadialTidyTree(dependenciesResponse) {
         if (!dependenciesResponse) return;
@@ -1152,11 +1145,11 @@ export default class DashboardController {
                     .attr('stroke', isDark ? '#ffffff' : '#0f172a')
                     .attr('stroke-width', 1.5);
 
-                // 3. Render Rich Glassmorphic Tooltip Card
+                // 3. Render Rich Glass morphia Tooltip Card
                 const isRootNode = d.depth === 0;
                 const meta = resolveBeanMetadata(d.data);
                 const titleName = isRootNode ? contextName : d.data.name;
-                const type = isRootNode ? 'Root Application Context' : (d.data.meta?.type || d.data.type || 'Spring Bean');
+                const type = isRootNode ? 'Root Context' : (d.data.meta?.type || d.data.type || 'Spring Bean');
                 const scope = isRootNode ? 'CONTEXT' : (d.data.meta?.scope || 'singleton');
                 const directChildren = d.children ? d.children.length : 0;
                 const totalSubtree = descendants.size - 1;
@@ -1225,15 +1218,6 @@ export default class DashboardController {
         } catch (err) {
             console.error('Error rendering Force-Directed Tree:', err);
             $dbRadialLoading.addClass('hidden');
-        }
-    }
-
-    _resetRadialZoom() {
-        if (this.radialSvg && this.radialZoom && this.radialInitialTransform) {
-            this.radialSvg.transition().duration(300).call(this.radialZoom.transform, this.radialInitialTransform);
-            if (this.forceSimulation) {
-                this.forceSimulation.alpha(0.3).restart();
-            }
         }
     }
 }
