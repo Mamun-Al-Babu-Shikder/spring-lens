@@ -15,11 +15,11 @@ import java.util.Map;
  * context, scope, role, and loading mode, together with the total number of
  * bean definitions.</p>
  *
- * @param contextDistribution distribution of bean definitions by context
- * @param scopeDistribution distribution of bean definitions by scope
- * @param roleDistribution distribution of bean definitions by role
+ * @param contextDistribution     distribution of bean definitions by context
+ * @param scopeDistribution       distribution of bean definitions by scope
+ * @param roleDistribution        distribution of bean definitions by role
  * @param loadingModeDistribution distribution of bean definitions by loading mode
- * @param totalBeanDefinitions total number of bean definitions
+ * @param totalBeanDefinitions    total number of bean definitions
  */
 public record BeanDefinitionSummary(
         Map<String, Integer> contextDistribution,
@@ -28,6 +28,13 @@ public record BeanDefinitionSummary(
         Map<LoadingMode, Integer> loadingModeDistribution,
         long totalBeanDefinitions
 ) {
+    private static final BeanDefinitionSummary EMPTY = new BeanDefinitionSummary(
+            Map.of(),
+            Map.of(),
+            Map.of(),
+            Map.of(),
+            0L
+    );
 
     public BeanDefinitionSummary {
         contextDistribution = DefensiveCopies.immutableMapOrEmpty(contextDistribution);
@@ -47,12 +54,6 @@ public record BeanDefinitionSummary(
      * @return an empty summary with zero total bean definitions
      */
     public static BeanDefinitionSummary empty() {
-        return new BeanDefinitionSummary(
-                Map.of(),
-                Map.of(),
-                Map.of(),
-                Map.of(),
-                0L
-        );
+        return EMPTY;
     }
 }
