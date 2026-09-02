@@ -4,6 +4,8 @@ import com.sdlcpro.springlens.annotation.SpringLensEndpoint;
 import com.sdlcpro.springlens.annotation.SpringLensInternalComponent;
 import com.sdlcpro.springlens.exposure.ApiResponseHandler;
 import com.sdlcpro.springlens.inspector.application.ApplicationInfoInspector;
+import com.sdlcpro.springlens.model.application.ApplicationHealth;
+import com.sdlcpro.springlens.model.application.HealthStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -44,5 +46,15 @@ public class ApplicationInfoRestController {
                 this.applicationInfoInspector::inspect,
                 "ApplicationInfo not found!"
         );
+    }
+
+    /**
+     * Simply return the application health status
+     *
+     * @return {@link ResponseEntity} by wrapping the {@link ApplicationHealth}
+     */
+    @GetMapping(value = "/health", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ApplicationHealth> getApplicationHealth() {
+        return ResponseEntity.ok(new ApplicationHealth(HealthStatus.UP));
     }
 }
