@@ -13,13 +13,18 @@ export default class GraphTreeBuilder {
         const groupedData = this._transformBeanDependencyData(beanDependencies);
         const contextKeys = Object.keys(groupedData);
 
-        if (contextKeys.length > 0) {
+        if (contextKeys.length === 0) {
+            return this._buildSingleContextTree('default', []);
+        }
+
+        if (contextKeys.length === 1) {
             const contextId = contextKeys[0];
             return this._buildSingleContextTree(contextId, groupedData[contextId]);
         }
 
         return {
-            name: 'Application Contexts',
+            name: "Application Contexts",
+            fullName: "Application Contexts",
             contextId: 'all',
             meta: { type: 'context', contextId: 'all' },
             children: contextKeys.map(contextId =>
@@ -28,17 +33,24 @@ export default class GraphTreeBuilder {
         };
     }
 
-
     static _transformBeanDependencyData(dependencies) {
         if (!dependencies) return {};
 
-        if (Array.isArray(dependencies) && dependencies.length > 0) {
-            return dependencies.reduce((acc, bean) => {
-                const { contextId, beanName, dependencies } = bean;
+        const list = Array.isArray(dependencies)
+            ? dependencies
+            : (Array.isArray(dependencies.content) ? dependencies.content : []);
+
+        if (list.length > 0) {
+            return list.reduce((acc, bean = {}) => {
+                const {
+                    contextId = "default",
+                    beanName : name = '',
+                    dependencies = []
+                } = bean;
 
                 (acc[contextId] = acc[contextId] || []).push({
-                    name: beanName,
-                    dependencies: dependencies
+                    name,
+                    dependencies
                 });
                 return acc;
             }, {});
@@ -53,6 +65,7 @@ export default class GraphTreeBuilder {
     static _buildSingleContextTree(contextId, beans = []) {
         const contextNode = {
             name: contextId,
+            fullName: contextId,
             contextId,
             meta: { type: 'context', contextId },
             children: []
@@ -130,13 +143,13 @@ export default class GraphTreeBuilder {
         const dependentBean = (dependents || []).map(name => createChild(name, 'dependent'));
         const children = [...deps, ...dependentBean];
 
-        return this._prepareBeanNode(beanName, {scope, role, type}, {
+        return this._prepareBeanNode(beanName, { scope, role, type }, {
             kind: "target",
             children
         });
     }
 
-   static _prepareBeanNode(name, beanData = {}, { kind = 'dependency', children = [] } = {}) {
+    static _prepareBeanNode(name, beanData = {}, { kind = 'dependency', children = [] } = {}) {
         const { type = 'N/A', scope = 'N/A', role = 'N/A' } = beanData || {};
 
         return {

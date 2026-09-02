@@ -4,6 +4,7 @@ import InstanceController from './src/controller/bean/instance-controller.js';
 import DashboardController from './src/controller/dashboard/dashboard-controller.js';
 import GraphController from './src/controller/bean/graph-controller.js';
 import ConditionalEvaluationController from './src/controller/bean/conditional-evalugation-controller.js';
+import ApplicationState from './src/controller/application/application-state.js';
 
 $(document).ready(() => {
 
@@ -12,9 +13,11 @@ $(document).ready(() => {
 
     const CONTEXT_PATH = pathname.split('/spring-lens/ui')[0];
     const API_BASE_URL = origin + CONTEXT_PATH + '/spring-lens/api/beans';
+    const APPLICATION_INFO = origin + CONTEXT_PATH + '/spring-lens/api/application';
 
     const ENDPOINTS = {
-        APPLICATION_INFO: origin + CONTEXT_PATH + '/spring-lens/api/application',
+        APPLICATION_INFO: APPLICATION_INFO,
+        APPLICATION_HEALTH: APPLICATION_INFO + "/health",
         BEAN_DEFINITION: API_BASE_URL + "/definitions",
         FIND_BEAN_DEFINITION: API_BASE_URL + "/definitions/find",
         SUMMARY_BEAN_DEFINITION: API_BASE_URL + "/definitions/summary",
@@ -25,11 +28,30 @@ $(document).ready(() => {
         FIND_CONDITIONAL_REPORTS: API_BASE_URL + "/conditions/find",
     }
 
-    const dashboard = new DashboardController(ENDPOINTS);
-    const beanInstance = new InstanceController(ENDPOINTS.BEAN_INSTANCE, ENDPOINTS.FIND_BEAN_INSTANCE);
-    const beanDefinitions = new BeanDefinitions(ENDPOINTS.BEAN_DEFINITION, ENDPOINTS.SUMMARY_BEAN_DEFINITION, ENDPOINTS.FIND_BEAN_DEFINITION);
-    const beanDependencyGraph = new GraphController(ENDPOINTS.GRAPH_DEPENDENCIES, ENDPOINTS.BEAN_DEFINITION, ENDPOINTS.FIND_BEAN_DEFINITION);
-    const conditionEvaluation = new ConditionalEvaluationController(ENDPOINTS.CONDITIONAL_REPORTS, ENDPOINTS.FIND_CONDITIONAL_REPORTS);
+    let applicationInfo = "http://localhost:8080/spring-lens/api/application";
+    let applicationHealth = "http://localhost:8080/spring-lens/api/application/health";
+    let definitions = "http://localhost:8080/spring-lens/api/beans/definitions";
+    let definitionsSummary = "http://localhost:8080/spring-lens/api/beans/definitions/summary";
+    let graphDependencies = "http://localhost:8080/spring-lens/api/beans/definitions/dependencies";
+    let findDependencies = "http://localhost:8080/spring-lens/api/beans/definitions/find";
+    let beansInstances = "http://localhost:8080/spring-lens/api/beans/instances";
+    let findBeanInstances = "http://localhost:8080/spring-lens/api/beans/instances/find";
+    let beansConditions = "http://localhost:8080/spring-lens/api/beans/conditions";
+    let searchBeanConditions = "http://localhost:8080/spring-lens/api/beans/conditions/find";
+
+    const applicationState = new ApplicationState(applicationHealth);
+    const dashboard = new DashboardController({ applicationInfo, definitions, beansInstances, graphDependencies, beansConditions, definitionsSummary });
+    const beanDefinitions = new BeanDefinitions(definitions, definitionsSummary, findDependencies);
+    const beanDependencyGraph = new GraphController(graphDependencies, definitions, findDependencies);
+    const beanInstance = new InstanceController(beansInstances, findBeanInstances, findDependencies);
+    const conditionEvaluation = new ConditionalEvaluationController(beansConditions, searchBeanConditions);
+
+    // const applicationState = new ApplicationState(ENDPOINTS.APPLICATION_HEALTH);
+    // const dashboard = new DashboardController(ENDPOINTS);
+    // const beanInstance = new InstanceController(ENDPOINTS.BEAN_INSTANCE, ENDPOINTS.FIND_BEAN_INSTANCE);
+    // const beanDefinitions = new BeanDefinitions(ENDPOINTS.BEAN_DEFINITION, ENDPOINTS.SUMMARY_BEAN_DEFINITION, ENDPOINTS.FIND_BEAN_DEFINITION);
+    // const beanDependencyGraph = new GraphController(ENDPOINTS.GRAPH_DEPENDENCIES, ENDPOINTS.BEAN_DEFINITION, ENDPOINTS.FIND_BEAN_DEFINITION);
+    // const conditionEvaluation = new ConditionalEvaluationController(ENDPOINTS.CONDITIONAL_REPORTS, ENDPOINTS.FIND_CONDITIONAL_REPORTS);
 
     const appRouter = new Route({
         container: '#main-content',
@@ -37,7 +59,10 @@ $(document).ready(() => {
         routes: {
             'dashboard': {
                 template: 'main-dashboard',
-                onEnter: (params) => dashboard.enter(params),
+                onEnter: (params) => {
+                    dashboard.enter(params);
+                    applicationState.checkHealth();
+                },
                 onLeave: () => dashboard.leave()
             },
             'definitions': {
@@ -70,6 +95,8 @@ $(document).ready(() => {
 
     // Start Route
     appRouter.init();
+
+    applicationState.start(10000);
 
     // Theme toggle interaction handler
     $('#theme-toggle').on('click', () => {

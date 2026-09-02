@@ -28,6 +28,7 @@ export default class ConditionalEvaluationController {
         this.groupBy = 'none';
         this.sortBy = 'source';
         this.sortDir = 'ASC';
+        this.detailViewStyle = localStorage.getItem('condition_detail_view_style') || 'side-sheet';
 
         // Pagination metadata
         this.paginationState = {
@@ -454,8 +455,8 @@ export default class ConditionalEvaluationController {
         }
 
         // Expand Icon
-        if (isSelected) {
-            $row.find('[data-field="expandIcon"]').text('keyboard_arrow_down');
+        if (isSelected && this.detailViewStyle === 'inline') {
+            $row.find('[data-field="expandIcon"]').addClass('rotate-90 text-primary dark:text-purple-300');
         }
 
         return clone;
@@ -533,6 +534,7 @@ export default class ConditionalEvaluationController {
 
     /**
      * Selects an auto-configuration evaluation item and displays its detail panel.
+     * Supports both Option 2 (Side-Sheet Modal) and Option 3 (Inline Accordion).
      * @param {string} contextId
      * @param {string} source
      */
@@ -545,9 +547,16 @@ export default class ConditionalEvaluationController {
             return;
         }
 
+        // Close any prior open detail views
+        this.closeDetail();
+
         // Highlight active row in table
-        $('.condition-row').removeClass(CSS_CLASSES.rowActive);
-        $(`.condition-row[data-context-id="${contextId}"][data-source="${source}"]`).addClass(CSS_CLASSES.rowActive);
+        const $targetRow = $(`.condition-row[data-context-id="${contextId}"][data-source="${source}"]`);
+        $targetRow.addClass(CSS_CLASSES.rowActive);
+
+        if (this.detailViewStyle === 'inline') {
+            $targetRow.find('[data-field="expandIcon"]').addClass('rotate-90 text-primary dark:text-purple-300');
+        }
 
         // Find from loaded list or fetch from API
         let condition = this.conditions.find(c => c.contextId === contextId && c.source === source);
@@ -568,19 +577,33 @@ export default class ConditionalEvaluationController {
     }
 
     /**
-     * Renders detailed breakdown into the detail panel.
+     * Renders detailed breakdown using the chosen view style (side-sheet or inline accordion).
      * @param {Object} condition
      */
     renderDetailPanel(condition) {
+        if (this.detailViewStyle === 'inline') {
+            this._renderInlineAccordion(condition);
+        } else {
+            this._renderSideSheet(condition);
+        }
+    }
+
+    /**
+     * Option 2: Renders detailed breakdown inside the Sliding Side-Sheet Modal (Overlay Flyout).
+     * @private
+     * @param {Object} condition
+     */
+    _renderSideSheet(condition) {
+        const $overlay = $('#condition-detail-overlay');
+        const $backdrop = $('#condition-detail-backdrop');
         const $panel = $('#condition-detail-panel');
-        const $conditionDetailsClassName =  $('#condition-detail-class-name');
+        const $conditionDetailsClassName = $('#condition-detail-class-name');
 
         if (!$panel.length) return;
 
         const { source, contextId, outcome, matches = [] } = condition;
         const isMatched = outcome === 'MATCHED';
         const { className, packageName, memberName } = this._extractClassAndPackage(source);
-
         const displayClassName = memberName ? `${className}#${memberName}` : className;
 
         // Populate Header
@@ -594,12 +617,9 @@ export default class ConditionalEvaluationController {
         const statusTheme = isMatched ? CONDITION_STATUS_THEMES.matched : CONDITION_STATUS_THEMES.notMatched;
         $('#condition-detail-status-badge')
             .removeClass()
-            .addClass(`px-2.5 py-0.5 rounded-full text-xs font-medium border inline-flex items-center gap-1 ${statusTheme.badge}`);
+            .addClass(`px-2.5 py-0.5 rounded-full text-xs font-bold border inline-flex items-center gap-1 shadow-xs ${statusTheme.badge}`);
         $('#condition-detail-status-icon').text(statusTheme.icon);
         $('#condition-detail-status-text').text(statusTheme.label);
-        $conditionDetailsClassName
-            .toggleClass('text-emerald-600 dark:text-emerald-400', isMatched)
-            .toggleClass('text-red-600 dark:text-red-400', !isMatched);
 
         // Summary Icon & Reason Text
         const failedMatch = matches.find(m => !m.matched);
@@ -661,18 +681,165 @@ export default class ConditionalEvaluationController {
             $matchesList.append(matchesFrag);
         }
 
-        // Show panel and scroll into view smoothly
-        $panel.removeClass('hidden').show();
-        $panel[0]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        // Open Side-Sheet with smooth flyout animation
+        $overlay.removeClass('hidden pointer-events-none');
+        $backdrop.removeClass('opacity-0 pointer-events-none').addClass('opacity-100 pointer-events-auto');
+        if ($panel.length) {
+            void $panel[0].offsetWidth;
+        }
+        requestAnimationFrame(() => {
+            $panel.removeClass('translate-x-full').addClass('translate-x-0');
+        });
     }
 
     /**
-     * Closes the detail panel and clears selection.
+     * Option 3: Renders detailed breakdown into an expandable inline table row (Accordion).
+     * @private
+     * @param {Object} condition
      */
-    closeDetail() {
-        $('#condition-detail-panel').addClass('hidden').hide();
-        $('.condition-row').removeClass(CSS_CLASSES.rowActive);
+    _renderInlineAccordion(condition) {
+        // Remove any prior expanded row immediately
+        $('.condition-expanded-row').remove();
+
+        const { source, contextId, outcome, matches = [] } = condition;
+        const $targetRow = $(`.condition-row[data-context-id="${contextId}"][data-source="${source}"]`);
+        if (!$targetRow.length) return;
+
+        const clone = TemplateEngine.clone('tpl-condition-expanded-row');
+        if (!clone || !clone.firstElementChild) return;
+
+        const $expandedRow = $(clone.firstElementChild);
+        const isMatched = outcome === 'MATCHED';
+        const { className, packageName, memberName } = this._extractClassAndPackage(source);
+        const displayClassName = memberName ? `${className}#${memberName}` : className;
+
+        // Header info
+        $expandedRow.find('[data-field="className"]').text(displayClassName);
+        $expandedRow.find('[data-field="contextBadge"]').text(contextId || 'SpringContext');
+        $expandedRow.find('[data-field="sourceFull"]').text(source);
+
+        // Status Badge
+        const statusTheme = isMatched ? CONDITION_STATUS_THEMES.matched : CONDITION_STATUS_THEMES.notMatched;
+        $expandedRow.find('[data-field="statusBadge"]')
+            .addClass(`px-2.5 py-0.5 rounded-full text-xs font-bold border inline-flex items-center gap-1 shadow-xs ${statusTheme.badge}`);
+        $expandedRow.find('[data-field="statusIcon"]').text(statusTheme.icon);
+        $expandedRow.find('[data-field="statusText"]').text(statusTheme.label);
+
+        // Summary Icon & Reason Text
+        const failedMatch = matches.find(m => !m.matched);
+        const $reasonIcon = $expandedRow.find('[data-field="reasonIcon"]');
+        const $reasonText = $expandedRow.find('[data-field="reasonText"]');
+        const $diagMsg = $expandedRow.find('[data-field="diagnosticMsg"]');
+
+        if (isMatched) {
+            $reasonIcon.text('check_circle').addClass('text-emerald-500');
+            $reasonText.text('All condition evaluations satisfied. Configuration applied.');
+            $diagMsg.text(
+                matches.map(m => `• ${this._formatConditionName(m.condition)}: ${m.message}`).join('\n') || 'Configuration evaluated successfully.'
+            );
+        } else {
+            $reasonIcon.text('cancel').addClass('text-red-500');
+            const failureReason = failedMatch?.message || 'One or more required conditions did not match.';
+            $reasonText.text(failureReason);
+            $diagMsg.text(failureReason);
+        }
+
+        // Render Condition Outcomes List
+        const $matchesList = $expandedRow.find('[data-field="matchesList"]');
+        $matchesList.empty();
+        $expandedRow.find('[data-field="matchesCount"]').text(`${matches.length} conditions`);
+
+        if (matches.length === 0) {
+            $matchesList.html('<p class="text-xs text-gray-400 italic py-3">No individual condition checks recorded.</p>');
+        } else {
+            const matchesFrag = document.createDocumentFragment();
+
+            for (const match of matches) {
+                const matchClone = TemplateEngine.clone('tpl-condition-match-item');
+                if (matchClone?.firstElementChild) {
+                    const $item = $(matchClone.firstElementChild);
+                    const isItemMatched = match.matched;
+
+                    const $icon = $item.find('[data-field="matchIcon"]');
+                    const $name = $item.find('[data-field="conditionName"]');
+                    const $msg = $item.find('[data-field="matchMessage"]');
+                    const $badge = $item.find('[data-field="matchStatusBadge"]');
+
+                    $name.text(this._formatConditionName(match.condition));
+                    $msg.text(match.message || 'No additional message');
+
+                    if (isItemMatched) {
+                        $icon.text('check_circle').addClass('text-emerald-500');
+                        $badge.text('Matched')
+                            .addClass('bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40');
+                    } else {
+                        $icon.text('cancel').addClass('text-red-500');
+                        $badge.text('Did Not Match')
+                            .addClass('bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/40');
+                        $item.addClass('bg-red-50/30 dark:bg-red-950/20 border-red-100 dark:border-red-900/30');
+                    }
+
+                    matchesFrag.appendChild(matchClone);
+                }
+            }
+
+            $matchesList.append(matchesFrag);
+        }
+
+        // Insert expanded row directly underneath target row and animate smoothly via CSS Grid
+        $targetRow.after($expandedRow);
+        const $wrapper = $expandedRow.find('.condition-accordion-wrapper');
+        // Force browser layout reflow to guarantee smooth transition from 0fr
+        if ($wrapper.length) {
+            void $wrapper[0].offsetHeight;
+        }
+        requestAnimationFrame(() => {
+            $wrapper.addClass('open');
+        });
+    }
+
+    /**
+     * Closes the detail panel and clears selection smoothly across both modes.
+     * @param {Function} [callback]
+     */
+    closeDetail(callback) {
+        // Clear active row highlight and reset rotated arrow icons
+        $('.condition-row')
+            .removeClass(CSS_CLASSES.rowActive)
+            .find('[data-field="expandIcon"]')
+            .removeClass('rotate-90 text-primary dark:text-purple-300');
         this.selectedCondition = null;
+
+        // 1. Close Side-Sheet flyout if open
+        const $overlay = $('#condition-detail-overlay');
+        const $backdrop = $('#condition-detail-backdrop');
+        const $panel = $('#condition-detail-panel');
+
+        if ($panel.hasClass('translate-x-0')) {
+            $panel.removeClass('translate-x-0').addClass('translate-x-full');
+            $backdrop.removeClass('opacity-100 pointer-events-auto').addClass('opacity-0 pointer-events-none');
+            setTimeout(() => {
+                $overlay.addClass('hidden pointer-events-none');
+                if (typeof callback === 'function') callback();
+            }, 300);
+            return;
+        }
+
+        // 2. Close Inline Accordion row if open
+        const $existing = $('.condition-expanded-row');
+        if ($existing.length) {
+            const $wrapper = $existing.find('.condition-accordion-wrapper');
+            $wrapper.removeClass('open');
+            setTimeout(() => {
+                $existing.remove();
+                if (typeof callback === 'function') callback();
+            }, 550);
+            return;
+        }
+
+        if (typeof callback === 'function') {
+            callback();
+        }
     }
 
     /**
@@ -719,6 +886,8 @@ export default class ConditionalEvaluationController {
         this._bindSearchInput();
         this._bindSelectFilters();
         this._bindClickActionDelegation();
+        this._bindGlobalKeydown();
+        this.renderViewStyleButtons();
     }
 
     /**
@@ -730,11 +899,53 @@ export default class ConditionalEvaluationController {
             'refresh-data': ($target) => this._handleRefreshData($target),
             'filter-outcome': ($target) => this._handleFilterOutcome($target),
             'select-condition': ($target) => this._handleSelectCondition($target),
+            'toggle-view-style': ($target) => this.setViewStyle($target.data('style') || 'side-sheet'),
             'close-detail': () => this.closeDetail(),
             'change-page': ($target) => this._handleChangePage($target),
             'prev-page': () => this._handlePrevPage(),
             'next-page': () => this._handleNextPage()
         };
+    }
+
+    /**
+     * Changes the detail view style between 'side-sheet' and 'inline' accordion.
+     * @param {'side-sheet'|'inline'} style
+     */
+    setViewStyle(style) {
+        if (this.detailViewStyle === style) return;
+        this.closeDetail();
+        this.detailViewStyle = style;
+        localStorage.setItem('condition_detail_view_style', style);
+        this.renderViewStyleButtons();
+    }
+
+    /**
+     * Synchronizes the visual state of the view style segmented buttons.
+     */
+    renderViewStyleButtons() {
+        const isSideSheet = this.detailViewStyle === 'side-sheet';
+        const activeClass = 'bg-white dark:bg-slate-900 text-primary dark:text-purple-300 font-bold shadow-xs';
+        const inactiveClass = 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200';
+
+        $('#btn-view-style-side-sheet')
+            .removeClass(`${activeClass} ${inactiveClass}`)
+            .addClass(isSideSheet ? activeClass : inactiveClass);
+
+        $('#btn-view-style-inline')
+            .removeClass(`${activeClass} ${inactiveClass}`)
+            .addClass(!isSideSheet ? activeClass : inactiveClass);
+    }
+
+    /**
+     * Binds global keyboard shortcuts (Esc to close detail).
+     * @private
+     */
+    _bindGlobalKeydown() {
+        this._on(document, 'keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.closeDetail();
+            }
+        });
     }
 
     /**

@@ -3,18 +3,13 @@
     class="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-6 sm:px-8 py-4 flex items-center justify-between z-10 flex-shrink-0 h-[72px] transition-colors duration-300">
     <div>
         <h1 class="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-            System Overview
+            Platform Overview
         </h1>
         <div class="text-xs text-gray-500 dark:text-gray-400 font-medium flex items-center gap-1">
-            SpringLens <span class="material-symbols-outlined text-[14px]">chevron_right</span> Application Dashboard
+            SpringLens <span class="material-symbols-outlined text-[14px]">chevron_right</span> Dashboard
         </div>
     </div>
     <div class="flex items-center gap-3">
-        <div
-            class="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60 shadow-sm">
-            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span id="app-live-status">Application Active</span>
-        </div>
         <button id="btn-refresh-dashboard"
             class="w-9 h-9 flex items-center justify-center border border-gray-200 dark:border-slate-700 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 bg-white dark:bg-slate-900 shadow-sm transition-all cursor-pointer"
             title="Refresh dashboard metrics">
@@ -89,7 +84,7 @@
                 </div>
 
                 <!-- Live Uptime Chip -->
-                <div class="flex items-center gap-3">
+                <div id="hero-uptime-container" class="flex items-center gap-3">
                     <div
                         class="bg-white/10 backdrop-blur-md border border-white/15 rounded-xl px-4 py-2.5 flex items-center gap-3 shadow-inner">
                         <div
@@ -97,10 +92,8 @@
                             <span class="material-symbols-outlined text-[20px]">history_toggle_off</span>
                         </div>
                         <div>
-                            <span
-                                class="text-[10px] uppercase font-bold text-slate-300 tracking-wider block">Uptime</span>
-                            <span class="text-sm font-bold text-white font-mono" data-field="uptime"
-                                id="hero-app-uptime">--</span>
+                            <span class="text-[10px] uppercase font-bold text-slate-300 tracking-wider block">Uptime</span>
+                            <span class="text-sm font-bold text-white font-mono" data-field="uptime" id="hero-app-uptime">--</span>
                         </div>
                     </div>
                 </div>
@@ -710,6 +703,34 @@
             data-field="inspect-hint">
             <span>Inspect in Full Graph</span>
             <span class="material-symbols-outlined text-[12px]">open_in_new</span>
+        </div>
+    </div>
+</template>
+
+<template id="tpl-dashboard-uptime-active">
+    <div
+        class="bg-white/10 backdrop-blur-md border border-white/15 rounded-xl px-4 py-2.5 flex items-center gap-3 shadow-inner">
+        <div
+            class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[20px]">history_toggle_off</span>
+        </div>
+        <div>
+            <span class="text-[10px] uppercase font-bold text-slate-300 tracking-wider block">Uptime</span>
+            <span class="text-sm font-bold text-white font-mono" data-field="uptime" id="hero-app-uptime">--</span>
+        </div>
+    </div>
+</template>
+
+<template id="tpl-dashboard-uptime-down">
+    <div
+        class="bg-rose-500/15 backdrop-blur-md border border-rose-400/30 rounded-xl px-4 py-2.5 flex items-center gap-3 shadow-inner">
+        <div
+            class="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-300 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[20px]">cloud_off</span>
+        </div>
+        <div>
+            <span class="text-[10px] uppercase font-bold text-rose-200 tracking-wider block">Status</span>
+            <span class="text-sm font-bold text-white font-mono">Service Down</span>
         </div>
     </div>
 </template>
