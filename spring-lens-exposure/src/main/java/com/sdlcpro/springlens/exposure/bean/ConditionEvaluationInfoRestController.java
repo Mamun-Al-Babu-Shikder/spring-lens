@@ -122,4 +122,18 @@ public class ConditionEvaluationInfoRestController {
                         .formatted(source, contextId)
         );
     }
+
+    /**
+     * Retrieves aggregated condition evaluation summary metrics.
+     *
+     * <p>The summary contains aggregated condition evaluation repost data,
+     * including total condition source, matched, unmatched and total condition evaluation count.</p>
+     *
+     * @return an HTTP response containing the {@link com.sdlcpro.springlens.model.bean.condition.ConditionEvaluationSummary}
+     * wrapped by the standardized {@link ResponseEntity}
+     */
+    @GetMapping("/summary")
+    public ResponseEntity<?> getBeanDefinitionSummary() {
+        return ApiResponseHandler.handle(this.conditionEvaluationInfoRepository::getConditionEvaluationSummary);
+    }
 }
