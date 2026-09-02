@@ -3,6 +3,7 @@ package com.sdlcpro.springlens.storage.bean.condition;
 import com.sdlcpro.springlens.annotation.SpringLensInternalComponent;
 import com.sdlcpro.springlens.model.bean.condition.ConditionEvaluationInfo;
 import com.sdlcpro.springlens.model.bean.condition.ConditionEvaluationKey;
+import com.sdlcpro.springlens.model.bean.condition.ConditionEvaluationSummary;
 import com.sdlcpro.springlens.query.Filter;
 import com.sdlcpro.springlens.query.PageRequest;
 import com.sdlcpro.springlens.query.PageResponse;
@@ -14,15 +15,21 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static com.sdlcpro.springlens.model.bean.condition.ConditionOutcome.MATCHED;
+import static com.sdlcpro.springlens.model.bean.condition.ConditionOutcome.NOT_MATCHED;
 
 @SpringLensInternalComponent
 public class InMemoryConditionEvaluationInfoRepository implements ConditionEvaluationInfoRepository {
     private final QueryExecutor<ConditionEvaluationInfo> queryExecutor;
     private final ConcurrentMap<ConditionEvaluationKey, ConditionEvaluationInfo> conditionEvaluationInfoMap;
+    private final AtomicReference<ConditionEvaluationSummary> conditionEvaluationSummaryAtomicRef;
 
     public InMemoryConditionEvaluationInfoRepository() {
         this.queryExecutor = new QueryExecutor<>(ConditionEvaluationInfo.class);
         this.conditionEvaluationInfoMap = new ConcurrentHashMap<>();
+        this.conditionEvaluationSummaryAtomicRef = new AtomicReference<>(ConditionEvaluationSummary.empty());
     }
 
     @Override
@@ -45,6 +52,7 @@ public class InMemoryConditionEvaluationInfoRepository implements ConditionEvalu
         String contextId = conditionEvaluationInfo.contextId();
         String source = conditionEvaluationInfo.source();
         this.conditionEvaluationInfoMap.put(new ConditionEvaluationKey(contextId, source), conditionEvaluationInfo);
+        this.updateConditionEvaluationSummary(conditionEvaluationInfo);
     }
 
     @Override
@@ -65,5 +73,19 @@ public class InMemoryConditionEvaluationInfoRepository implements ConditionEvalu
     @Override
     public long count() {
         return this.conditionEvaluationInfoMap.size();
+    }
+
+    @Override
+    public ConditionEvaluationSummary getConditionEvaluationSummary() {
+        return this.conditionEvaluationSummaryAtomicRef.get();
+    }
+
+    private void updateConditionEvaluationSummary(ConditionEvaluationInfo evaluationInfo) {
+        this.conditionEvaluationSummaryAtomicRef.updateAndGet(summary -> new ConditionEvaluationSummary(
+                summary.totalConditionSources() + 1,
+                summary.matchedConditionSources() + (evaluationInfo.outcome() == MATCHED ? 1 : 0),
+                summary.notMatchedConditionSources() + (evaluationInfo.outcome() == NOT_MATCHED ? 1 : 0),
+                summary.totalEvaluatedConditions() + evaluationInfo.matches().size()
+        ));
     }
 }

@@ -2,6 +2,7 @@ package com.sdlcpro.springlens.repository.bean;
 
 import com.sdlcpro.springlens.model.bean.condition.ConditionEvaluationInfo;
 import com.sdlcpro.springlens.model.bean.condition.ConditionEvaluationKey;
+import com.sdlcpro.springlens.model.bean.condition.ConditionEvaluationSummary;
 import com.sdlcpro.springlens.repository.PageableRepository;
 
 /**
@@ -10,4 +11,5 @@ import com.sdlcpro.springlens.repository.PageableRepository;
  */
 public interface ConditionEvaluationInfoRepository extends PageableRepository<ConditionEvaluationInfo, ConditionEvaluationKey> {
 
+    ConditionEvaluationSummary getConditionEvaluationSummary();
 }
