@@ -10,11 +10,12 @@ import {
 } from '../../utils/index.js';
 
 
-export default class ConditionalEvaluationController {
+export default class ConditionalEvaluationController{
 
-    constructor(conditionalEvaluationApiUrl, searchConditionalEvaluationApiUrl) {
+    constructor(conditionalEvaluationApiUrl, searchConditionalEvaluationApiUrl, summaryConditionApi) {
         this.conditionEvaluationApiUrl = conditionalEvaluationApiUrl;
         this.searchConditionalEvaluationApiUrl = searchConditionalEvaluationApiUrl;
+        this.summaryConditionApiUrl = summaryConditionApi;
 
         // Active data state
         this.conditions = [];
@@ -106,38 +107,14 @@ export default class ConditionalEvaluationController {
      */
     async fetchSummaryMetrics() {
         try {
-            const queryParams = QueryParam.build({
-                pageNumber: 0,
-                pageSize: 1000
-            });
-            const responseData = await httpClient.getWithQuery(
-                this.conditionEvaluationApiUrl,
-                queryParams.toString()
-            );
-
-            const allItems = Array.isArray(responseData?.content) ? responseData.content : [];
-            let totalConditions = 0;
-            let matched = 0;
-            let unmatched = 0;
-
-            for (const item of allItems) {
-                const matches = Array.isArray(item.matches) ? item.matches : [];
-                totalConditions += matches.length;
-
-                if (item.outcome === 'MATCHED') {
-                    matched++;
-                } else if (item.outcome === 'NOT_MATCHED') {
-                    unmatched++;
-                }
-            }
-
-            const total = responseData?.totalElements ?? allItems.length;
+            const responseData = await httpClient.get(this.summaryConditionApiUrl);
+            const {totalConditionSources, matchedConditionSources, unmatchedConditionSources, totalEvaluatedConditions} = responseData
 
             this.kpiMetrics = {
-                total,
-                matched,
-                unmatched,
-                totalConditions
+                total : totalConditionSources,
+                matched: matchedConditionSources,
+                unmatched: unmatchedConditionSources,
+                totalConditions: totalEvaluatedConditions
             };
 
             this.renderKpiCards();
