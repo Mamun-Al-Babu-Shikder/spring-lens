@@ -5,7 +5,7 @@ import com.sdlcpro.springlens.util.Preconditions;
 public record ConditionEvaluationSummary(
         int totalConditionSources,
         int matchedConditionSources,
-        int notMatchedConditionSources,
+        int unmatchedConditionSources,
         int totalEvaluatedConditions
 ) {
     private static final ConditionEvaluationSummary EMPTY = new ConditionEvaluationSummary(0, 0, 0, 0);
@@ -22,8 +22,8 @@ public record ConditionEvaluationSummary(
         );
 
         Preconditions.isTrue(
-                notMatchedConditionSources >= 0,
-                "The value of notMatchedConditionSources must not be negative"
+                unmatchedConditionSources >= 0,
+                "The value of unmatchedConditionSources must not be negative"
         );
 
         Preconditions.isTrue(

@@ -127,7 +127,7 @@ public class ConditionEvaluationInfoRestController {
      * Retrieves aggregated condition evaluation summary metrics.
      *
      * <p>The summary contains aggregated condition evaluation repost data,
-     * including total condition source, matched, non-matched and total condition evaluation count.</p>
+     * including total condition source, matched, unmatched and total condition evaluation count.</p>
      *
      * @return an HTTP response containing the {@link com.sdlcpro.springlens.model.bean.condition.ConditionEvaluationSummary}
      * wrapped by the standardized {@link ResponseEntity}

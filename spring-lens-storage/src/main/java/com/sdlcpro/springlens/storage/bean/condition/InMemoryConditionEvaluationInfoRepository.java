@@ -84,7 +84,7 @@ public class InMemoryConditionEvaluationInfoRepository implements ConditionEvalu
         this.conditionEvaluationSummaryAtomicRef.updateAndGet(summary -> new ConditionEvaluationSummary(
                 summary.totalConditionSources() + 1,
                 summary.matchedConditionSources() + (evaluationInfo.outcome() == MATCHED ? 1 : 0),
-                summary.notMatchedConditionSources() + (evaluationInfo.outcome() == NOT_MATCHED ? 1 : 0),
+                summary.unmatchedConditionSources() + (evaluationInfo.outcome() == NOT_MATCHED ? 1 : 0),
                 summary.totalEvaluatedConditions() + evaluationInfo.matches().size()
         ));
     }
