@@ -13,18 +13,13 @@ export default class GraphTreeBuilder {
         const groupedData = this._transformBeanDependencyData(beanDependencies);
         const contextKeys = Object.keys(groupedData);
 
-        if (contextKeys.length === 0) {
-            return this._buildSingleContextTree('default', []);
-        }
-
-        if (contextKeys.length === 1) {
+        if (contextKeys.length > 0) {
             const contextId = contextKeys[0];
             return this._buildSingleContextTree(contextId, groupedData[contextId]);
         }
 
         return {
             name: 'Application Contexts',
-            fullName: 'Application Contexts',
             contextId: 'all',
             meta: { type: 'context', contextId: 'all' },
             children: contextKeys.map(contextId =>
@@ -33,13 +28,31 @@ export default class GraphTreeBuilder {
         };
     }
 
+
+    static _transformBeanDependencyData(dependencies) {
+        if (!dependencies) return {};
+
+        if (Array.isArray(dependencies) && dependencies.length > 0) {
+            return dependencies.reduce((acc, bean) => {
+                const { contextId, beanName, dependencies } = bean;
+
+                (acc[contextId] = acc[contextId] || []).push({
+                    name: beanName,
+                    dependencies: dependencies
+                });
+                return acc;
+            }, {});
+        }
+
+        return {};
+    }
+
     /**
      * Builds a single hierarchy tree for a given context.
      */
     static _buildSingleContextTree(contextId, beans = []) {
         const contextNode = {
             name: contextId,
-            fullName: contextId,
             contextId,
             meta: { type: 'context', contextId },
             children: []
@@ -51,20 +64,19 @@ export default class GraphTreeBuilder {
         const hasParent = new Set();
 
         // 1. Single pass: Populate map and track dependencies
-        for (const b of beans) {
-            beanMap.set(b.name, b);
+        for (const eachBean of beans) {
+            beanMap.set(eachBean.name, eachBean);
         }
-        for (const b of beans) {
-            for (const dep of b.dependencies) {
-                if (beanMap.has(dep)) {
-                    hasParent.add(dep);
-                }
+
+        for (const eachBean of beans) {
+            for (const dep of eachBean.dependencies) {
+                hasParent.add(dep);
             }
         }
 
         // 2. Identify top-level root beans (circular fallback to first bean)
-        const rootBeans = beans.filter(b => !hasParent.has(b.name));
-        const rootNames = rootBeans.length ? rootBeans.map(b => b.name) : [beans[0].name];
+        const rootBeans = beans.filter(bean => !hasParent.has(bean.name));
+        const rootNames = rootBeans.length ? rootBeans.map(bean => bean.name) : [beans[0].name];
 
         // 3. Build tree recursively with single-set backtracking (prevents memory cloning)
         const visited = new Set();
@@ -90,13 +102,13 @@ export default class GraphTreeBuilder {
             if (isCycle) return node;
 
             visited.add(name);
-            const validChildren = (beanRecord.dependencies || []).filter(dep => beanMap.has(dep));
+            const validChildren = beanRecord.dependencies || [];
 
             if (validChildren.length > 0) {
                 node.children = validChildren.map(buildNode);
             }
 
-            visited.delete(name); // Backtrack for sibling branches
+            visited.delete(name);
             return node;
         };
 
@@ -104,76 +116,39 @@ export default class GraphTreeBuilder {
         return contextNode;
     }
 
-    /**
-     * Normalizes and groups input beans by contextId.
-     */
-    static _transformBeanDependencyData(data) {
-        if (!data) return {};
-
-        // Format: { contextId: "...", beans: [...] }
-        if (!Array.isArray(data) && Array.isArray(data.beans)) {
-            const contextId = data.contextId || 'default';
-            return {
-                [contextId]: data.beans.map(b => this._normalizeBean(b))
-            };
-        }
-
-        // Format: [{ contextId, ... }, ...]
-        if (Array.isArray(data) && data.length > 0) {
-            return data.reduce((acc, bean) => {
-                const contextId = bean.contextId || 'default';
-                (acc[contextId] = acc[contextId] || []).push(this._normalizeBean(bean));
-                return acc;
-            }, {});
-        }
-
-        return {};
-    }
-
-    static _normalizeBean(bean = {}) {
-        const { name, beanName, type, className, beanType, scope, dependencies } = bean;
-
-        return {
-            name: name || beanName || '',
-            type: type || className || beanType || 'N/A',
-            scope: scope || 'singleton',
-            dependencies: dependencies || []
-        };
-    }
-
     static buildModalGraphHierarchy(targetBean, findBeanFn = () => null) {
         if (!targetBean) return null;
 
-        const targetName = targetBean.beanName || targetBean.name || '';
+        const { beanName, contextId, scope, type, role, dependencies, dependents } = targetBean;
 
         const createChild = (name, kind) => {
-            const depBean = findBeanFn(name, targetBean.contextId);
-            return {
-                name: this._displayName(name),
-                fullName: name,
-                meta: {
-                    type: depBean?.type || 'N/A',
-                    scope: depBean?.scope || 'N/A',
-                    role: depBean?.role || 'N/A',
-                    kind
-                }
-            };
+            const depBean = findBeanFn(name, contextId);
+            return this._prepareBeanNode(name, depBean, kind);
         };
 
-        const deps = (targetBean.dependencies || []).map(name => createChild(name, 'dependency'));
-        const dependents = (targetBean.dependents || []).map(name => createChild(name, 'dependent'));
-        const children = [...deps, ...dependents];
+        const deps = (dependencies || []).map(name => createChild(name, 'dependency'));
+        const dependentBean = (dependents || []).map(name => createChild(name, 'dependent'));
+        const children = [...deps, ...dependentBean];
+
+        return this._prepareBeanNode(beanName, {scope, role, type}, {
+            kind: "target",
+            children
+        });
+    }
+
+   static _prepareBeanNode(name, beanData = {}, { kind = 'dependency', children = [] } = {}) {
+        const { type = 'N/A', scope = 'N/A', role = 'N/A' } = beanData || {};
 
         return {
-            name: targetName,
-            fullName: targetName,
+            name: this._displayName(name),
+            fullName: name,
             meta: {
-                type: targetBean.type || 'N/A',
-                scope: targetBean.scope || 'N/A',
-                role: targetBean.role || 'N/A',
-                kind: 'target'
+                type: type,
+                scope: scope,
+                role: role,
+                kind
             },
-            ...(children.length > 0 && { children })
+            ...(children?.length > 0 && { children })
         };
     }
 }

@@ -16,9 +16,6 @@ import {
 
 export default class DashboardController {
 
-    /**
-     * @param ENDPOINTS
-     */
     constructor(ENDPOINTS = {}) {
         this.endpoints = {
             application: ENDPOINTS.APPLICATION_INFO,
