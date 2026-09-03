@@ -128,7 +128,7 @@ public class BeanDefinitionInfoRestController {
      * @return an HTTP response containing the bean definition summary
      * wrapped by the standardized {@link ResponseEntity}
      */
-    @GetMapping("/summary")
+    @GetMapping(value = "/summary", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getBeanDefinitionSummary() {
         return ApiResponseHandler.handle(
                 this.beanDefinitionInfoRepository::getBeanDefinitionSummary
