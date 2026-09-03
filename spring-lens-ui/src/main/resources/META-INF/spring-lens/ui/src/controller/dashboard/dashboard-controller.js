@@ -17,22 +17,14 @@ import {
 export default class DashboardController {
 
     constructor(ENDPOINTS = {}) {
-         /*this.endpoints = {
+         this.endpoints = {
              application: ENDPOINTS.APPLICATION_INFO,
              definitions: ENDPOINTS.BEAN_DEFINITION,
              instances: ENDPOINTS.BEAN_INSTANCE,
              conditions: ENDPOINTS.CONDITIONAL_REPORTS,
              dependencies: ENDPOINTS.GRAPH_DEPENDENCIES,
              definitionsSummary: ENDPOINTS.SUMMARY_BEAN_DEFINITION
-         };*/
-        this.endpoints = {
-            application: ENDPOINTS.applicationInfo,
-            definitions: ENDPOINTS.definitions,
-            instances: ENDPOINTS.beansInstances,
-            conditions: ENDPOINTS.beansConditions,
-            dependencies: ENDPOINTS.graphDependencies,
-            definitionsSummary: ENDPOINTS.definitionsSummary
-        };
+         };
 
         this.applicationState = null;
         this.applicationState?.onStateChange((isLive) => {
