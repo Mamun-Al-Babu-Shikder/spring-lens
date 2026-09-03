@@ -147,4 +147,19 @@ public class BeanInstanceInfoRestController {
             );
         });
     }
+
+    /**
+     * Retrieves aggregated bean instance summary metrics.
+     *
+     * <p>The summary contains aggregated bean instance data,
+     * including total created instances, context distribution, scope distribution,
+     * instance having definition count etc</p>
+     *
+     * @return an HTTP response containing the {@link com.sdlcpro.springlens.model.bean.instance.BeanInstanceSummary}
+     * wrapped by the standardized {@link ResponseEntity}
+     */
+    @GetMapping("/summary")
+    public ResponseEntity<?> getBeanInstanceSummary() {
+        return ApiResponseHandler.handle(this.beanInstanceInfoRepository::getBeanInstanceSummary);
+    }
 }
