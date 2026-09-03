@@ -16,24 +16,29 @@ import {
 
 export default class DashboardController {
 
-    /**
-     * @param ENDPOINTS
-     */
     constructor(ENDPOINTS = {}) {
-        this.endpoints = {
-            application: ENDPOINTS.applicationInfo,
-            definitions: ENDPOINTS.definitions,
-            instances: ENDPOINTS.beansInstances,
-            conditions: ENDPOINTS.beansConditions,
-            dependencies: ENDPOINTS.graphDependencies,
-            definitionsSummary: ENDPOINTS.definitionsSummary
-        };
+         this.endpoints = {
+             application: ENDPOINTS.APPLICATION_INFO,
+             definitions: ENDPOINTS.BEAN_DEFINITION,
+             instances: ENDPOINTS.BEAN_INSTANCE,
+             conditions: ENDPOINTS.CONDITIONAL_REPORTS,
+             dependencies: ENDPOINTS.GRAPH_DEPENDENCIES,
+             definitionsSummary: ENDPOINTS.SUMMARY_BEAN_DEFINITION
+         };
+
+        this.applicationState = null;
+        this.applicationState?.onStateChange((isLive) => {
+            this.renderUptimeStatus(isLive);
+        });
 
         this.applicationData = null;
         this.summaryData = null;
         this.instancesData = null;
         this.conditionsData = null;
         this.dependenciesData = null;
+
+        this.currentUptimeState = null;
+        this.appStartDate = null;
 
         this.chartInstance = null;
         this.activeChartMode = 'scope'; // 'scope' | 'role' | 'loading'
@@ -56,6 +61,8 @@ export default class DashboardController {
      */
     async enter() {
         try {
+            this.currentUptimeState = null;
+            this.appStartDate = null;
             this._resetQuickSearch();
             this._bindEventListeners();
             await this.loadAllDashboardData();
@@ -82,6 +89,8 @@ export default class DashboardController {
         // 3. Clear timers
         clearInterval(this.uptimeInterval);
         this.uptimeInterval = null;
+        this.currentUptimeState = null;
+        this.appStartDate = null;
         this._debouncedQuickSearch?.cancel();
 
         // 4. Clean up native listeners
@@ -179,6 +188,9 @@ export default class DashboardController {
      */
     async loadAllDashboardData() {
         await Promise.allSettled([
+            this.applicationState?.checkHealth()
+                .then(isLive => this.renderUptimeStatus(isLive)),
+
             httpClient.get(this.endpoints.application)
                 .then(data => this.renderApplicationInfo(this.applicationData = data))
                 .catch(err => {
@@ -234,7 +246,8 @@ export default class DashboardController {
         this._bindDataFields($hero, fieldMap);
         this._renderProfileBadges(vm.activeProfiles, vm.defaultProfiles);
 
-        if (vm.startDate) {
+        this.appStartDate = vm.startDate;
+        if (vm.startDate && this.currentUptimeState !== false) {
             this._startUptimeTracker(vm.startDate);
         }
     }
@@ -330,6 +343,7 @@ export default class DashboardController {
     }
 
     renderApplicationInfoFallback() {
+        this.renderUptimeStatus(false);
         const $hero = $('#hero-application-banner');
         const fallbackMap = {
             appName: 'Spring Boot Application',
@@ -348,6 +362,32 @@ export default class DashboardController {
         const emptyClone = TemplateEngine.clone('tpl-dashboard-profile-empty');
         if (emptyClone) {
             $container.append(emptyClone);
+        }
+    }
+
+    /**
+     * Renders either the active uptime counter or the Service Down chip.
+     */
+    renderUptimeStatus(isLive) {
+        const $container = $('#hero-uptime-container');
+        if (!$container.length) return;
+
+        if (this.currentUptimeState === isLive) return;
+        this.currentUptimeState = isLive;
+
+        const templateId = isLive ? 'tpl-dashboard-uptime-active' : 'tpl-dashboard-uptime-down';
+        const clone = TemplateEngine.clone(templateId);
+        if (clone) {
+            $container.empty().append(clone);
+        }
+
+        if (isLive) {
+            if (this.appStartDate) {
+                this._startUptimeTracker(this.appStartDate);
+            }
+        } else {
+            clearInterval(this.uptimeInterval);
+            this.uptimeInterval = null;
         }
     }
 
@@ -770,7 +810,9 @@ export default class DashboardController {
                 const emptyClone = TemplateEngine.clone('tpl-dashboard-empty-state');
                 if (emptyClone) {
                     const $emptyEl = $(emptyClone.firstElementChild);
-                    $emptyEl.addClass('col-span-full').find('[data-field="message"]').text('No matching beans found for query.');
+                    $emptyEl.addClass('col-span-full')
+                        .find('[data-field="message"]')
+                        .text('No matching beans found for query.');
                     $chipsContainer.append($emptyEl);
                 }
                 $resultsContainer.removeClass('hidden');
@@ -837,10 +879,12 @@ export default class DashboardController {
      */
     _startUptimeTracker(startDate) {
         if (this.uptimeInterval) clearInterval(this.uptimeInterval);
-
-        const $heroAppUptime = $('#hero-app-uptime');
+        this.appStartDate = startDate;
 
         const update = () => {
+            const $heroAppUptime = $('#hero-app-uptime');
+            if (!$heroAppUptime.length) return;
+
             const diffMs = Date.now() - startDate.getTime();
             if (diffMs < 0) {
                 $heroAppUptime.text('Just started');
