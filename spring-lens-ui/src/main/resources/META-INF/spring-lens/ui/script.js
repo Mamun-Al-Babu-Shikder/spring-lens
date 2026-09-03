@@ -1,7 +1,6 @@
 import Route from './src/route/route.js';
 import BeanDefinitions from './src/controller/bean/definition-controller.js';
-import InstanceController from './src/controller/bean/instance-controller.js';
-import InstancesController from './src/controller/bean/instances-controller.js';
+import TimelineController from './src/controller/bean/timeline-controller.js';
 import DashboardController from './src/controller/dashboard/dashboard-controller.js';
 import GraphController from './src/controller/bean/graph-controller.js';
 import ConditionalEvaluationController from './src/controller/bean/conditional-evalugation-controller.js';
@@ -25,6 +24,7 @@ $(document).ready(() => {
         BEAN_INSTANCE: API_BASE_URL + "/instances",
         FIND_BEAN_INSTANCE: API_BASE_URL + "/instances/find",
         PROXY_BEAN_INSTANCE: API_BASE_URL + "/instances/proxy-info",
+        SUMMARY_BEAN_INSTANCE: API_BASE_URL + "/instances/summary",
         GRAPH_DEPENDENCIES: API_BASE_URL + "/definitions/dependencies",
         CONDITIONAL_REPORTS: API_BASE_URL + "/conditions",
         FIND_CONDITIONAL_REPORTS: API_BASE_URL + "/conditions/find",
@@ -39,6 +39,7 @@ $(document).ready(() => {
     let graphDependencies = "http://localhost:8080/spring-lens/api/beans/definitions/dependencies";
     let beansInstances = "http://localhost:8080/spring-lens/api/beans/instances";
     let findBeanInstances = "http://localhost:8080/spring-lens/api/beans/instances/find";
+    let summarydBeanInstances = "http://localhost:8080/spring-lens/api/beans/instances/summary";
     let proxyInfoBeanInstances = "http://localhost:8080/spring-lens/api/beans/instances/proxy-info";
     let beansConditions = "http://localhost:8080/spring-lens/api/beans/conditions";
     let searchBeanConditions = "http://localhost:8080/spring-lens/api/beans/conditions/find";
@@ -48,18 +49,8 @@ $(document).ready(() => {
     const dashboard = new DashboardController({ applicationInfo, definitions, beansInstances, graphDependencies, beansConditions, definitionsSummary });
     const beanDefinitions = new BeanDefinitions(definitions, definitionsSummary, findDefinitions);
     const beanDependencyGraph = new GraphController(graphDependencies, definitions, findDefinitions);
-    const beanInstance = new InstanceController(beansInstances, findBeanInstances, findDefinitions);
+    const beanInstance = new TimelineController(beansInstances, findBeanInstances, findDefinitions, summarydBeanInstances);
     const conditionEvaluation = new ConditionalEvaluationController(beansConditions, searchBeanConditions, summaryBeanConditions);
-    const beanInstances = new InstancesController(beansInstances, findBeanInstances, proxyInfoBeanInstances, findDefinitions);
-
-
-    // const applicationState = new ApplicationState(ENDPOINTS.APPLICATION_HEALTH);
-    // const dashboard = new DashboardController(ENDPOINTS);
-    // const beanInstance = new InstanceController(ENDPOINTS.BEAN_INSTANCE, ENDPOINTS.FIND_BEAN_INSTANCE);
-    // const beanInstances = new InstancesController(ENDPOINTS.BEAN_INSTANCE, ENDPOINTS.FIND_BEAN_INSTANCE, ENDPOINTS.PROXY_BEAN_INSTANCE, ENDPOINTS.FIND_BEAN_DEFINITION);
-    // const beanDefinitions = new BeanDefinitions(ENDPOINTS.BEAN_DEFINITION, ENDPOINTS.SUMMARY_BEAN_DEFINITION, ENDPOINTS.FIND_BEAN_DEFINITION);
-    // const beanDependencyGraph = new GraphController(ENDPOINTS.GRAPH_DEPENDENCIES, ENDPOINTS.BEAN_DEFINITION, ENDPOINTS.FIND_BEAN_DEFINITION);
-    // const conditionEvaluation = new ConditionalEvaluationController(ENDPOINTS.CONDITIONAL_REPORTS, ENDPOINTS.FIND_CONDITIONAL_REPORTS, ENDPOINTS.SUMMARY_CONDITIONAL_REPORTS);
 
     const appRouter = new Route({
         container: '#main-content',
@@ -78,31 +69,21 @@ $(document).ready(() => {
                 onEnter: (params) => beanDefinitions.enter(params),
                 onLeave: () => beanDefinitions.leave()
             },
-            'instances': {
-                template: 'bean/instances',
-                onEnter: (params) => beanInstances.enter(params),
-                onLeave: () => beanInstances.leave()
-            },
-            'graph': {
-                template: 'bean/graph',
-                onEnter: (params) => beanDependencyGraph.enter(params),
-                onLeave: () => beanDependencyGraph.leave()
-            },
             'conditions': {
                 template: 'bean/condition-reports',
                 onEnter: (params) => conditionEvaluation.enter(params),
                 onLeave: () => conditionEvaluation.leave()
             },
-            'beans': {
-                template: 'bean/beans',
-                onEnter: () => { },
-                onLeave: () => { }
-            },
             'timeline': {
-                template: 'bean/instance',
+                template: 'bean/timeline-chart',
                 onEnter: (params) => beanInstance.enter(params),
                 onLeave: () => beanInstance.leave()
             },
+            'graph': {
+                template: 'bean/graph',
+                onEnter: (params) => beanDependencyGraph.enter(params),
+                onLeave: () => beanDependencyGraph.leave()
+            }
         }
     });
 

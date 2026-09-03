@@ -40,7 +40,7 @@ export default class BeanDefinitionsController {
             totalElements: 0,
             totalPages: 1,
             pageNumber: 0,
-            pageSize: 25,
+            pageSize: 20,
             isFirstPage: true,
             isLastPage: true
         };
@@ -55,7 +55,7 @@ export default class BeanDefinitionsController {
         };
 
         this.currentPage = 1;
-        this.itemsPerPage = 25;
+        this.itemsPerPage = 20;
         this.sortColumn = '';
         this.sortDirection = 'asc';
 
@@ -660,7 +660,7 @@ export default class BeanDefinitionsController {
         });
 
         this._on('#bean-definition-filter-size', 'change', (e) => {
-            this.itemsPerPage = parseInt(e.target.value, 10) || 25;
+            this.itemsPerPage = parseInt(e.target.value, 10) || 20;
             this.currentPage = 1;
             this.fetchTableData();
         });
@@ -865,7 +865,7 @@ export default class BeanDefinitionsController {
             isLazy: '',
             beanName: ''
         };
-        this.itemsPerPage = 25;
+        this.itemsPerPage = 20;
         this.currentPage = 1;
         this.sortColumn = '';
         this.sortDirection = 'asc';
@@ -876,7 +876,7 @@ export default class BeanDefinitionsController {
         $('#bean-definition-filter-role').val('');
         $('#bean-definition-filter-primary').val('');
         $('#bean-definition-filter-lazy').val('');
-        $('#bean-definition-filter-size').val('25');
+        $('#bean-definition-filter-size').val('20');
     }
 
     /**
