@@ -3,6 +3,7 @@ package com.sdlcpro.springlens.repository.bean;
 import com.sdlcpro.springlens.model.bean.BeanInfoCompositeKey;
 import com.sdlcpro.springlens.model.bean.instance.BeanInstanceInfo;
 import com.sdlcpro.springlens.model.bean.instance.BeanInstanceProxyInfo;
+import com.sdlcpro.springlens.model.bean.instance.BeanInstanceSummary;
 import com.sdlcpro.springlens.repository.PageableRepository;
 
 import java.util.Optional;
@@ -19,4 +20,10 @@ public interface BeanInstanceInfoRepository extends PageableRepository<BeanInsta
      * @return proxy info, or null if no matching instance exists
      */
     Optional<BeanInstanceProxyInfo> findProxyInfoById(BeanInfoCompositeKey key);
+
+    /**
+     * Returns the calculated bean instances summary.
+     * @return {@link BeanInstanceSummary}
+     */
+    BeanInstanceSummary getBeanInstanceSummary();
 }
