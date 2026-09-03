@@ -198,12 +198,12 @@
             </div>
 
             <!-- Table Container -->
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar flex-1 relative">
                 <table class="w-full text-left border-collapse min-w-[850px]">
-                    <thead>
+                    <thead class="sticky top-0 z-10 bg-gray-50/95 dark:bg-slate-800/95 backdrop-blur-xs shadow-xs">
                         <tr
-                            class="border-b border-gray-100 dark:border-slate-800 bg-gray-50/80 dark:bg-slate-800/50 text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider select-none">
-                            <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors th-sortable"
+                            class="border-b border-gray-100 dark:border-slate-800 text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider select-none">
+                            <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors th-sortable bg-gray-50/95 dark:bg-slate-800/95"
                                 data-sort="beanName">
                                 <div class="flex items-center gap-1.5">
                                     <span>Bean Name</span>
@@ -211,7 +211,7 @@
                                         data-col="beanName">unfold_more</span>
                                 </div>
                             </th>
-                            <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors th-sortable"
+                            <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors th-sortable bg-gray-50/95 dark:bg-slate-800/95"
                                 data-sort="type">
                                 <div class="flex items-center gap-1.5">
                                     <span>Type</span>
@@ -219,7 +219,7 @@
                                         data-col="type">unfold_more</span>
                                 </div>
                             </th>
-                            <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors th-sortable"
+                            <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors th-sortable bg-gray-50/95 dark:bg-slate-800/95"
                                 data-sort="scope">
                                 <div class="flex items-center gap-1.5">
                                     <span>Scope</span>
@@ -227,7 +227,7 @@
                                         data-col="scope">unfold_more</span>
                                 </div>
                             </th>
-                            <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors th-sortable"
+                            <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors th-sortable bg-gray-50/95 dark:bg-slate-800/95"
                                 data-sort="role">
                                 <div class="flex items-center gap-1.5">
                                     <span>Role</span>
@@ -235,7 +235,7 @@
                                         data-col="role">unfold_more</span>
                                 </div>
                             </th>
-                            <th class="px-5 py-3.5 text-center cursor-pointer hover:text-primary transition-colors th-sortable"
+                            <th class="px-5 py-3.5 text-center cursor-pointer hover:text-primary transition-colors th-sortable bg-gray-50/95 dark:bg-slate-800/95"
                                 data-sort="primary">
                                 <div class="flex items-center justify-center gap-1.5">
                                     <span>Primary</span>
@@ -243,7 +243,7 @@
                                         data-col="primary">unfold_more</span>
                                 </div>
                             </th>
-                            <th class="px-5 py-3.5 text-center cursor-pointer hover:text-primary transition-colors th-sortable"
+                            <th class="px-5 py-3.5 text-center cursor-pointer hover:text-primary transition-colors th-sortable bg-gray-50/95 dark:bg-slate-800/95"
                                 data-sort="lazyInit">
                                 <div class="flex items-center justify-center gap-1.5">
                                     <span>Lazy</span>
@@ -251,7 +251,7 @@
                                         data-col="lazyInit">unfold_more</span>
                                 </div>
                             </th>
-                            <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors th-sortable"
+                            <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors th-sortable bg-gray-50/95 dark:bg-slate-800/95"
                                 data-sort="contextId">
                                 <div class="flex items-center gap-1.5">
                                     <span>Context ID</span>
@@ -259,7 +259,7 @@
                                         data-col="contextId">unfold_more</span>
                                 </div>
                             </th>
-                            <th class="px-5 py-3.5 w-16 text-right font-bold">Action</th>
+                            <th class="px-5 py-3.5 w-16 text-right font-bold bg-gray-50/95 dark:bg-slate-800/95">Action</th>
                         </tr>
                     </thead>
                     <tbody
@@ -272,7 +272,7 @@
 
             <!-- Pagination -->
             <div
-                class="px-5 py-3.5 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 mt-auto">
+                class="px-5 py-3.5 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 mt-auto flex-shrink-0 z-10">
                 <div class="text-xs font-medium text-gray-500 dark:text-gray-400" id="bean-definition-pagination-info">Showing 0 to
                     0 of 0 beans
                 </div>

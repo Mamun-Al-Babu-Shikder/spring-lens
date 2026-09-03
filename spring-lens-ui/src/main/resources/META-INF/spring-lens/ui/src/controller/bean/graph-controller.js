@@ -202,9 +202,10 @@ export default class GraphController {
         }
     }
 
-    _createDynamicHierarchyChild(parentNode, beanName, contextId) {
+    _createDynamicHierarchyChild(parentNode, beanName, contextId, visited = new Set()) {
         const beanRecord = beanDataStore.findBeanByName(beanName, contextId);
         const displayName = GraphTreeBuilder._displayName(beanName);
+        const isCycle = visited.has(beanName);
 
         const childData = {
             name: displayName,
@@ -213,16 +214,30 @@ export default class GraphController {
             meta: {
                 type: beanRecord?.type ?? 'N/A',
                 scope: beanRecord?.scope ?? 'singleton',
-                contextId
-            }
+                contextId,
+                ...(isCycle && { isCycle: true })
+            },
+            ...(isCycle && { isCycle: true })
         };
 
         const childNode = d3.hierarchy(childData);
         childNode.depth = parentNode.depth + 1;
         childNode.parent = parentNode;
         childNode.id = `dyn_${parentNode.id}_${beanName}`;
-        childNode._children = null;
         childNode.children = null;
+
+        if (isCycle) {
+            childNode._children = null;
+            return childNode;
+        }
+
+        const deps = beanRecord?.dependencies ?? [];
+        if (deps.length > 0) {
+            const nextVisited = new Set(visited).add(beanName);
+            childNode._children = deps.map(depName => this._createDynamicHierarchyChild(childNode, depName, contextId, nextVisited));
+        } else {
+            childNode._children = null;
+        }
 
         return childNode;
     }
@@ -318,11 +333,11 @@ export default class GraphController {
 
     _buildContextFilterOptionsHtml(uniqueContextId, selectedContextId) {
         const isDefaultOptionSelected = !selectedContextId ? 'selected' : '';
-        const defaultOptionHtml = `<option value="" ${isDefaultOptionSelected}>All Contexts (${uniqueContextId.length})</option>`;
+        const defaultOptionHtml = `<option value="" ${isDefaultOptionSelected} class="bg-white dark:bg-slate-900 text-gray-800 dark:text-gray-200">All Contexts (${uniqueContextId.length})</option>`;
 
         const contextOptionsHtml = uniqueContextId.map(contextIdentifier => {
             const isSelected = contextIdentifier === selectedContextId ? 'selected' : '';
-            return `<option value="${contextIdentifier}" ${isSelected}>${contextIdentifier}</option>`;
+            return `<option value="${contextIdentifier}" ${isSelected} class="bg-white dark:bg-slate-900 text-gray-800 dark:text-gray-200">${contextIdentifier}</option>`;
         }).join('');
 
         return `${defaultOptionHtml}${contextOptionsHtml}`;
@@ -367,14 +382,16 @@ export default class GraphController {
         if ($contextFilterSelectElement.length === 0) return;
 
         const uniqueContextIdentifiers = this._extractUniqueContextIdentifiers(beanDefinitions);
-        const $filterContainerElement = $contextFilterSelectElement.parent();
+        const $filterContainerElement = $contextFilterSelectElement.closest('#context-filter-container').length
+            ? $contextFilterSelectElement.closest('#context-filter-container')
+            : $contextFilterSelectElement.parent();
 
         if (uniqueContextIdentifiers.length <= 1) {
-            $filterContainerElement.addClass('hidden');
+            $filterContainerElement.addClass('hidden').removeClass('flex');
             return;
         }
 
-        $filterContainerElement.removeClass('hidden');
+        $filterContainerElement.removeClass('hidden').addClass('flex');
 
         const renderedOptionsHtml = this._buildContextFilterOptionsHtml(
             uniqueContextIdentifiers,
@@ -683,12 +700,13 @@ export default class GraphController {
                 this.markNodeAsFocused(node);
 
                 const { contextId, fullName, meta } = node.data;
-                if (meta.type === "context") return null;
 
-                const details = await this.fetchBeanDetails(contextId, fullName);
-                if (details) this._mergeBeanDetailsIntoTree(node, details);
+                if (meta?.type !== "context") {
+                    const details = await this.fetchBeanDetails(contextId, fullName);
+                    if (details) this._mergeBeanDetailsIntoTree(node, details);
+                    await this.selectNodeAndShowDetails(node, details);
+                }
 
-                await this.selectNodeAndShowDetails(node, details);
                 $tip.removeClass('show');
             })
             .on('mouseenter', (event, node) => {
@@ -751,10 +769,10 @@ export default class GraphController {
                 event.stopPropagation();
 
                 const { contextId, fullName, meta } = node.data;
-                if (meta.type === "context") return null;
-
-                const details = await this.fetchBeanDetails(contextId, fullName);
-                if (details) this._mergeBeanDetailsIntoTree(node, details);
+                if (meta?.type !== "context") {
+                    const details = await this.fetchBeanDetails(contextId, fullName);
+                    if (details) this._mergeBeanDetailsIntoTree(node, details);
+                }
 
                 node.children = node.children ? null : node._children;
                 this.update(event, node);
