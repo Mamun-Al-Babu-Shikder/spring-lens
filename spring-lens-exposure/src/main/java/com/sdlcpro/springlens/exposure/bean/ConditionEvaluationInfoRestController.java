@@ -132,7 +132,7 @@ public class ConditionEvaluationInfoRestController {
      * @return an HTTP response containing the {@link com.sdlcpro.springlens.model.bean.condition.ConditionEvaluationSummary}
      * wrapped by the standardized {@link ResponseEntity}
      */
-    @GetMapping("/summary")
+    @GetMapping(value = "/summary", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getBeanDefinitionSummary() {
         return ApiResponseHandler.handle(this.conditionEvaluationInfoRepository::getConditionEvaluationSummary);
     }

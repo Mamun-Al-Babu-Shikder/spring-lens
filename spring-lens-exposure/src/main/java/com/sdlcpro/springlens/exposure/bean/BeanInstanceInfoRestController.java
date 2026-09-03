@@ -135,7 +135,7 @@ public class BeanInstanceInfoRestController {
      * @return {@link ResponseEntity} containing the
      * {@link  com.sdlcpro.springlens.model.bean.instance.BeanInstanceProxyInfo) if found at repository
      */
-    @GetMapping("/proxy-info")
+    @GetMapping(value = "/proxy-info", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getBeanInstanceProxyInfo(
             @RequestParam(value = "contextId") String contextId,
             @RequestParam(value = "beanName") String beanName
@@ -158,7 +158,7 @@ public class BeanInstanceInfoRestController {
      * @return an HTTP response containing the {@link com.sdlcpro.springlens.model.bean.instance.BeanInstanceSummary}
      * wrapped by the standardized {@link ResponseEntity}
      */
-    @GetMapping("/summary")
+    @GetMapping(value = "/summary", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getBeanInstanceSummary() {
         return ApiResponseHandler.handle(this.beanInstanceInfoRepository::getBeanInstanceSummary);
     }
