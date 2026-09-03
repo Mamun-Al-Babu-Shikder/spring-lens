@@ -1,0 +1,386 @@
+<!-- Topbar Header -->
+<header
+    class="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-8 py-4 flex items-center justify-between z-10 flex-shrink-0 h-[72px] transition-colors duration-300">
+    <div class="flex items-center gap-3">
+        <div
+            class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 via-purple-500/10 to-indigo-500/20 text-primary dark:text-purple-300 flex items-center justify-center border border-primary/20 shadow-sm flex-shrink-0">
+            <span class="material-symbols-outlined text-[22px]">deployed_code</span>
+        </div>
+        <div>
+            <div class="flex items-center gap-2">
+                <h1 class="text-lg font-bold text-gray-800 dark:text-white tracking-tight">Bean Instances</h1>
+                <span
+                    class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-primary border border-primary/20 dark:bg-purple-950/40 dark:text-purple-300">Runtime
+                    Registry</span>
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 font-medium flex items-center gap-1">
+                <span>SpringLens</span>
+                <span class="material-symbols-outlined text-[12px] opacity-60">chevron_right</span>
+                <span>Beans</span>
+                <span class="material-symbols-outlined text-[12px] opacity-60">chevron_right</span>
+                <span class="text-gray-700 dark:text-gray-300 font-semibold">Instances</span>
+            </div>
+        </div>
+    </div>
+    <div class="flex items-center gap-2.5">
+        <!-- Refresh button -->
+        <button id="inst-btn-refresh" data-action="refresh-data" title="Refresh bean instances"
+            class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/80 hover:border-gray-300 dark:hover:border-slate-600 shadow-sm transition-all cursor-pointer">
+            <span class="material-symbols-outlined text-[16px] text-gray-500 dark:text-gray-400">refresh</span> Refresh
+        </button>
+
+        <!-- Export button -->
+        <button id="inst-btn-export" data-action="export-data" title="Export bean instances JSON"
+            class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/80 hover:border-gray-300 dark:hover:border-slate-600 shadow-sm transition-all cursor-pointer">
+            <span class="material-symbols-outlined text-[16px] text-gray-500 dark:text-gray-400">file_download</span>
+            Export
+        </button>
+    </div>
+</header>
+
+<div class="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-6 flex items-start gap-6">
+    <!-- Center Column -->
+    <div class="flex-1 flex flex-col gap-6 min-w-0 transition-all duration-300 ease-in-out">
+        <!-- 4 Summary KPI & Distribution Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+            <!-- Card 1: Total Instances & Context Breakdown -->
+            <div
+                class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-primary/30 dark:hover:border-primary/30 flex flex-col justify-between transition-all duration-300 group">
+                <div>
+                    <div class="flex items-center justify-between mb-2.5">
+                        <div class="flex items-center gap-2">
+                            <div
+                                class="w-7 h-7 rounded-lg bg-primary-light dark:bg-primary/20 text-primary dark:text-purple-300 flex items-center justify-center group-hover:scale-105 transition-transform">
+                                <span class="material-symbols-outlined text-[16px]">view_in_ar</span>
+                            </div>
+                            <span class="text-xs font-bold text-gray-700 dark:text-gray-300">Context Distribution</span>
+                        </div>
+                    </div>
+                    <div class="flex items-baseline gap-2 mb-2">
+                        <div class="text-2xl font-black text-gray-900 dark:text-white tracking-tight"
+                            id="inst-kpi-total">-</div>
+                        <span class="text-[11px] font-medium text-gray-400 dark:text-gray-500">total instances</span>
+                    </div>
+                </div>
+                <div class="space-y-1.5 flex-1 flex flex-col justify-center max-h-24 overflow-y-auto custom-scrollbar pr-1 pt-1 border-t border-gray-100 dark:border-slate-800/80"
+                    id="inst-context-list">
+                    <!-- Dynamic context list -->
+                </div>
+            </div>
+
+            <!-- Card 2: Scope Distribution Chart -->
+            <div
+                class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-emerald-500/30 dark:hover:border-emerald-500/30 flex flex-col justify-between transition-all duration-300 group">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <div
+                            class="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                            <span class="material-symbols-outlined text-[16px]">pie_chart</span>
+                        </div>
+                        <span class="text-xs font-bold text-gray-700 dark:text-gray-300">Scope Distribution</span>
+                    </div>
+                </div>
+                <div
+                    class="flex-1 flex items-center justify-between gap-2 pt-1 border-t border-gray-100 dark:border-slate-800/80">
+                    <div class="w-16 h-16 relative flex-shrink-0">
+                        <canvas id="instScopeChart"></canvas>
+                    </div>
+                    <div class="flex flex-col gap-1.5 pl-1 overflow-hidden flex-1" id="inst-scope-legend">
+                        <!-- Dynamic scope legend -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 3: Definition Status -->
+            <div
+                class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-blue-500/30 dark:hover:border-blue-500/30 flex flex-col justify-between transition-all duration-300 group">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <div
+                            class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                            <span class="material-symbols-outlined text-[16px]">assignment_turned_in</span>
+                        </div>
+                        <span class="text-xs font-bold text-gray-700 dark:text-gray-300">Definition Status</span>
+                    </div>
+                </div>
+                <div class="space-y-2 pt-1 border-t border-gray-100 dark:border-slate-800/80">
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Defined
+                        </span>
+                        <div class="flex items-center gap-1.5 font-bold font-mono">
+                            <span class="text-gray-800 dark:text-gray-200" id="inst-kpi-defined-count">-</span>
+                            <span class="text-[10px] text-gray-400" id="inst-kpi-defined-pct">(-)</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-indigo-500"></span> Dynamic/Synthetic
+                        </span>
+                        <div class="flex items-center gap-1.5 font-bold font-mono">
+                            <span class="text-gray-800 dark:text-gray-200" id="inst-kpi-dynamic-count">-</span>
+                            <span class="text-[10px] text-gray-400" id="inst-kpi-dynamic-pct">(-)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 4: Startup Telemetry -->
+            <div
+                class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-amber-500/30 dark:hover:border-amber-500/30 flex flex-col justify-between transition-all duration-300 group">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <div
+                            class="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover:scale-105 transition-transform">
+                            <span class="material-symbols-outlined text-[16px]">timer</span>
+                        </div>
+                        <span class="text-xs font-bold text-gray-700 dark:text-gray-300">Startup Telemetry</span>
+                    </div>
+                </div>
+                <div class="space-y-1.5 pt-1 border-t border-gray-100 dark:border-slate-800/80">
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-gray-500 dark:text-gray-400">Total Init:</span>
+                        <span class="font-mono font-bold text-gray-900 dark:text-white"
+                            id="inst-kpi-total-time">-</span>
+                    </div>
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-gray-500 dark:text-gray-400">Avg Init / Bean:</span>
+                        <span class="font-mono font-bold text-primary dark:text-purple-300"
+                            id="inst-kpi-avg-time">-</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Table Section -->
+        <div
+            class="bg-white dark:bg-slate-900 border border-gray-200/80 dark:border-slate-800 rounded-2xl shadow-sm flex flex-col flex-1 overflow-hidden transition-colors duration-300">
+            <div class="p-5 border-b border-gray-100 dark:border-slate-800 bg-gray-50/40 dark:bg-slate-900/40">
+                <div class="mb-3.5">
+                    <h2 class="text-base font-bold text-gray-800 dark:text-white tracking-tight">Bean Instances Explorer
+                    </h2>
+                </div>
+
+                <div class="flex flex-wrap gap-2.5 items-center justify-between">
+                    <!-- Search Input -->
+                    <div class="relative flex-1 min-w-[240px] max-w-md">
+                        <span
+                            class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 text-[18px]">search</span>
+                        <input type="text" id="inst-search-input"
+                            placeholder="Search instances by name, type, or context ID..."
+                            class="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 text-gray-800 dark:text-gray-100 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all shadow-sm">
+                    </div>
+
+                    <!-- Filter Dropdowns & Reset Button -->
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <select id="inst-filter-context"
+                            class="text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none hover:border-gray-300 dark:hover:border-slate-700 focus:ring-2 focus:ring-primary/20 cursor-pointer shadow-sm transition-all">
+                            <option value="">Context: All</option>
+                        </select>
+                        <select id="inst-filter-duration"
+                            class="text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none hover:border-gray-300 dark:hover:border-slate-700 focus:ring-2 focus:ring-primary/20 cursor-pointer shadow-sm transition-all">
+                            <option value="">Duration: All</option>
+                            <option value="<1ms">&lt; 1 ms (Fast)</option>
+                            <option value="1-10ms">1 - 10 ms (Moderate)</option>
+                            <option value="10-50ms">10 - 50 ms (Slow)</option>
+                            <option value=">50ms">&gt; 50 ms (Bottleneck)</option>
+                        </select>
+                        <select id="inst-filter-created"
+                            class="text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none hover:border-gray-300 dark:hover:border-slate-700 focus:ring-2 focus:ring-primary/20 cursor-pointer shadow-sm transition-all">
+                            <option value="">Created: All</option>
+                            <option value="newest">Newest First</option>
+                            <option value="oldest">Oldest First</option>
+                        </select>
+                        <select id="inst-filter-size"
+                            class="text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none hover:border-gray-300 dark:hover:border-slate-700 focus:ring-2 focus:ring-primary/20 cursor-pointer shadow-sm transition-all">
+                            <option value="10">10 / page</option>
+                            <option value="25" selected>25 / page</option>
+                            <option value="50">50 / page</option>
+                            <option value="100">100 / page</option>
+                        </select>
+                        <button id="inst-btn-reset-filters" data-action="reset-filters"
+                            class="flex items-center gap-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-xl px-3 py-2 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-all cursor-pointer shadow-sm">
+                            <span class="material-symbols-outlined text-[15px]">filter_alt_off</span> Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table Container -->
+            <div class="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar flex-1 relative">
+                <table class="w-full text-left border-collapse min-w-[850px]">
+                    <thead class="sticky top-0 z-10 bg-gray-50/95 dark:bg-slate-800/95 backdrop-blur-xs shadow-xs">
+                        <tr
+                            class="border-b border-gray-100 dark:border-slate-800 text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider select-none">
+                            <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors th-sortable bg-gray-50/95 dark:bg-slate-800/95"
+                                data-sort="beanName">
+                                <div class="flex items-center gap-1.5">
+                                    <span>Bean Name</span>
+                                    <span class="material-symbols-outlined text-[15px] sort-icon text-gray-400"
+                                        data-col="beanName">unfold_more</span>
+                                </div>
+                            </th>
+                            <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors th-sortable bg-gray-50/95 dark:bg-slate-800/95"
+                                data-sort="type">
+                                <div class="flex items-center gap-1.5">
+                                    <span>Type</span>
+                                    <span class="material-symbols-outlined text-[15px] sort-icon text-gray-400"
+                                        data-col="type">unfold_more</span>
+                                </div>
+                            </th>
+                            <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors th-sortable bg-gray-50/95 dark:bg-slate-800/95"
+                                data-sort="scope">
+                                <div class="flex items-center gap-1.5">
+                                    <span>Scope</span>
+                                    <span class="material-symbols-outlined text-[15px] sort-icon text-gray-400"
+                                        data-col="scope">unfold_more</span>
+                                </div>
+                            </th>
+                            <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors th-sortable bg-gray-50/95 dark:bg-slate-800/95"
+                                data-sort="initDurationNanos">
+                                <div class="flex items-center gap-1.5">
+                                    <span>Duration</span>
+                                    <span class="material-symbols-outlined text-[15px] sort-icon text-gray-400"
+                                        data-col="initDurationNanos">unfold_more</span>
+                                </div>
+                            </th>
+                            <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors th-sortable bg-gray-50/95 dark:bg-slate-800/95"
+                                data-sort="contextId">
+                                <div class="flex items-center gap-1.5">
+                                    <span>Context ID</span>
+                                    <span class="material-symbols-outlined text-[15px] sort-icon text-gray-400"
+                                        data-col="contextId">unfold_more</span>
+                                </div>
+                            </th>
+                            <th class="px-5 py-3.5 w-16 text-right font-bold bg-gray-50/95 dark:bg-slate-800/95">Action
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody
+                        class="divide-y divide-gray-100 dark:divide-slate-800/80 text-[13px] text-gray-600 dark:text-gray-300"
+                        id="beanInstanceTableBody">
+                        <!-- Table rows populated dynamically by JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination Footer -->
+            <div
+                class="px-5 py-3.5 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 mt-auto flex-shrink-0 z-10">
+                <div class="text-xs font-medium text-gray-500 dark:text-gray-400" id="inst-pagination-info">Showing 0 to
+                    0 of 0 instances</div>
+                <div class="flex items-center gap-1.5" id="inst-pagination-buttons">
+                    <!-- Dynamic page buttons -->
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Right Sidebar - Instance Details Drawer -->
+    <div class="transition-all duration-300 ease-in-out w-0 max-w-0 opacity-0 pointer-events-none -mr-6 border-0 bg-white dark:bg-slate-900 border-gray-200/80 dark:border-slate-800 rounded-2xl shadow-lg flex flex-col flex-shrink-0 sticky top-0 overflow-hidden"
+        style="height: calc(100vh - 120px);" id="inst-details-sidebar">
+    </div>
+</div>
+
+<!-- Reusable Templates -->
+<template id="tpl-instance-row">
+    <tr class="hover:bg-purple-50/40 dark:hover:bg-purple-950/20 transition-colors cursor-pointer instance-row group"
+        data-action="select-instance">
+        <!-- Bean Name -->
+        <td class="px-5 py-3.5">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <div class="w-7 h-7 rounded-lg bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-gray-500 dark:text-gray-400 group-hover:text-primary dark:group-hover:text-purple-300 group-hover:bg-primary/10 dark:group-hover:bg-purple-950/40 transition-colors flex-shrink-0"
+                    data-field="beanIconContainer">
+                    <span class="material-symbols-outlined text-[16px]" data-field="beanIcon">deployed_code</span>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <div class="font-bold text-xs text-gray-900 dark:text-gray-100 group-hover:text-primary dark:group-hover:text-purple-300 transition-colors truncate"
+                        data-field="beanName">-</div>
+                    <div class="text-[11px] text-gray-400 dark:text-gray-500 font-mono truncate"
+                        data-field="packageName">-</div>
+                </div>
+            </div>
+        </td>
+
+        <!-- Type -->
+        <td class="px-5 py-3.5 max-w-xs">
+            <span class="font-mono text-xs text-gray-600 dark:text-gray-300 truncate block" data-field="typeName"
+                title="">-</span>
+        </td>
+
+        <!-- Scope -->
+        <td class="px-5 py-3.5 whitespace-nowrap">
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wide border shadow-xs"
+                data-field="scopeBadge">-</span>
+        </td>
+
+        <!-- Init Duration -->
+        <td class="px-5 py-3.5 whitespace-nowrap">
+            <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[14px] text-gray-400" data-field="durationIcon">timer</span>
+                <span class="font-mono text-xs font-bold text-gray-800 dark:text-gray-200"
+                    data-field="durationFormatted">-</span>
+            </div>
+        </td>
+
+        <!-- Context ID -->
+        <td class="px-5 py-3.5 whitespace-nowrap">
+            <span
+                class="font-mono text-xs text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-md bg-gray-100 dark:bg-slate-800 truncate max-w-[120px] block"
+                data-field="contextId">-</span>
+        </td>
+
+        <!-- Action -->
+        <td class="px-5 py-3.5 text-right whitespace-nowrap">
+            <button
+                class="w-7 h-7 rounded-lg inline-flex items-center justify-center text-gray-400 hover:text-primary dark:hover:text-purple-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                title="View instance details">
+                <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+            </button>
+        </td>
+    </tr>
+</template>
+
+<template id="tpl-instance-loading">
+    <tr>
+        <td colspan="6" class="py-16 text-center text-gray-400">
+            <div class="flex flex-col items-center justify-center gap-2.5">
+                <span class="animate-spin rounded-full h-7 w-7 border-2 border-primary border-t-transparent"></span>
+                <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">Loading bean instances...</span>
+            </div>
+        </td>
+    </tr>
+</template>
+
+<template id="tpl-instance-empty">
+    <tr>
+        <td colspan="6" class="py-16 text-center text-gray-400">
+            <div class="flex flex-col items-center justify-center gap-1.5">
+                <span
+                    class="material-symbols-outlined text-3xl text-gray-300 dark:text-slate-600 mb-1">hourglass_empty</span>
+                <span class="text-xs font-semibold" data-field="emptyMessage">No bean instances found matching filter
+                    criteria</span>
+                <span class="text-[11px] text-gray-400 dark:text-gray-500">Try adjusting your search query or
+                    filters</span>
+            </div>
+        </td>
+    </tr>
+</template>
+
+<template id="tpl-instance-error">
+    <tr>
+        <td colspan="6" class="py-16 text-center text-rose-500">
+            <div class="flex flex-col items-center justify-center gap-2">
+                <span class="material-symbols-outlined text-3xl">error</span>
+                <span class="text-xs font-semibold" data-field="errorMessage">Failed to load bean instances</span>
+                <button data-action="refresh-data"
+                    class="mt-1 px-3 py-1.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50 rounded-lg text-xs font-semibold hover:bg-rose-100 transition-colors cursor-pointer">
+                    Retry
+                </button>
+            </div>
+        </td>
+    </tr>
+</template>

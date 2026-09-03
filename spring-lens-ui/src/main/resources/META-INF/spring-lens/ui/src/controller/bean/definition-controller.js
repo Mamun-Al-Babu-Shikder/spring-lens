@@ -40,7 +40,7 @@ export default class BeanDefinitionsController {
             totalElements: 0,
             totalPages: 1,
             pageNumber: 0,
-            pageSize: 10,
+            pageSize: 25,
             isFirstPage: true,
             isLastPage: true
         };
@@ -55,7 +55,7 @@ export default class BeanDefinitionsController {
         };
 
         this.currentPage = 1;
-        this.itemsPerPage = 10;
+        this.itemsPerPage = 25;
         this.sortColumn = '';
         this.sortDirection = 'asc';
 
@@ -255,6 +255,9 @@ export default class BeanDefinitionsController {
         const canvasElement = document.getElementById(canvasId);
         if (!canvasElement) return null;
 
+        const isDark = document.documentElement.classList.contains('dark');
+        const total = data.reduce((sum, val) => sum + val, 0);
+
         return new Chart(canvasElement, {
             type: 'doughnut',
             data: {
@@ -263,16 +266,44 @@ export default class BeanDefinitionsController {
                     data,
                     backgroundColor,
                     borderWidth: 0,
-                    hoverOffset: 4
+                    borderRadius: 4,  // Sleek rounded arc ends
+                    spacing: 2,       // Crisp gap separation between arcs
+                    hoverOffset: 3
                 }]
             },
             options: {
-                cutout: '70%',
+                cutout: '72%',
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: {
+                    animateScale: true,
+                    animateRotate: true,
+                    duration: 700,
+                    easing: 'easeOutQuart'
+                },
                 plugins: {
                     legend: { display: false },
-                    tooltip: { enabled: true }
+                    tooltip: {
+                        enabled: true,
+                        backgroundColor: isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.96)',
+                        titleColor: isDark ? '#f8fafc' : '#0f172a',
+                        bodyColor: isDark ? '#cbd5e1' : '#334155',
+                        borderColor: isDark ? 'rgba(51, 65, 85, 0.8)' : 'rgba(226, 232, 240, 0.9)',
+                        borderWidth: 1,
+                        padding: 8,
+                        boxPadding: 4,
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        titleFont: { family: 'Inter, sans-serif', size: 11, weight: 'bold' },
+                        bodyFont: { family: 'Inter, sans-serif', size: 11 },
+                        callbacks: {
+                            label: function(context) {
+                                const val = context.raw || 0;
+                                const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+                                return ` ${context.label}: ${val} (${pct}%)`;
+                            }
+                        }
+                    }
                 }
             }
         });
@@ -487,21 +518,53 @@ export default class BeanDefinitionsController {
         const { icon, color } = resolveBeanMetadata(beanInformation);
         $row.find('[data-field="icon"]').css('color', color).text(icon);
         $row.find('[data-field="name"]').text(beanName).attr('title', beanName);
-        $row.find('[data-field="type"]').text(type || 'N/A').attr('title', type || '');
-        $row.find('[data-field="role"]').text(role ? capitalize(role.replace(/^ROLE_/, '')) : 'N/A');
-        $row.find('[data-field="context"]').text(contextId || 'N/A');
+
+        // Package Name Subtitle
+        const pkg = type && type.includes('.') ? type.substring(0, type.lastIndexOf('.')) : '';
+        $row.find('[data-field="packageName"]').text(pkg || 'default package');
+
+        // Type
+        const shortType = type && type.includes('.') ? type.substring(type.lastIndexOf('.') + 1) : (type || '-');
+        $row.find('[data-field="type"]').text(shortType).attr('title', type || '');
+
+        // Role Badge Styling
+        const rawRole = (role ? role.replace(/^ROLE_/, '') : 'APPLICATION').toUpperCase();
+        const $roleEl = $row.find('[data-field="role"]').text(rawRole);
+        if (rawRole === 'INFRASTRUCTURE') {
+            $roleEl.addClass('bg-gradient-to-r from-rose-500/20 via-pink-500/15 to-red-500/15 text-rose-900 dark:text-rose-200 border-rose-300/80 dark:border-rose-500/40');
+        } else if (rawRole === 'SUPPORT') {
+            $roleEl.addClass('bg-gradient-to-r from-teal-500/20 via-emerald-500/15 to-cyan-500/15 text-teal-900 dark:text-teal-200 border-teal-300/80 dark:border-teal-500/40');
+        } else {
+            $roleEl.addClass('bg-gradient-to-r from-blue-500/20 via-indigo-500/15 to-sky-500/15 text-blue-900 dark:text-blue-200 border-blue-300/80 dark:border-blue-500/40');
+        }
+
+        // Context
+        $row.find('[data-field="context"]').text(contextId || '-').attr('title', contextId || '');
 
         // Scope Styling
         $row.find('[data-field="scope"]')
-            .text(scope ? capitalize(scope) : 'N/A')
+            .text(scope ? scope.toUpperCase() : 'SINGLETON')
             .css(resolveScopeStyle(scope));
 
-        // Boolean Indicators
-        const primaryIcon = TemplateEngine.renderBooleanIcon(primary);
-        if (primaryIcon) $row.find('[data-field="primary"]').empty().append(primaryIcon);
+        // 1. Inline Traits Micro-Badges (Beside Bean Name)
+        const $inlineTraits = $row.find('[data-field="inlineTraits"]').empty();
+        if (primary) {
+            $inlineTraits.append(TemplateEngine.clone('tpl-trait-micro-primary'));
+        }
+        if (lazyInit) {
+            $inlineTraits.append(TemplateEngine.clone('tpl-trait-micro-lazy'));
+        }
 
-        const lazyIcon = TemplateEngine.renderBooleanIcon(lazyInit);
-        if (lazyIcon) $row.find('[data-field="lazy"]').empty().append(lazyIcon);
+        // 2. Traits Column Badges
+        const $traitsContainer = $row.find('[data-field="traitsContainer"]').empty();
+        if (primary) {
+            $traitsContainer.append(TemplateEngine.clone('tpl-trait-badge-primary'));
+        }
+        if (lazyInit) {
+            $traitsContainer.append(TemplateEngine.clone('tpl-trait-badge-lazy'));
+        } else {
+            $traitsContainer.append(TemplateEngine.clone('tpl-trait-badge-eager'));
+        }
 
         return clone;
     }
@@ -597,7 +660,7 @@ export default class BeanDefinitionsController {
         });
 
         this._on('#bean-definition-filter-size', 'change', (e) => {
-            this.itemsPerPage = parseInt(e.target.value, 10) || 10;
+            this.itemsPerPage = parseInt(e.target.value, 10) || 25;
             this.currentPage = 1;
             this.fetchTableData();
         });
@@ -802,7 +865,7 @@ export default class BeanDefinitionsController {
             isLazy: '',
             beanName: ''
         };
-        this.itemsPerPage = 10;
+        this.itemsPerPage = 25;
         this.currentPage = 1;
         this.sortColumn = '';
         this.sortDirection = 'asc';
@@ -813,7 +876,7 @@ export default class BeanDefinitionsController {
         $('#bean-definition-filter-role').val('');
         $('#bean-definition-filter-primary').val('');
         $('#bean-definition-filter-lazy').val('');
-        $('#bean-definition-filter-size').val('10');
+        $('#bean-definition-filter-size').val('25');
     }
 
     /**
@@ -1216,7 +1279,7 @@ export default class BeanDefinitionsController {
         if (!$sidebar.length) return;
         this._initSidebar();
         $sidebar.removeClass('w-0 max-w-0 opacity-0 pointer-events-none -mr-6 border-0')
-            .addClass('w-[360px] max-w-[360px] opacity-100 mr-0 border');
+            .addClass('w-[380px] max-w-[380px] opacity-100 mr-0 border');
     }
 
     closeSidebar(immediate = false) {
@@ -1228,7 +1291,7 @@ export default class BeanDefinitionsController {
 
         if (!$sidebar.length) return;
 
-        $sidebar.removeClass('w-[360px] max-w-[360px] opacity-100 mr-0 border')
+        $sidebar.removeClass('w-[380px] max-w-[380px] opacity-100 mr-0 border')
             .addClass('w-0 max-w-0 opacity-0 pointer-events-none -mr-6 border-0');
     }
 

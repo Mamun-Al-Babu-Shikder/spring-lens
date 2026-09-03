@@ -81,24 +81,25 @@ const BEAN_TYPE_RULES = [
 ];
 
 const SCOPE_COLORS = {
-    'Singleton': '#6b46c1',
-    'Prototype': '#3b82f6',
+    'Singleton': '#8b5cf6',
+    'Prototype': '#06b6d4',
     'Request': '#f59e0b',
-    'Session': '#22c55e',
-    'Unknown': '#cbd5e1'
+    'Session': '#10b981',
+    'Refresh': '#ec4899',
+    'Unknown': '#94a3b8'
 };
 
 const ROLE_COLORS = {
     'Application': '#3b82f6',
-    'Support': '#f59e0b',
-    'Infrastructure': '#e2e8f0',
-    'Unknown': '#cbd5e1'
+    'Infrastructure': '#f43f5e',
+    'Support': '#14b8a6',
+    'Unknown': '#94a3b8'
 };
 
 const LOADING_MODE_COLORS = {
     'Lazy': '#a855f7',
-    'Eager': '#3b82f6',
-    'Unknown': '#cbd5e1'
+    'Eager': '#0ea5e9',
+    'Unknown': '#94a3b8'
 };
 
 const SCOPE_STYLES = {
