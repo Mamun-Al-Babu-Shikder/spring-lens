@@ -135,7 +135,7 @@ public class BeanInstanceInfoRestController {
      * @return {@link ResponseEntity} containing the
      * {@link  com.sdlcpro.springlens.model.bean.instance.BeanInstanceProxyInfo) if found at repository
      */
-    @GetMapping("/proxy-info")
+    @GetMapping(value = "/proxy-info", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> getBeanInstanceProxyInfo(
             @RequestParam(value = "contextId") String contextId,
             @RequestParam(value = "beanName") String beanName
@@ -146,5 +146,20 @@ public class BeanInstanceInfoRestController {
                     () -> new DataNotFoundException("Bean instance proxy information not found for " + key)
             );
         });
+    }
+
+    /**
+     * Retrieves aggregated bean instance summary metrics.
+     *
+     * <p>The summary contains aggregated bean instance data,
+     * including total created instances, context distribution, scope distribution,
+     * instance having definition count etc</p>
+     *
+     * @return an HTTP response containing the {@link com.sdlcpro.springlens.model.bean.instance.BeanInstanceSummary}
+     * wrapped by the standardized {@link ResponseEntity}
+     */
+    @GetMapping(value = "/summary", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> getBeanInstanceSummary() {
+        return ApiResponseHandler.handle(this.beanInstanceInfoRepository::getBeanInstanceSummary);
     }
 }
