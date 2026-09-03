@@ -185,9 +185,6 @@ path.link.highlighted {
     opacity: 1 !important;
     stroke: #3b82f6 !important;
     stroke-width: 2.8px !important;
-    filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.5));
-}
-
 .dark path.link.highlighted {
     stroke: #60a5fa !important;
     filter: drop-shadow(0 0 6px rgba(96, 165, 250, 0.6));
@@ -237,4 +234,124 @@ g.node.node-focused text.node-text {
         stroke-width: 4px;
         filter: drop-shadow(0 0 22px var(--node-color, #a855f7)) drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
     }
+}
+
+/* ==========================================================================
+   GANTT TIMELINE & WATERFALL CHART STYLES
+   ========================================================================== */
+
+/* Timeline Scrubber Needle Line */
+.timeline-scrubber-needle {
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, #8b5cf6, #ec4899);
+    z-index: 20;
+    transition: transform 0.04s ease-out, opacity 0.15s ease;
+    box-shadow: 0 0 8px rgba(139, 92, 246, 0.6);
+}
+
+.timeline-scrubber-badge {
+    position: absolute;
+    top: 2px;
+    transform: translateX(-50%);
+    background: #1e1b4b;
+    color: #f5f3ff;
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 6px;
+    border: 1px solid rgba(167, 139, 250, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.dark .timeline-scrubber-badge {
+    background: #0f172a;
+    border-color: rgba(167, 139, 250, 0.5);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+}
+
+/* Gantt Waterfall Bar Styling */
+.gantt-bar {
+    position: absolute;
+    height: 18px;
+    border-radius: 6px;
+    transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.gantt-bar:hover {
+    filter: brightness(1.15);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--bar-glow, rgba(139, 92, 246, 0.4));
+    z-index: 10;
+}
+
+/* Bottleneck glowing pulse */
+.gantt-bar-bottleneck {
+    box-shadow: 0 0 0 1.5px rgba(239, 68, 68, 0.8), 0 2px 8px rgba(239, 68, 68, 0.35);
+    animation: bar-bottleneck-pulse 2s infinite ease-in-out;
+}
+
+@keyframes bar-bottleneck-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 1.5px rgba(239, 68, 68, 0.7), 0 2px 6px rgba(239, 68, 68, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 0 2.5px rgba(239, 68, 68, 0.9), 0 4px 14px rgba(239, 68, 68, 0.55);
+    }
+}
+
+/* Selected row highlight ring */
+.gantt-row-selected {
+    background: rgba(107, 70, 193, 0.08) !important;
+    border-left: 3px solid #8b5cf6 !important;
+}
+
+.dark .gantt-row-selected {
+    background: rgba(139, 92, 246, 0.14) !important;
+    border-left: 3px solid #a78bfa !important;
+}
+
+.gantt-row-selected .gantt-bar {
+    box-shadow: 0 0 0 2px #8b5cf6, 0 4px 12px rgba(139, 92, 246, 0.5) !important;
+}
+
+/* Density Compact Mode */
+.gantt-compact .waterfall-row {
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+}
+
+.gantt-compact .gantt-bar {
+    height: 14px !important;
+    border-radius: 4px !important;
+}
+/* Ruler Tick Line */
+.ruler-tick-mark {
+    position: absolute;
+    bottom: 0;
+    width: 1px;
+    height: 6px;
+    background-color: #cbd5e1;
+}
+
+.dark .ruler-tick-mark {
+    background-color: #475569;
+}
+
+.ruler-tick-major {
+    height: 10px;
+    background-color: #94a3b8;
+}
+
+.dark .ruler-tick-major {
+    background-color: #64748b;
+}
 }

@@ -2,13 +2,16 @@
 <header
     class="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-8 py-4 flex items-center justify-between z-10 flex-shrink-0 h-[72px] transition-colors duration-300">
     <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 via-purple-500/10 to-indigo-500/20 text-primary dark:text-purple-300 flex items-center justify-center border border-primary/20 shadow-sm flex-shrink-0">
+        <div
+            class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 via-purple-500/10 to-indigo-500/20 text-primary dark:text-purple-300 flex items-center justify-center border border-primary/20 shadow-sm flex-shrink-0">
             <span class="material-symbols-outlined text-[22px]">widgets</span>
         </div>
         <div>
             <div class="flex items-center gap-2">
                 <h1 class="text-lg font-bold text-gray-800 dark:text-white tracking-tight">Bean Definitions</h1>
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-primary border border-primary/20 dark:bg-purple-950/40 dark:text-purple-300">Definitions Registry</span>
+                <span
+                    class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-primary border border-primary/20 dark:bg-purple-950/40 dark:text-purple-300">Definitions
+                    Registry</span>
             </div>
             <div class="text-xs text-gray-500 dark:text-gray-400 font-medium flex items-center gap-1">
                 <span>SpringLens</span>
@@ -22,109 +25,142 @@
     <div class="flex items-center gap-2.5">
         <!-- Refresh button -->
         <button id="def-btn-refresh" data-action="refresh-data" title="Refresh bean definitions"
-                class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/80 hover:border-gray-300 dark:hover:border-slate-600 shadow-sm transition-all cursor-pointer">
+            class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/80 hover:border-gray-300 dark:hover:border-slate-600 shadow-sm transition-all cursor-pointer">
             <span class="material-symbols-outlined text-[16px] text-gray-500 dark:text-gray-400">refresh</span> Refresh
         </button>
 
         <!-- Export button -->
         <button id="beans-btn-export" data-action="export-data" title="Export bean definitions"
-                class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/80 hover:border-gray-300 dark:hover:border-slate-600 shadow-sm transition-all cursor-pointer">
-            <span class="material-symbols-outlined text-[16px] text-gray-500 dark:text-gray-400">file_download</span> Export
+            class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/80 hover:border-gray-300 dark:hover:border-slate-600 shadow-sm transition-all cursor-pointer">
+            <span class="material-symbols-outlined text-[16px] text-gray-500 dark:text-gray-400">file_download</span>
+            Export
         </button>
     </div>
 </header>
 
-<div class="flex-1 overflow-auto custom-scrollbar p-6 flex items-start gap-6">
+<div class="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-6 flex items-start gap-6">
     <!-- Center Column -->
     <div class="flex-1 flex flex-col gap-6 min-w-0 transition-all duration-300 ease-in-out">
-        <!-- KPI & Distribution Cards -->
+        <!-- 4 Summary KPI & Distribution Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 
-            <!-- Total Bean Definitions & Context Distribution -->
+            <!-- Card 1: Total Bean Definitions & Context Distribution -->
             <div
-                class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-primary/30 dark:hover:border-primary/30 flex flex-col justify-between transition-all duration-300 group">
-                <div>
-                    <div class="flex items-center justify-between mb-2.5">
-                        <div class="flex items-center gap-2">
-                            <div
-                                class="w-7 h-7 rounded-lg bg-primary-light dark:bg-primary/20 text-primary dark:text-purple-300 flex items-center justify-center group-hover:scale-105 transition-transform">
-                                <span class="material-symbols-outlined text-[16px]">view_in_ar</span>
-                            </div>
-                            <span class="text-xs font-bold text-gray-700 dark:text-gray-300">Context Distribution</span>
+                class="bg-gradient-to-b from-white via-white to-purple-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-purple-950/10 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-xs hover:shadow-md hover:border-primary/40 dark:hover:border-primary/40 flex flex-col transition-all duration-300 group">
+                <div class="flex items-center justify-between mb-2.5">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <div
+                            class="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/20 via-purple-500/15 to-transparent text-primary dark:text-purple-300 flex items-center justify-center ring-1 ring-primary/25 shadow-2xs group-hover:scale-105 transition-transform flex-shrink-0">
+                            <span class="material-symbols-outlined text-[18px]">widgets</span>
+                        </div>
+                        <div class="min-w-0">
+                            <span
+                                class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block truncate">Registry</span>
+                            <span class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate block">Total
+                                Definitions</span>
                         </div>
                     </div>
-                    <div class="flex items-baseline gap-2 mb-2">
-                        <div class="text-2xl font-black text-gray-900 dark:text-white tracking-tight" id="def-total-count">-</div>
-                        <span class="text-[11px] font-medium text-gray-400 dark:text-gray-500">total beans</span>
+                    <div class="text-right flex-shrink-0 pl-2">
+                        <div class="text-xl font-black text-gray-900 dark:text-white tracking-tight font-mono leading-none"
+                            id="def-total-count">-</div>
+                        <span class="text-[10px] text-gray-400 dark:text-gray-500 font-medium">beans</span>
                     </div>
                 </div>
-                <div class="space-y-2 flex-1 flex flex-col justify-center max-h-24 overflow-y-auto custom-scrollbar pr-1 pt-1 border-t border-gray-100 dark:border-slate-800/80"
-                    id="def-context-list">
-                    <!-- Dynamic context list -->
+
+                <div class="pt-2 border-t border-gray-100 dark:border-slate-800/80 flex-1 flex flex-col justify-center">
+                    <div class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">
+                        Context Breakdown</div>
+                    <div class="space-y-1 max-h-16 overflow-y-auto custom-scrollbar pr-1" id="def-context-list">
+                        <!-- Dynamic context list -->
+                    </div>
                 </div>
             </div>
 
-            <!-- Scope Distribution -->
+            <!-- Card 2: Scope Distribution -->
             <div
-                class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-emerald-500/30 dark:hover:border-emerald-500/30 flex flex-col justify-between transition-all duration-300 group">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center gap-2">
+                class="bg-gradient-to-b from-white via-white to-emerald-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-emerald-950/10 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-xs hover:shadow-md hover:border-emerald-500/40 dark:hover:border-emerald-500/40 flex flex-col transition-all duration-300 group">
+                <div class="flex items-center justify-between mb-2.5">
+                    <div class="flex items-center gap-2 min-w-0">
                         <div
-                            class="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-105 transition-transform">
-                            <span class="material-symbols-outlined text-[16px]">pie_chart</span>
+                            class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500/20 via-teal-500/15 to-transparent text-emerald-600 dark:text-emerald-400 flex items-center justify-center ring-1 ring-emerald-500/25 shadow-2xs group-hover:scale-105 transition-transform flex-shrink-0">
+                            <span class="material-symbols-outlined text-[18px]">pie_chart</span>
                         </div>
-                        <span class="text-xs font-bold text-gray-700 dark:text-gray-300">Scope Distribution</span>
+                        <div class="min-w-0">
+                            <span
+                                class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block truncate">Lifecycle</span>
+                            <span class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate block">Scope
+                                Distribution</span>
+                        </div>
                     </div>
                 </div>
-                <div class="flex-1 flex items-center justify-between gap-2 pt-1 border-t border-gray-100 dark:border-slate-800/80">
-                    <div class="w-16 h-16 relative flex-shrink-0">
+
+                <div
+                    class="pt-2 border-t border-gray-100 dark:border-slate-800/80 flex-1 flex items-center justify-between gap-2.5">
+                    <div class="w-14 h-14 relative flex-shrink-0 flex items-center justify-center">
                         <canvas id="scopeChart"></canvas>
                     </div>
-                    <div class="flex flex-col gap-1.5 pl-1 overflow-hidden flex-1" id="def-scope-legend">
+                    <div class="flex flex-col gap-1 pl-1 overflow-hidden flex-1 max-h-16 overflow-y-auto custom-scrollbar"
+                        id="def-scope-legend">
                         <!-- Dynamic scope legend -->
                     </div>
                 </div>
             </div>
 
-            <!-- Role Distribution -->
+            <!-- Card 3: Role Distribution -->
             <div
-                class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-amber-500/30 dark:hover:border-amber-500/30 flex flex-col justify-between transition-all duration-300 group">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center gap-2">
+                class="bg-gradient-to-b from-white via-white to-rose-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-rose-950/10 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-xs hover:shadow-md hover:border-rose-500/40 dark:hover:border-rose-500/40 flex flex-col transition-all duration-300 group">
+                <div class="flex items-center justify-between mb-2.5">
+                    <div class="flex items-center gap-2 min-w-0">
                         <div
-                            class="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 flex items-center justify-center group-hover:scale-105 transition-transform">
-                            <span class="material-symbols-outlined text-[16px]">donut_large</span>
+                            class="w-8 h-8 rounded-xl bg-gradient-to-br from-rose-500/20 via-pink-500/15 to-transparent text-rose-600 dark:text-rose-400 flex items-center justify-center ring-1 ring-rose-500/25 shadow-2xs group-hover:scale-105 transition-transform flex-shrink-0">
+                            <span class="material-symbols-outlined text-[18px]">donut_large</span>
                         </div>
-                        <span class="text-xs font-bold text-gray-700 dark:text-gray-300">Role Distribution</span>
+                        <div class="min-w-0">
+                            <span
+                                class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block truncate">Responsibility</span>
+                            <span class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate block">Role
+                                Distribution</span>
+                        </div>
                     </div>
                 </div>
-                <div class="flex-1 flex items-center justify-between gap-2 pt-1 border-t border-gray-100 dark:border-slate-800/80">
-                    <div class="w-16 h-16 relative flex-shrink-0">
+
+                <div
+                    class="pt-2 border-t border-gray-100 dark:border-slate-800/80 flex-1 flex items-center justify-between gap-2.5">
+                    <div class="w-14 h-14 relative flex-shrink-0 flex items-center justify-center">
                         <canvas id="roleChart"></canvas>
                     </div>
-                    <div class="flex flex-col gap-1.5 pl-1 overflow-hidden flex-1" id="def-role-legend">
+                    <div class="flex flex-col gap-1 pl-1 overflow-hidden flex-1 max-h-16 overflow-y-auto custom-scrollbar"
+                        id="def-role-legend">
                         <!-- Dynamic role legend -->
                     </div>
                 </div>
             </div>
 
-            <!-- Loading Mode Distribution -->
+            <!-- Card 4: Loading Mode Distribution -->
             <div
-                class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-blue-500/30 dark:hover:border-blue-500/30 flex flex-col justify-between transition-all duration-300 group">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center gap-2">
+                class="bg-gradient-to-b from-white via-white to-sky-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-sky-950/10 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-xs hover:shadow-md hover:border-sky-500/40 dark:hover:border-sky-500/40 flex flex-col transition-all duration-300 group">
+                <div class="flex items-center justify-between mb-2.5">
+                    <div class="flex items-center gap-2 min-w-0">
                         <div
-                            class="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 flex items-center justify-center group-hover:scale-105 transition-transform">
-                            <span class="material-symbols-outlined text-[16px]">bolt</span>
+                            class="w-8 h-8 rounded-xl bg-gradient-to-br from-sky-500/20 via-blue-500/15 to-transparent text-sky-600 dark:text-sky-400 flex items-center justify-center ring-1 ring-sky-500/25 shadow-2xs group-hover:scale-105 transition-transform flex-shrink-0">
+                            <span class="material-symbols-outlined text-[18px]">bolt</span>
                         </div>
-                        <span class="text-xs font-bold text-gray-700 dark:text-gray-300">Loading Mode</span>
+                        <div class="min-w-0">
+                            <span
+                                class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block truncate">Initialization</span>
+                            <span class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate block">Loading
+                                Mode</span>
+                        </div>
                     </div>
                 </div>
-                <div class="flex-1 flex items-center justify-between gap-2 pt-1 border-t border-gray-100 dark:border-slate-800/80">
-                    <div class="w-16 h-16 relative flex-shrink-0">
+
+                <div
+                    class="pt-2 border-t border-gray-100 dark:border-slate-800/80 flex-1 flex items-center justify-between gap-2.5">
+                    <div class="w-14 h-14 relative flex-shrink-0 flex items-center justify-center">
                         <canvas id="loadingModeChart"></canvas>
                     </div>
-                    <div class="flex flex-col gap-1.5 pl-1 overflow-hidden flex-1" id="def-loading-mode-legend">
+                    <div class="flex flex-col gap-1 pl-1 overflow-hidden flex-1 max-h-16 overflow-y-auto custom-scrollbar"
+                        id="def-loading-mode-legend">
                         <!-- Dynamic loading mode legend -->
                     </div>
                 </div>
@@ -136,18 +172,12 @@
         <div
             class="bg-white dark:bg-slate-900 border border-gray-200/80 dark:border-slate-800 rounded-2xl shadow-sm flex flex-col flex-1 overflow-hidden transition-colors duration-300">
             <div class="p-5 border-b border-gray-100 dark:border-slate-800 bg-gray-50/40 dark:bg-slate-900/40">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                    <div>
-                        <h2 class="text-base font-bold text-gray-800 dark:text-white tracking-tight">Bean Definitions Explorer</h2>
-                        <p class="text-xs text-gray-400 dark:text-gray-500 font-medium mt-0.5">Filter, inspect metadata, dependencies, and declaration hierarchy</p>
-                    </div>
-                    <button id="bean-definition-btn-reset-filters" data-action="reset-filters"
-                        class="self-start sm:self-auto flex items-center gap-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-lg px-3 py-1.5 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-all cursor-pointer">
-                        <span class="material-symbols-outlined text-[15px]">filter_alt_off</span> Reset Filters
-                    </button>
+                <div class="mb-3.5">
+                    <h2 class="text-base font-bold text-gray-800 dark:text-white tracking-tight">Bean Definitions
+                        Explorer</h2>
                 </div>
-                
-                <div class="flex flex-wrap gap-2.5 items-center">
+
+                <div class="flex flex-wrap gap-2.5 items-center justify-between">
                     <!-- Search Input -->
                     <div class="relative flex-1 min-w-[240px] max-w-md">
                         <span
@@ -157,7 +187,7 @@
                             class="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 text-gray-800 dark:text-gray-100 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all shadow-sm">
                     </div>
 
-                    <!-- Filter Dropdowns -->
+                    <!-- Filter Dropdowns & Reset Button -->
                     <div class="flex items-center gap-2 flex-wrap">
                         <select id="bean-definition-filter-context"
                             class="text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none hover:border-gray-300 dark:hover:border-slate-700 focus:ring-2 focus:ring-primary/20 cursor-pointer shadow-sm transition-all">
@@ -189,10 +219,14 @@
                         <select id="bean-definition-filter-size"
                             class="text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none hover:border-gray-300 dark:hover:border-slate-700 focus:ring-2 focus:ring-primary/20 cursor-pointer shadow-sm transition-all">
                             <option value="10">10 / page</option>
-                            <option value="25">25 / page</option>
+                            <option value="20" selected>20 / page</option>
                             <option value="50">50 / page</option>
                             <option value="100">100 / page</option>
                         </select>
+                        <button id="bean-definition-btn-reset-filters" data-action="reset-filters"
+                            class="flex items-center gap-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-xl px-3 py-2 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-all cursor-pointer shadow-sm">
+                            <span class="material-symbols-outlined text-[15px]">filter_alt_off</span> Reset
+                        </button>
                     </div>
                 </div>
             </div>
@@ -235,21 +269,8 @@
                                         data-col="role">unfold_more</span>
                                 </div>
                             </th>
-                            <th class="px-5 py-3.5 text-center cursor-pointer hover:text-primary transition-colors th-sortable bg-gray-50/95 dark:bg-slate-800/95"
-                                data-sort="primary">
-                                <div class="flex items-center justify-center gap-1.5">
-                                    <span>Primary</span>
-                                    <span class="material-symbols-outlined text-[15px] sort-icon text-gray-400"
-                                        data-col="primary">unfold_more</span>
-                                </div>
-                            </th>
-                            <th class="px-5 py-3.5 text-center cursor-pointer hover:text-primary transition-colors th-sortable bg-gray-50/95 dark:bg-slate-800/95"
-                                data-sort="lazyInit">
-                                <div class="flex items-center justify-center gap-1.5">
-                                    <span>Lazy</span>
-                                    <span class="material-symbols-outlined text-[15px] sort-icon text-gray-400"
-                                        data-col="lazyInit">unfold_more</span>
-                                </div>
+                            <th class="px-5 py-3.5 whitespace-nowrap bg-gray-50/95 dark:bg-slate-800/95">
+                                <span>Traits</span>
                             </th>
                             <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors th-sortable bg-gray-50/95 dark:bg-slate-800/95"
                                 data-sort="contextId">
@@ -259,7 +280,8 @@
                                         data-col="contextId">unfold_more</span>
                                 </div>
                             </th>
-                            <th class="px-5 py-3.5 w-16 text-right font-bold bg-gray-50/95 dark:bg-slate-800/95">Action</th>
+                            <th class="px-5 py-3.5 w-16 text-right font-bold bg-gray-50/95 dark:bg-slate-800/95">Action
+                            </th>
                         </tr>
                     </thead>
                     <tbody
@@ -273,7 +295,8 @@
             <!-- Pagination -->
             <div
                 class="px-5 py-3.5 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 mt-auto flex-shrink-0 z-10">
-                <div class="text-xs font-medium text-gray-500 dark:text-gray-400" id="bean-definition-pagination-info">Showing 0 to
+                <div class="text-xs font-medium text-gray-500 dark:text-gray-400" id="bean-definition-pagination-info">
+                    Showing 0 to
                     0 of 0 beans
                 </div>
                 <div class="flex items-center gap-1.5" id="bean-definition-pagination-buttons">
@@ -305,12 +328,14 @@
                 </div>
                 <div class="min-w-0 flex-1">
                     <div class="flex items-center gap-2 flex-wrap">
-                        <span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Bean Graph Inspector</span>
+                        <span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Bean
+                            Graph Inspector</span>
                         <span id="modal-graph-bean-name"
                             class="px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold bg-primary/10 text-primary dark:text-purple-300 border border-primary/20 truncate max-w-xs"
                             title=""></span>
                     </div>
-                    <p class="text-[11.5px] text-gray-400 dark:text-gray-500 font-medium truncate mt-0.5">Explore direct dependencies and dependents hierarchy</p>
+                    <p class="text-[11.5px] text-gray-400 dark:text-gray-500 font-medium truncate mt-0.5">Explore direct
+                        dependencies and dependents hierarchy</p>
                 </div>
             </div>
 
@@ -402,30 +427,64 @@
 <!-- Reusable Bean Definition Page Templates -->
 <template id="tpl-bean-definition-row">
     <tr data-action="select-bean"
-        class="hover:bg-purple-50/40 dark:hover:bg-purple-950/20 cursor-pointer transition-all duration-150 bean-row group">
+        class="hover:bg-purple-50/40 dark:hover:bg-purple-950/20 cursor-pointer transition-colors bean-row group">
+        <!-- Bean Name & Package Subtitle -->
         <td class="px-5 py-3.5">
-            <div class="flex items-center gap-2.5">
-                <div class="w-7 h-7 rounded-lg bg-gray-50 dark:bg-slate-800 flex items-center justify-center border border-gray-200/60 dark:border-slate-700/60 group-hover:border-primary/40 transition-colors flex-shrink-0">
-                    <span class="material-symbols-outlined text-[16px]" data-field="icon"></span>
+            <div class="flex items-center gap-2.5 min-w-0">
+                <div class="w-7 h-7 rounded-lg bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-gray-500 dark:text-gray-400 group-hover:text-primary dark:group-hover:text-purple-300 group-hover:bg-primary/10 dark:group-hover:bg-purple-950/40 transition-colors flex-shrink-0"
+                    data-field="iconContainer">
+                    <span class="material-symbols-outlined text-[16px]" data-field="icon">widgets</span>
                 </div>
-                <span class="font-bold text-gray-800 dark:text-white group-hover:text-primary dark:group-hover:text-purple-300 transition-colors truncate max-w-[200px]" data-field="name"></span>
+                <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <div class="font-bold text-xs text-gray-900 dark:text-gray-100 group-hover:text-primary dark:group-hover:text-purple-300 transition-colors truncate"
+                            data-field="name">-</div>
+                        <div class="inline-flex items-center gap-1" data-field="inlineTraits"></div>
+                    </div>
+                    <div class="text-[11px] text-gray-400 dark:text-gray-500 font-mono truncate"
+                        data-field="packageName">-</div>
+                </div>
             </div>
         </td>
-        <td class="px-5 py-3.5 font-mono text-[11px] text-gray-500 dark:text-gray-400 truncate max-w-[220px]"
-            data-field="type"></td>
-        <td class="px-5 py-3.5">
-            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide border shadow-xs"
-                data-field="scope"></span>
+
+        <!-- Type -->
+        <td class="px-5 py-3.5 max-w-xs">
+            <span class="font-mono text-xs text-gray-600 dark:text-gray-300 truncate block" data-field="type"
+                title="">-</span>
         </td>
-        <td class="px-5 py-3.5 text-xs font-medium text-gray-600 dark:text-gray-300" data-field="role"></td>
-        <td class="px-5 py-3.5 text-center" data-field="primary"></td>
-        <td class="px-5 py-3.5 text-center" data-field="lazy"></td>
-        <td class="px-5 py-3.5 font-mono text-[11px] text-gray-500 dark:text-gray-400" data-field="context"></td>
-        <td class="px-5 py-3.5 text-right">
-            <button data-action="select-bean"
-                class="px-2.5 py-1 bg-primary/10 hover:bg-primary text-primary hover:text-white dark:text-purple-300 dark:hover:text-white rounded-lg text-xs font-bold transition-all cursor-pointer btn-bean-view inline-flex items-center gap-1 shadow-xs"
-                data-field="view-btn">
-                <span class="material-symbols-outlined text-[14px]">visibility</span> View
+
+        <!-- Scope -->
+        <td class="px-5 py-3.5 whitespace-nowrap">
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wide border shadow-xs"
+                data-field="scope">-</span>
+        </td>
+
+        <!-- Role -->
+        <td class="px-5 py-3.5 whitespace-nowrap">
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider border shadow-xs"
+                data-field="role">-</span>
+        </td>
+
+        <!-- Traits -->
+        <td class="px-5 py-3.5 whitespace-nowrap">
+            <div class="flex items-center gap-1.5" data-field="traitsContainer">
+                <!-- Badges populated by JS -->
+            </div>
+        </td>
+
+        <!-- Context ID -->
+        <td class="px-5 py-3.5 whitespace-nowrap">
+            <span
+                class="font-mono text-xs text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-md bg-gray-100 dark:bg-slate-800 truncate max-w-[120px] block"
+                data-field="context">-</span>
+        </td>
+
+        <!-- Action -->
+        <td class="px-5 py-3.5 text-right whitespace-nowrap">
+            <button
+                class="w-7 h-7 rounded-lg inline-flex items-center justify-center text-gray-400 hover:text-primary dark:hover:text-purple-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                title="View bean details" data-field="view-btn">
+                <span class="material-symbols-outlined text-[18px]">chevron_right</span>
             </button>
         </td>
     </tr>
@@ -433,14 +492,15 @@
 
 <template id="tpl-dep-list-item">
     <div data-action="select-dependency"
-        class="def-sidebar-item-click flex items-center justify-between py-2 px-2.5 hover:bg-purple-50/60 dark:hover:bg-purple-950/30 rounded-xl transition-all cursor-pointer border border-transparent hover:border-primary/20 group">
-        <div class="flex items-center gap-2 min-w-0">
-            <span class="w-2 h-2 rounded-full flex-shrink-0" data-field="dot"></span>
-            <span class="font-bold text-gray-700 dark:text-gray-300 group-hover:text-primary dark:group-hover:text-purple-300 font-mono text-[11px] truncate"
+        class="def-sidebar-item-click flex items-center justify-between p-2.5 bg-white dark:bg-slate-950 hover:bg-purple-50/80 dark:hover:bg-purple-950/40 rounded-xl transition-all cursor-pointer border border-gray-100 dark:border-slate-800 hover:border-primary/30 shadow-2xs hover:shadow-xs group">
+        <div class="flex items-center gap-2.5 min-w-0">
+            <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-2xs" data-field="dot"></span>
+            <span
+                class="font-bold text-gray-700 dark:text-gray-200 group-hover:text-primary dark:group-hover:text-purple-300 font-mono text-[11px] truncate"
                 data-field="name"></span>
         </div>
-        <span class="text-gray-400 dark:text-gray-500 group-hover:text-primary transition-colors">
-            <span class="material-symbols-outlined text-[16px]">east</span>
+        <span class="w-6 h-6 rounded-lg bg-gray-50 dark:bg-slate-900 flex items-center justify-center text-gray-400 dark:text-gray-500 group-hover:text-primary group-hover:bg-primary/10 transition-all flex-shrink-0">
+            <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
         </span>
     </div>
 </template>
@@ -453,27 +513,28 @@
 </template>
 
 <template id="tpl-context-list-item">
-    <div class="flex items-center gap-2">
-        <span class="text-xs font-semibold text-gray-700 dark:text-gray-300 max-w-[120px] truncate"
+    <div class="flex items-center gap-2 py-0.5">
+        <span class="text-[11px] font-mono font-medium text-gray-700 dark:text-gray-300 max-w-[120px] truncate"
             data-field="contextId"></span>
         <div class="flex-1 h-1.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
             <div class="h-full rounded-full transition-all duration-300" data-field="bar"></div>
         </div>
-        <span class="text-[10px] text-gray-400 dark:text-gray-500 font-bold text-right whitespace-nowrap"
+        <span class="text-[10px] text-gray-500 dark:text-gray-400 font-bold font-mono text-right whitespace-nowrap"
             data-field="pct"></span>
     </div>
 </template>
 
 <template id="tpl-chart-legend-item">
-    <div class="flex items-center gap-1.5 truncate">
-        <div class="w-2 h-2 rounded-full flex-shrink-0 shadow-xs" data-field="dot"></div>
-        <span class="text-[10px] font-medium text-gray-500 dark:text-gray-400 truncate" data-field="label"></span>
+    <div
+        class="flex items-center gap-1.5 truncate py-0.5 px-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
+        <div class="w-2 h-2 rounded-full flex-shrink-0 shadow-2xs" data-field="dot"></div>
+        <span class="text-[10px] font-semibold text-gray-600 dark:text-gray-300 truncate" data-field="label"></span>
     </div>
 </template>
 
 <template id="tpl-bean-table-loading">
     <tr>
-        <td colspan="8" class="px-5 py-14 text-center text-gray-400">
+        <td colspan="7" class="px-5 py-14 text-center text-gray-400">
             <div class="flex flex-col items-center justify-center gap-2.5">
                 <span class="animate-spin rounded-full h-7 w-7 border-2 border-primary border-t-transparent"></span>
                 <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">Loading bean definitions...</span>
@@ -484,7 +545,7 @@
 
 <template id="tpl-bean-table-error">
     <tr>
-        <td colspan="8" class="px-5 py-10 text-center text-rose-500 dark:text-rose-400">
+        <td colspan="7" class="px-5 py-10 text-center text-rose-500 dark:text-rose-400">
             <div class="flex items-center justify-center gap-2 text-sm font-bold">
                 <span class="material-symbols-outlined text-xl">warning</span>
                 <span>Failed to fetch table data: <span data-field="errorMessage"></span></span>
@@ -495,7 +556,7 @@
 
 <template id="tpl-bean-table-empty">
     <tr>
-        <td colspan="8" class="px-5 py-12 text-center text-gray-400 dark:text-gray-500">
+        <td colspan="7" class="px-5 py-12 text-center text-gray-400 dark:text-gray-500">
             <div class="flex flex-col items-center justify-center gap-1.5">
                 <span class="material-symbols-outlined text-2xl text-gray-300 dark:text-slate-600">search_off</span>
                 <span class="text-xs font-semibold">No beans found matching the active filters or search query.</span>
@@ -514,11 +575,55 @@
 </template>
 
 <template id="tpl-bean-details-sidebar-footer">
-    <div class="p-4 border-t border-gray-100 dark:border-slate-800 mt-auto bg-gray-50/50 dark:bg-slate-900/50">
+    <div class="p-4 border-t border-gray-100 dark:border-slate-800/80 mt-auto bg-gray-50/70 dark:bg-slate-900/70 backdrop-blur-md">
         <button data-action="view-graph"
-            class="w-full py-2.5 px-4 bg-gradient-to-r from-primary via-purple-600 to-indigo-600 hover:from-primary/95 hover:to-indigo-600/95 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm shadow-primary/25 hover:shadow-md hover:shadow-primary/35 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
+            class="w-full py-2.5 px-4 bg-gradient-to-r from-primary via-purple-600 to-indigo-600 hover:from-primary/95 hover:to-indigo-600/95 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/35 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
             id="def-view-graph-btn">
-            <span class="material-symbols-outlined text-[17px]">account_tree</span> View Bean Graph
+            <span class="material-symbols-outlined text-[18px]">account_tree</span>
+            <span>View Dependency Graph</span>
+            <span class="px-1.5 py-0.5 rounded-md text-[9px] font-mono bg-white/20 text-white font-medium ml-auto">Graph</span>
         </button>
     </div>
+</template>
+
+<!-- Inline Micro-Badges -->
+<template id="tpl-trait-micro-primary">
+    <span
+        class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold tracking-wider bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-yellow-500/20 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-500/40 shadow-xs"
+        title="Primary Bean Definition">
+        <span class="material-symbols-outlined text-[11px] text-amber-500">star</span>PRIMARY
+    </span>
+</template>
+
+<template id="tpl-trait-micro-lazy">
+    <span
+        class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold tracking-wider bg-gradient-to-r from-indigo-500/20 via-purple-500/15 to-pink-500/20 text-indigo-900 dark:text-indigo-200 border border-indigo-300/80 dark:border-purple-500/40 shadow-xs"
+        title="Lazy Initialized">
+        <span class="material-symbols-outlined text-[11px] text-purple-500">bedtime</span>LAZY
+    </span>
+</template>
+
+<!-- Full Traits Column Badges -->
+<template id="tpl-trait-badge-primary">
+    <span
+        class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-yellow-500/20 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-500/40 shadow-xs"
+        title="Primary Bean Definition">
+        <span class="material-symbols-outlined text-[13px] text-amber-500">star</span>PRIMARY
+    </span>
+</template>
+
+<template id="tpl-trait-badge-lazy">
+    <span
+        class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider bg-gradient-to-r from-indigo-500/20 via-purple-500/15 to-pink-500/20 text-indigo-900 dark:text-indigo-200 border border-indigo-300/80 dark:border-purple-500/40 shadow-xs"
+        title="Lazy Initialized">
+        <span class="material-symbols-outlined text-[13px] text-purple-500">bedtime</span>LAZY
+    </span>
+</template>
+
+<template id="tpl-trait-badge-eager">
+    <span
+        class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider bg-gradient-to-r from-emerald-500/20 via-teal-500/15 to-cyan-500/20 text-emerald-900 dark:text-emerald-200 border border-teal-300/80 dark:border-teal-500/40 shadow-xs"
+        title="Eager Initialized">
+        <span class="material-symbols-outlined text-[13px] text-teal-500">bolt</span>EAGER
+    </span>
 </template>

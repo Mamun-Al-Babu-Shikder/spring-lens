@@ -500,19 +500,37 @@ export default class DashboardController {
                 datasets: [{
                     data: data.length > 0 ? data : [1],
                     backgroundColor: data.length > 0 ? colors : ['#94a3b8'],
-                    borderWidth: 2,
-                    borderColor: borderColor,
+                    borderWidth: 0,
+                    borderRadius: 6,
+                    spacing: 3,
                     hoverOffset: 6
                 }]
             },
             options: {
-                cutout: '72%',
+                cutout: '74%',
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: {
+                    animateScale: true,
+                    animateRotate: true,
+                    duration: 800,
+                    easing: 'easeOutQuart'
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
                         enabled: true,
+                        backgroundColor: isDark ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.96)',
+                        titleColor: isDark ? '#f8fafc' : '#0f172a',
+                        bodyColor: isDark ? '#cbd5e1' : '#334155',
+                        borderColor: isDark ? 'rgba(51, 65, 85, 0.8)' : 'rgba(226, 232, 240, 0.9)',
+                        borderWidth: 1,
+                        padding: 10,
+                        boxPadding: 5,
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        titleFont: { family: 'Inter, sans-serif', size: 12, weight: 'bold' },
+                        bodyFont: { family: 'Inter, sans-serif', size: 12 },
                         callbacks: {
                             label: (ctx) => {
                                 const val = ctx.raw || 0;
