@@ -1,5 +1,6 @@
 import {
-    NH, NW, NODE_STYLES_TINT, NODE_STYLES_BADGE, BEAN_TYPE_RULES, SCOPE_STYLES, DEFAULT_SCOPE_STYLE, LATENCY_THEME_RULES
+    NH, NW, NODE_STYLES_TINT, NODE_STYLES_BADGE, BEAN_TYPE_RULES, SCOPE_STYLES, DEFAULT_SCOPE_STYLE,
+    SCOPE_BADGE_CLASSES, LATENCY_THEME_RULES
 } from "./constants.js";
 import { debounce } from "./bean-search-engine.js";
 
@@ -38,6 +39,11 @@ function formatPercentage(count, total) {
     if (pctVal > 99 && pctVal < 100) return '> 99%';
 
     return `${Math.round(pctVal)}%`;
+}
+
+function resolveScopeBadgeClass(scope) {
+    const key = scope ? String(scope).toLowerCase() : 'singleton';
+    return SCOPE_BADGE_CLASSES[key] || SCOPE_BADGE_CLASSES.default;
 }
 
 function resolveScopeStyle(scope) {
@@ -195,6 +201,7 @@ export {
     capitalize,
     formatPercentage,
     resolveScopeStyle,
+    resolveScopeBadgeClass,
     resolveBeanMetadata,
     getBeanCategory,
     nodeStyle,

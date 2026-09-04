@@ -121,6 +121,15 @@ const SCOPE_STYLES = {
     }
 };
 
+const SCOPE_BADGE_CLASSES = {
+    singleton: 'bg-gradient-to-r from-purple-500/15 via-purple-500/10 to-indigo-500/10 text-purple-900 dark:text-purple-200 border-purple-300/80 dark:border-purple-500/40',
+    prototype: 'bg-gradient-to-r from-blue-500/15 via-sky-500/10 to-cyan-500/10 text-blue-900 dark:text-blue-200 border-blue-300/80 dark:border-blue-500/40',
+    request: 'bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-yellow-500/10 text-amber-900 dark:text-amber-200 border-amber-300/80 dark:border-amber-500/40',
+    session: 'bg-gradient-to-r from-emerald-500/15 via-green-500/10 to-teal-500/10 text-emerald-900 dark:text-emerald-200 border-emerald-300/80 dark:border-emerald-500/40',
+    refresh: 'bg-gradient-to-r from-pink-500/15 via-rose-500/10 to-purple-500/10 text-pink-900 dark:text-pink-200 border-pink-300/80 dark:border-pink-500/40',
+    default: 'bg-gradient-to-r from-slate-500/15 via-gray-500/10 to-zinc-500/10 text-slate-900 dark:text-slate-200 border-slate-300/80 dark:border-slate-500/40'
+};
+
 const DEFAULT_SCOPE_STYLE = {
     bg: '#f8fafc', fg: '#475569', border: '#e2e8f0',
     darkBg: 'rgba(71, 85, 105, 0.15)', darkFg: '#cbd5e1', darkBorder: 'rgba(71, 85, 105, 0.3)'
@@ -239,6 +248,7 @@ export {
     LOADING_MODE_COLORS,
     SCOPE_STYLES,
     DEFAULT_SCOPE_STYLE,
+    SCOPE_BADGE_CLASSES,
     DEPENDENCY_CATEGORY_COLORS,
     CONTEXT_THEME_COLORS,
     GRAPH_NODE_THEMES_TINT,

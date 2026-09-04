@@ -2,7 +2,7 @@ import httpClient from '../../client/http-client.js';
 import GraphTreeBuilder from '../../builder/graph-tree-builder.js';
 import beanDataStore from '../../storage/bean-data-store.js';
 import {
-    tree, tbLink, lrLink, capitalize, formatPercentage, resolveBeanMetadata, resolveScopeStyle, NH, RX, NW,
+    tree, tbLink, lrLink, capitalize, formatPercentage, resolveBeanMetadata, resolveScopeStyle, resolveScopeBadgeClass, NH, RX, NW,
     ICON, GAP_X, GAP_Y, CSS_CLASSES, ROLE_COLORS, SCOPE_COLORS, ZOOM_SCALE_EXTENT, GRAPH_NODE_THEMES, GRAPH_NODE_THEMES_TINT,
     GRAPH_NODE_THEMES_BADGE, LOADING_MODE_COLORS, CONTEXT_THEME_COLORS, downloadJson, TemplateEngine, QueryParam, Pagination, Sidebar,
     ToastNotification, BeanSearchEngine, debounce
@@ -542,9 +542,10 @@ export default class BeanDefinitionsController {
         $row.find('[data-field="context"]').text(contextId || '-').attr('title', contextId || '');
 
         // Scope Styling
+        const rawScope = (scope ? scope : 'SINGLETON').toUpperCase();
         $row.find('[data-field="scope"]')
-            .text(scope ? scope.toUpperCase() : 'SINGLETON')
-            .css(resolveScopeStyle(scope));
+            .text(rawScope)
+            .addClass(resolveScopeBadgeClass(scope));
 
         // 1. Inline Traits Micro-Badges (Beside Bean Name)
         const $inlineTraits = $row.find('[data-field="inlineTraits"]').empty();

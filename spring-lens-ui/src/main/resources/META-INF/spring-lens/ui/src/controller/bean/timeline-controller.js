@@ -2,7 +2,7 @@ import httpClient from '../../client/http-client.js';
 import GraphTreeBuilder from '../../builder/graph-tree-builder.js';
 import beanDataStore from '../../storage/bean-data-store.js';
 import {
-    capitalize, resolveBeanMetadata, resolveScopeStyle, downloadJson,
+    capitalize, resolveBeanMetadata, resolveScopeStyle, resolveScopeBadgeClass, downloadJson,
     TemplateEngine, QueryParam, Pagination, debounce
 } from '../../utils/index.js';
 
@@ -608,14 +608,9 @@ export default class TimelineController {
         $row.find('[data-field="typeName"], [data-field="type"]').text(type || 'N/A').attr('title', type || '');
 
         // Scope badge
-        const scopeStyle = resolveScopeStyle(scope);
         $row.find('[data-field="scopeBadge"], [data-field="scope"]')
             .text((scope || 'singleton').toUpperCase())
-            .css({
-                backgroundColor: scopeStyle.backgroundColor,
-                color: scopeStyle.color,
-                borderColor: scopeStyle.borderColor
-            });
+            .addClass(resolveScopeBadgeClass(scope));
 
         // Duration formatted
         const formattedDuration = this.formatDuration(initDurationNanos);
