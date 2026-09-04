@@ -1,6 +1,6 @@
-<div class="p-8 space-y-6 flex-1 overflow-y-auto custom-scrollbar">
+<div class="p-4 sm:p-6 lg:p-8 flex-1 flex flex-col gap-5 sm:gap-6 overflow-y-auto custom-scrollbar h-full min-h-0">
     <!-- 4 KPI Metric Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-shrink-0">
         <!-- Card 1: Total Configurations -->
         <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-sm hover:shadow-md hover:border-primary/30 dark:hover:border-primary/30 flex items-center justify-between transition-all duration-300 group">
             <div>
@@ -57,9 +57,9 @@
     </div>
 
     <!-- Main Table Container -->
-    <div class="bg-white dark:bg-slate-900 border border-gray-200/80 dark:border-slate-800 rounded-2xl shadow-sm flex flex-col transition-colors duration-300 overflow-hidden">
+    <div class="bg-white dark:bg-slate-900 border border-gray-200/80 dark:border-slate-800 rounded-2xl shadow-sm flex flex-col flex-1 min-h-[360px] transition-colors duration-300 overflow-hidden">
         <!-- Filter Tabs & Group Control Bar -->
-        <div class="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 px-6 py-2 bg-gray-50/40 dark:bg-slate-900/40">
+        <div class="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 px-6 py-2 bg-gray-50/40 dark:bg-slate-900/40 flex-shrink-0">
             <!-- Left Tabs -->
             <div class="flex items-center gap-1.5" id="condition-tabs-container">
                 <button data-action="filter-outcome" data-outcome="" id="condition-tab-all"
@@ -125,7 +125,7 @@
         </div>
 
         <!-- Table Structure -->
-        <div class="overflow-x-auto overflow-y-auto max-h-[600px] custom-scrollbar flex-1 relative">
+        <div class="overflow-x-auto overflow-y-auto flex-1 min-h-0 custom-scrollbar relative">
             <table class="w-full text-left border-collapse min-w-[800px]">
                 <thead class="sticky top-0 z-10 bg-gray-50/95 dark:bg-slate-800/95 backdrop-blur-xs shadow-xs">
                     <tr class="border-b border-gray-100 dark:border-slate-800 text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider select-none">
