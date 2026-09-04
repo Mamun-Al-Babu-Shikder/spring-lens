@@ -48,9 +48,15 @@ $(document).ready(() => {
                     icon: 'dashboard',
                     title: 'Platform Overview',
                     badge: 'Dashboard',
-                    breadcrumbs: ['SpringLens', 'Dashboard'],
+                    breadcrumbs: ['Dashboard'],
                     actions: [
-                        { id: 'btn-refresh-dashboard', action: 'refresh-data', icon: 'refresh', label: 'Refresh', title: 'Refresh dashboard metrics' }
+                        {
+                            id: 'btn-refresh-dashboard',
+                            action: 'refresh-data',
+                            icon: 'refresh',
+                            label: 'Refresh',
+                            title: 'Refresh dashboard metrics'
+                        }
                     ]
                 },
                 onEnter: (params) => {
@@ -95,7 +101,7 @@ $(document).ready(() => {
                     icon: 'timeline',
                     title: 'Bean Instances',
                     badge: 'Startup Waterfall & Profiler',
-                    breadcrumbs: ['Beans', 'Timeline Chart'],
+                    breadcrumbs: ['Bean', 'Timeline Chart'],
                     actions: [
                         { id: 'time-btn-refresh', action: 'refresh-data', icon: 'refresh', label: 'Refresh', title: 'Refresh bean timeline data' },
                         { id: 'time-btn-download', action: 'download-report', icon: 'file_download', label: 'Export', title: 'Export bean timeline as JSON' }

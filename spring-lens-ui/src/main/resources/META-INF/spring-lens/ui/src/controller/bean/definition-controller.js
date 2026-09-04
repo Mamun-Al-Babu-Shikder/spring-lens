@@ -405,8 +405,8 @@ export default class BeanDefinitionsController {
             role: this.filterCriteria.role,
             primary: this.filterCriteria.primary,
             lazyInit: this.filterCriteria.lazyInit,
-            sortBy: this.sortColumn,
-            sortDir: this.sortDirection
+            sortBy: this.sortColumn || undefined,
+            sortDir: this.sortColumn ? (this.sortDirection || 'asc').toUpperCase() : undefined
         });
     }
 
@@ -596,8 +596,16 @@ export default class BeanDefinitionsController {
     bindEvents() {
         this._bindSearchInput();
         this._bindFilterChangeEvents();
+        this._bindTableSorting();
         this._bindClickActionDelegation();
         this.bindModalControls();
+    }
+
+    _bindTableSorting() {
+        this._on(document, 'click', '.th-sortable, th[data-sort]', (e) => {
+            e.preventDefault();
+            this._handleSortColumn($(e.currentTarget));
+        });
     }
 
     _on(target, event, delegateOrHandler, maybeHandler) {
@@ -709,11 +717,13 @@ export default class BeanDefinitionsController {
 
     _handleResetFilters() {
         this._resetFilterState();
+        this.sortColumn = '';
+        this.sortDirection = 'asc';
         this.fetchTableData();
     }
 
     _handleSortColumn($target) {
-        const columnKey = $target.data('sort');
+        const columnKey = $target.data('sort') || $target.attr('data-sort');
         if (!columnKey) return;
 
         this.sortDirection = (this.sortColumn === columnKey && this.sortDirection === 'asc') ? 'desc' : 'asc';
