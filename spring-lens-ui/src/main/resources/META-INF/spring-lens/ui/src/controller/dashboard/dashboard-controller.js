@@ -116,6 +116,7 @@ export default class DashboardController {
         // 2. Setup standard click actions
         const clickActions = {
             '#db-btn-retry': () => this.enter(),
+            '#btn-refresh-dashboard': () => this.enter(),
             '#btn-radial-zoom-in': () => this._zoomRadial(1.25),
             '#btn-radial-zoom-out': () => this._zoomRadial(0.8),
             '#btn-radial-reset': () => this._resetRadialZoom(),

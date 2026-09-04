@@ -297,7 +297,7 @@ export default class BeanDefinitionsController {
                         titleFont: { family: 'Inter, sans-serif', size: 11, weight: 'bold' },
                         bodyFont: { family: 'Inter, sans-serif', size: 11 },
                         callbacks: {
-                            label: function(context) {
+                            label: function (context) {
                                 const val = context.raw || 0;
                                 const pct = total > 0 ? Math.round((val / total) * 100) : 0;
                                 return ` ${context.label}: ${val} (${pct}%)`;
@@ -557,9 +557,6 @@ export default class BeanDefinitionsController {
 
         // 2. Traits Column Badges
         const $traitsContainer = $row.find('[data-field="traitsContainer"]').empty();
-        if (primary) {
-            $traitsContainer.append(TemplateEngine.clone('tpl-trait-badge-primary'));
-        }
         if (lazyInit) {
             $traitsContainer.append(TemplateEngine.clone('tpl-trait-badge-lazy'));
         } else {

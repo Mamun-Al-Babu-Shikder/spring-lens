@@ -1,5 +1,5 @@
 import TemplateEngine from '../utils/template-engine.js';
-import { NAV_STYLES } from '../utils/index.js';
+import { NAV_STYLES, PageHeader } from '../utils/index.js';
 
 export default class Route {
 
@@ -10,6 +10,8 @@ export default class Route {
         this.pagesDir       = config.pagesDir ?? './src/pages/';
         this.container      = $(config.container ?? '#main-content');
         this.defaultRoute   = config.defaultRoute ?? 'definitions';
+        this.appTitle       = config.appTitle ?? 'Spring Lens';
+        this.titleSeparator = config.titleSeparator ?? ' | ';
     }
 
     init() {
@@ -102,7 +104,17 @@ export default class Route {
 
             try {
                 const html = await this._loadTemplate(routeKey, route.template);
-                this.container.html(html);
+                this.container.empty();
+
+                // 3. Render dynamic page header if configured
+                if (route.header) {
+                    const headerNode = PageHeader.render(route.header);
+                    if (headerNode) {
+                        this.container.append(headerNode);
+                    }
+                }
+
+                this.container.append(html);
                 route.onEnter?.(params);
             } catch (error) {
                 console.error(`Routing error loading template for ${routeKey}:`, error);
@@ -115,6 +127,20 @@ export default class Route {
         }
 
         this.updateSidebarVisuals(routeKey);
+        this._updateDocumentTitle(route);
+    }
+
+    /**
+     * Dynamically updates the document title based on route config.
+     * @private
+     */
+    _updateDocumentTitle(route) {
+        const pageTitle = route.title || route.header?.title;
+        if (pageTitle) {
+            document.title = `${this.appTitle}${this.titleSeparator}${pageTitle}`;
+        } else {
+            document.title = this.appTitle;
+        }
     }
 
     /**

@@ -44,6 +44,15 @@ $(document).ready(() => {
         routes: {
             'dashboard': {
                 template: 'main-dashboard',
+                header: {
+                    icon: 'dashboard',
+                    title: 'Platform Overview',
+                    badge: 'Dashboard',
+                    breadcrumbs: ['SpringLens', 'Dashboard'],
+                    actions: [
+                        { id: 'btn-refresh-dashboard', action: 'refresh-data', icon: 'refresh', label: 'Refresh', title: 'Refresh dashboard metrics' }
+                    ]
+                },
                 onEnter: (params) => {
                     dashboard.enter(params);
                     applicationState.checkHealth();
@@ -52,21 +61,53 @@ $(document).ready(() => {
             },
             'definitions': {
                 template: 'bean/definitions',
+                header: {
+                    icon: 'widgets',
+                    title: 'Bean Definitions',
+                    badge: 'Definitions Registry',
+                    breadcrumbs: ['Bean', 'Definitions'],
+                    actions: [
+                        { id: 'def-btn-refresh', action: 'refresh-data', icon: 'refresh', label: 'Refresh', title: 'Refresh bean definitions' },
+                        { id: 'beans-btn-export', action: 'export-data', icon: 'file_download', label: 'Export', title: 'Export bean definitions' }
+                    ]
+                },
                 onEnter: (params) => beanDefinitions.enter(params),
                 onLeave: () => beanDefinitions.leave()
             },
             'conditions': {
                 template: 'bean/condition-reports',
+                header: {
+                    icon: 'fact_check',
+                    title: 'Condition Reports',
+                    badge: 'Auto-Configuration',
+                    breadcrumbs: ['Bean', 'Conditional Beans Evaluation'],
+                    actions: [
+                        { id: 'condition-btn-refresh', action: 'refresh-data', icon: 'refresh', label: 'Refresh', title: 'Refresh evaluations' },
+                        { type: 'search', id: 'condition-search-input', placeholder: 'Search auto-configurations...' }
+                    ]
+                },
                 onEnter: (params) => conditionEvaluation.enter(params),
                 onLeave: () => conditionEvaluation.leave()
             },
             'timeline': {
                 template: 'bean/timeline-chart',
+                header: {
+                    icon: 'timeline',
+                    title: 'Bean Instances',
+                    badge: 'Startup Waterfall & Profiler',
+                    breadcrumbs: ['Beans', 'Timeline Chart'],
+                    actions: [
+                        { id: 'time-btn-refresh', action: 'refresh-data', icon: 'refresh', label: 'Refresh', title: 'Refresh bean timeline data' },
+                        { id: 'time-btn-download', action: 'download-report', icon: 'file_download', label: 'Export', title: 'Export bean timeline as JSON' }
+                    ]
+                },
                 onEnter: (params) => beanInstance.enter(params),
                 onLeave: () => beanInstance.leave()
             },
             'graph': {
                 template: 'bean/graph',
+                title: 'Dependency Graph',
+                header: null,
                 onEnter: (params) => beanDependencyGraph.enter(params),
                 onLeave: () => beanDependencyGraph.leave()
             }
