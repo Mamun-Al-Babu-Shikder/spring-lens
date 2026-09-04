@@ -5,6 +5,7 @@ import DashboardController from './src/controller/dashboard/dashboard-controller
 import GraphController from './src/controller/bean/graph-controller.js';
 import ConditionalEvaluationController from './src/controller/bean/conditional-evalugation-controller.js';
 import ApplicationState from './src/controller/application/application-state.js';
+import { PageHeader } from './src/utils/index.js';
 
 $(document).ready(() => {
 
@@ -31,8 +32,13 @@ $(document).ready(() => {
         SUMMARY_CONDITIONAL_REPORTS: API_BASE_URL + "/conditions/summary",
     };
 
-    const applicationState = new ApplicationState(ENDPOINTS.APPLICATION_HEALTH);
-    const dashboard = new DashboardController(ENDPOINTS);
+    const applicationState = new ApplicationState({
+        healthApi: ENDPOINTS.APPLICATION_HEALTH,
+        infoApi: ENDPOINTS.APPLICATION_INFO
+    });
+    PageHeader.init(applicationState);
+
+    const dashboard = new DashboardController(ENDPOINTS, applicationState);
     const beanDefinitions = new BeanDefinitions(ENDPOINTS.BEAN_DEFINITION, ENDPOINTS.SUMMARY_BEAN_DEFINITION, ENDPOINTS.FIND_BEAN_DEFINITION);
     const beanDependencyGraph = new GraphController(ENDPOINTS.GRAPH_DEPENDENCIES, ENDPOINTS.BEAN_DEFINITION, ENDPOINTS.FIND_BEAN_DEFINITION);
     const beanInstance = new TimelineController(ENDPOINTS.BEAN_INSTANCE, ENDPOINTS.FIND_BEAN_INSTANCE, ENDPOINTS.FIND_BEAN_DEFINITION, ENDPOINTS.SUMMARY_BEAN_INSTANCE);
