@@ -206,6 +206,13 @@ g.node.node-focused rect.node-rect {
     animation: node-focused-pulse-dark 1.8s infinite ease-in-out;
 }
 
+g.node text.node-text {
+    user-select: none;
+    text-rendering: geometricPrecision;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
 g.node.node-focused text.node-text {
     font-weight: 700 !important;
 }

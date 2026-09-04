@@ -1061,6 +1061,10 @@ export default class BeanDefinitionsController {
     }
 
     _drawModalTree(root, gNode, gLink, svg, zoom) {
+        if (!gNode || !gLink) return;
+        gNode.selectAll('*').remove();
+        gLink.selectAll('*').remove();
+
         const isTB = this.modalGraphMode === 'tb';
         const descendants = root.descendants();
 
