@@ -11,22 +11,23 @@ import {
     QueryParam,
     TemplateEngine,
     BeanSearchEngine,
+    PageHeader,
     debounce
 } from '../../utils/index.js';
 
 export default class DashboardController {
 
-    constructor(ENDPOINTS = {}) {
-         this.endpoints = {
-             application: ENDPOINTS.APPLICATION_INFO,
-             definitions: ENDPOINTS.BEAN_DEFINITION,
-             instances: ENDPOINTS.BEAN_INSTANCE,
-             conditions: ENDPOINTS.CONDITIONAL_REPORTS,
-             dependencies: ENDPOINTS.GRAPH_DEPENDENCIES,
-             definitionsSummary: ENDPOINTS.SUMMARY_BEAN_DEFINITION
-         };
+    constructor(ENDPOINTS = {}, applicationState = null) {
+        this.endpoints = {
+            application: ENDPOINTS.APPLICATION_INFO,
+            definitions: ENDPOINTS.BEAN_DEFINITION,
+            instances: ENDPOINTS.BEAN_INSTANCE,
+            conditions: ENDPOINTS.CONDITIONAL_REPORTS,
+            dependencies: ENDPOINTS.GRAPH_DEPENDENCIES,
+            definitionsSummary: ENDPOINTS.SUMMARY_BEAN_DEFINITION
+        };
 
-        this.applicationState = null;
+        this.applicationState = applicationState;
         this.applicationState?.onStateChange((isLive) => {
             this.renderUptimeStatus(isLive);
         });
@@ -116,6 +117,7 @@ export default class DashboardController {
         // 2. Setup standard click actions
         const clickActions = {
             '#db-btn-retry': () => this.enter(),
+            '#btn-refresh-dashboard': () => this.enter(),
             '#btn-radial-zoom-in': () => this._zoomRadial(1.25),
             '#btn-radial-zoom-out': () => this._zoomRadial(0.8),
             '#btn-radial-reset': () => this._resetRadialZoom(),
@@ -234,7 +236,7 @@ export default class DashboardController {
         const $hero = $('#hero-application-banner');
 
         const fieldMap = {
-            appName: vm.name,
+            appName: vm.name ? vm.name.toUpperCase() : '',
             bootVersion: `v${vm.bootVersion}`,
             frameworkVersion: `v${vm.frameworkVersion}`,
             javaVersion: `Java ${vm.javaVersion}`,
@@ -245,6 +247,11 @@ export default class DashboardController {
 
         this._bindDataFields($hero, fieldMap);
         this._renderProfileBadges(vm.activeProfiles, vm.defaultProfiles);
+        if (this.applicationState) {
+            this.applicationState.setAppInfo(app);
+        } else {
+            PageHeader.setAppName(vm.name);
+        }
 
         this.appStartDate = vm.startDate;
         if (vm.startDate && this.currentUptimeState !== false) {

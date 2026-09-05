@@ -2,12 +2,16 @@ import httpClient from '../../client/http-client.js';
 import GraphTreeBuilder from '../../builder/graph-tree-builder.js';
 import beanDataStore from '../../storage/bean-data-store.js';
 import {
-    capitalize, resolveBeanMetadata, resolveScopeStyle, downloadJson,
-    TemplateEngine, QueryParam, Pagination, debounce
+    capitalize, resolveBeanMetadata, resolveScopeBadgeClass, downloadJson,
+    TemplateEngine, QueryParam, Pagination, debounce,
+    formatDuration, resolveDurationColor, resolveBeanLayer,
+    calculateTimeTicks, formatTickLabel,
+    resolveProxyBadgeStyles, resolveAdviceFrozenClass, resolveDefinitionStatusBadgeClass, resolveTabButtonClass,
+    ALL_PROXY_PILL_CLASSES, ALL_PROXY_TAB_CLASSES, ALL_ADVICE_FROZEN_CLASSES, ALL_DEFINITION_STATUS_CLASSES, ALL_TAB_BUTTON_CLASSES
 } from '../../utils/index.js';
 
 export default class TimelineController {
-    constructor(beanInstanceApi, beanInstanceFindApi, beanDefinitionFindApi, beanInstanceSummaryApi) {
+    constructor(endpoints = {}) {
         this.instances = [];
         this.filteredInstances = [];
         this.selectedBeanInstance = null;
@@ -20,6 +24,7 @@ export default class TimelineController {
         this.sortBy = 'createdAt';
         this.sortDir = 'ASC';
         this.activeView = 'timeline'; // 'timeline' or 'table'
+        this.activeSidebarTab = 'telemetry'; // 'telemetry' or 'proxy'
         this.zoomLevel = 1;
 
         this.selectedBeanName = null;
@@ -39,10 +44,10 @@ export default class TimelineController {
 
         this._debouncedSearch = debounce(() => this._resetPageAndFetch(), 250);
 
-        this.beanInstanceApi = beanInstanceApi;
-        this.beanInstanceFindApi = beanInstanceFindApi;
-        this.beanDefinitionFindApi = beanDefinitionFindApi;
-        this.beanInstanceSummaryApi = beanInstanceSummaryApi;
+        this.beanInstanceApi = endpoints.BEAN_INSTANCE;
+        this.beanInstanceFindApi = endpoints.FIND_BEAN_INSTANCE;
+        this.beanInstanceSummaryApi = endpoints.SUMMARY_BEAN_INSTANCE;
+        this.beanInstanceProxyApi = endpoints.PROXY_BEAN_INSTANCE;
     }
 
     async enter(params) {
@@ -180,138 +185,44 @@ export default class TimelineController {
         };
     }
 
-    /**
-     * Parses ISO timestamp string into millisecond accuracy.
-     */
-    parseIsoToMs(isoStr) {
-        if (!isoStr || typeof isoStr !== 'string') return 0;
-
-        const match = isoStr.match(/^(.*?)(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/);
-        if (!match) return 0;
-
-        const [, base, fractionStr, tz = ''] = match;
-        const baseMs = Date.parse(`${base}${tz}`);
-
-        if (Number.isNaN(baseMs)) return 0;
-
-        const fractionalMs = fractionStr ? parseFloat(fractionStr) * 1000 : 0;
-        return baseMs + fractionalMs;
-    }
-
-    /**
-     * Formats duration with clean units (µs, ms, s).
-     */
     formatDuration(nanos) {
-        if (nanos === undefined || nanos === null) return '0ms';
-        if (nanos >= 1_000_000_000) return (nanos / 1e9).toFixed(2) + 's';
-        const ms = nanos / 1e6;
-        if (ms >= 100) return Math.round(ms) + 'ms';
-        if (ms >= 10) return ms.toFixed(1) + 'ms';
-        if (ms >= 1) return ms.toFixed(2) + 'ms';
-        if (nanos >= 1_000) return (nanos / 1e3).toFixed(0) + 'µs';
-        return nanos + 'ns';
+        return formatDuration(nanos);
     }
 
-    formatMsValue(ms) {
-        if (ms >= 1000) return (ms / 1000).toFixed(2) + ' s';
-        if (ms >= 10) return ms.toFixed(1) + ' ms';
-        return ms.toFixed(2) + ' ms';
+    getDurationColor(initDurationNanos, maxDurationNanos = 0) {
+        return resolveDurationColor(initDurationNanos, maxDurationNanos);
     }
 
-    /**
-     * Categorizes bean into layer with color & icon matching the UI design.
-     */
     getBeanLayer(bean) {
-        if (!bean) {
-            return { id: 'other', label: 'Other', color: '#94a3b8', icon: 'deployed_code' };
-        }
-
-        const name = (bean.beanName || '').toLowerCase();
-        const type = (bean.type || '').toLowerCase();
-        const combined = `${name} ${type}`;
-
-        // 1. Web Layer (Red / Rose)
-        if (
-            combined.includes('controller') || combined.includes('rest') || combined.includes('mapper') ||
-            combined.includes('objectmapper') || combined.includes('json') || combined.includes('jackson') ||
-            combined.includes('serializer') || combined.includes('deserializer') || combined.includes('viewresolver') ||
-            combined.includes('endpoint') || combined.includes('router') || combined.includes('feign') || combined.includes('web')
-        ) {
-            return { id: 'web', label: 'Web Layer', color: '#ef4444', icon: 'api' };
-        }
-
-        // 2. Business Logic (Yellow / Amber)
-        if (
-            combined.includes('service') || combined.includes('manager') || combined.includes('handler') ||
-            combined.includes('facade') || combined.includes('usecase') || combined.includes('logic') ||
-            combined.includes('processor') || combined.includes('validator')
-        ) {
-            return { id: 'business', label: 'Business Logic', color: '#f59e0b', icon: 'settings_input_component' };
-        }
-
-        // 3. Data Access (Green / Emerald)
-        if (
-            combined.includes('datasource') || combined.includes('entitymanager') || combined.includes('transaction') ||
-            combined.includes('repository') || combined.includes('dao') || combined.includes('jpa') ||
-            combined.includes('hibernate') || combined.includes('jdbc') || combined.includes('connection') ||
-            combined.includes('flyway') || combined.includes('liquibase') || combined.includes('sql')
-        ) {
-            return { id: 'data', label: 'Data Access', color: '#10b981', icon: 'database' };
-        }
-
-        // 4. Infrastructure (Blue)
-        if (
-            combined.includes('logging') || combined.includes('logger') || combined.includes('scheduler') ||
-            combined.includes('task') || combined.includes('security') || combined.includes('auth') ||
-            combined.includes('filter') || combined.includes('cache') || combined.includes('meter') ||
-            combined.includes('metrics') || combined.includes('health') || combined.includes('actuator') ||
-            combined.includes('management') || combined.includes('kafka') || combined.includes('rabbit') ||
-            combined.includes('jms') || combined.includes('template')
-        ) {
-            return { id: 'infra', label: 'Infrastructure', color: '#3b82f6', icon: 'memory' };
-        }
-
-        // 5. Configuration (Purple)
-        if (
-            combined.includes('config') || combined.includes('properties') || combined.includes('postprocessor') ||
-            combined.includes('initializer') || combined.includes('environment') || combined.includes('autoconfiguration') ||
-            combined.includes('factory') || combined.includes('context') || combined.includes('profile')
-        ) {
-            return { id: 'config', label: 'Configuration', color: '#8b5cf6', icon: 'settings' };
-        }
-
-        // 6. Other (Gray / Slate)
-        return { id: 'other', label: 'Other', color: '#94a3b8', icon: 'deployed_code' };
+        return resolveBeanLayer(bean);
     }
 
     computeTimelineMetrics() {
         if (!this.instances || this.instances.length === 0) {
-            this.maxTimeMs = 100;
+            this.maxTimeMs = 10;
+            this.maxDurationNanos = 0;
             return;
         }
 
-        const timestamps = this.instances.map(inst => this.parseIsoToMs(inst.createdAt)).filter(t => t > 0);
-        const minCreatedMs = timestamps.length > 0 ? Math.min(...timestamps) : 0;
-
-        let maxEndOffsetMs = 0;
+        let maxDurationNanos = 0;
 
         this.instances.forEach(inst => {
-            const createdMs = this.parseIsoToMs(inst.createdAt);
-            const initDurationMs = (inst.initDurationNanos || 0) / 1e6;
-            const relativeStartMs = createdMs > 0 ? Math.max(0, createdMs - minCreatedMs) : 0;
-            const relativeEndMs = relativeStartMs + initDurationMs;
+            const nanos = inst.initDurationNanos || 0;
+            const initDurationMs = nanos / 1e6;
 
-            inst.relativeStartMs = relativeStartMs;
             inst.initDurationMs = initDurationMs;
-            inst.relativeEndMs = relativeEndMs;
+            inst.relativeStartMs = 0;
+            inst.relativeEndMs = initDurationMs;
             inst.layer = this.getBeanLayer(inst);
 
-            if (relativeEndMs > maxEndOffsetMs) {
-                maxEndOffsetMs = relativeEndMs;
+            if (nanos > maxDurationNanos) {
+                maxDurationNanos = nanos;
             }
         });
 
-        this.maxTimeMs = maxEndOffsetMs > 0 ? Math.max(maxEndOffsetMs * 1.05, 10) : 100;
+        this.maxDurationNanos = maxDurationNanos;
+        const maxDurationMs = maxDurationNanos / 1e6;
+        this.maxTimeMs = maxDurationMs > 0 ? (maxDurationMs * 1.08) : 10;
     }
 
     applyLocalFilters() {
@@ -319,11 +230,20 @@ export default class TimelineController {
 
         // 1. Quick Filters
         if (this.quickFilter === 'bottlenecks') {
-            result = result.filter(inst => (inst.initDurationMs || 0) >= 50);
+            result = result.filter(inst => {
+                const dur = this.getDurationColor(inst.initDurationNanos, this.maxDurationNanos);
+                return dur.tier === 'bottleneck' || dur.tier === 'heavy' || dur.isBottleneck;
+            });
         } else if (this.quickFilter === 'slow') {
-            result = result.filter(inst => (inst.initDurationMs || 0) >= 10 && (inst.initDurationMs || 0) < 50);
+            result = result.filter(inst => {
+                const dur = this.getDurationColor(inst.initDurationNanos, this.maxDurationNanos);
+                return dur.tier === 'slow' || dur.tier === 'elevated' || dur.tier === 'notable';
+            });
         } else if (this.quickFilter === 'fast') {
-            result = result.filter(inst => (inst.initDurationMs || 0) < 10);
+            result = result.filter(inst => {
+                const dur = this.getDurationColor(inst.initDurationNanos, this.maxDurationNanos);
+                return dur.tier === 'submicro' || dur.tier === 'ultrafast' || dur.tier === 'optimal' || dur.tier === 'fast' || dur.tier === 'moderate';
+            });
         }
 
         // 2. Minimum Duration Filter
@@ -361,67 +281,64 @@ export default class TimelineController {
     renderTimeRulerAndGrid() {
         const $ruler = $('#timeline-ruler-ticks');
         const $grid = $('#timeline-grid-lines');
-        if (!$ruler.length) return;
+        if (!$ruler.length || !$grid.length) return;
 
         $ruler.empty();
         $grid.empty();
 
         const ticks = this._calculateTimeTicks(this.maxTimeMs);
+        const rulerFragment = document.createDocumentFragment();
+        const gridFragment = document.createDocumentFragment();
 
         ticks.forEach((tick) => {
             const pct = (tick.ms / this.maxTimeMs) * 100;
             if (pct > 100) return;
 
-            // Tick container on ruler
-            const $tick = $(`
-                <div class="absolute top-0 bottom-0 pointer-events-none" style="left: ${pct}%;">
-                    <div class="ruler-tick-mark ${tick.isMajor ? 'ruler-tick-major' : ''}"></div>
-                    <span class="absolute top-0 transform -translate-x-1/2 whitespace-nowrap ${tick.isMajor ? 'font-bold text-gray-700 dark:text-gray-200' : 'text-gray-400 dark:text-gray-500'}">
-                        ${tick.label}
-                    </span>
-                </div>
-            `);
-            $ruler.append($tick);
+            // 1. Tick container on ruler
+            const tickClone = TemplateEngine.clone('tpl-timeline-ruler-tick');
+            if (tickClone?.firstElementChild) {
+                const $tick = $(tickClone.firstElementChild);
+                $tick.css('left', `${pct}%`);
 
-            // Vertical dashed grid line
-            const $gridLine = $(`<div class="absolute inset-y-0 pointer-events-none border-l ${tick.isMajor ? 'border-dashed border-gray-300/80 dark:border-slate-700/80' : 'border-dotted border-gray-200/60 dark:border-slate-800/60'}"></div>`);
-            $gridLine.css('left', `calc(${pct}% + 340px)`);
-            $grid.append($gridLine);
+                const $mark = $tick.find('[data-field="tickMark"]');
+                const $label = $tick.find('[data-field="tickLabel"]');
+
+                if (tick.isMajor) {
+                    $mark.addClass('ruler-tick-major');
+                    $label.addClass('font-bold text-gray-700 dark:text-gray-200').text(tick.label);
+                } else {
+                    $label.addClass('text-gray-400 dark:text-gray-500');
+                }
+
+                rulerFragment.appendChild(tickClone);
+            }
+
+            // 2. Vertical dashed/dotted grid line
+            const gridClone = TemplateEngine.clone('tpl-timeline-grid-line');
+            if (gridClone?.firstElementChild) {
+                const $gridLine = $(gridClone.firstElementChild);
+                $gridLine.css('left', `calc(${pct}% + 340px)`);
+
+                if (tick.isMajor) {
+                    $gridLine.addClass('border-dashed border-gray-300/80 dark:border-slate-700/80');
+                } else {
+                    $gridLine.addClass('border-dotted border-gray-200/60 dark:border-slate-800/60');
+                }
+
+                gridFragment.appendChild(gridClone);
+            }
         });
+
+        $ruler.append(rulerFragment);
+        $grid.append(gridFragment);
     }
 
     _calculateTimeTicks(maxMs) {
-        let majorStepMs;
-        if (maxMs <= 20) majorStepMs = 5;
-        else if (maxMs <= 50) majorStepMs = 10;
-        else if (maxMs <= 100) majorStepMs = 20;
-        else if (maxMs <= 250) majorStepMs = 50;
-        else if (maxMs <= 500) majorStepMs = 100;
-        else if (maxMs <= 1000) majorStepMs = 200;
-        else if (maxMs <= 2000) majorStepMs = 400;
-        else if (maxMs <= 5000) majorStepMs = 1000;
-        else if (maxMs <= 10000) majorStepMs = 2000;
-        else majorStepMs = Math.ceil(maxMs / 6 / 1000) * 1000;
-
-        const minorStepMs = majorStepMs / 2;
-        const ticks = [];
-
-        for (let ms = 0; ms <= maxMs; ms += minorStepMs) {
-            const isMajor = Math.round(ms) % Math.round(majorStepMs) === 0 || ms === 0;
-            ticks.push({
-                ms,
-                isMajor,
-                label: isMajor ? this._formatTickLabel(ms) : ''
-            });
-        }
-        return ticks;
+        return calculateTimeTicks(maxMs);
     }
 
     _formatTickLabel(ms) {
-        if (ms === 0) return '0ms';
-        if (ms < 1000) return `${Math.round(ms)}ms`;
-        const sec = ms / 1000;
-        return `${Number.isInteger(sec) ? sec : sec.toFixed(1)}s`;
+        return formatTickLabel(ms);
     }
 
     renderGanttRows() {
@@ -464,6 +381,13 @@ export default class TimelineController {
             'data-bean-name': beanName || ''
         });
 
+        const durationStyle = this.getDurationColor(initDurationNanos, this.maxDurationNanos);
+        const barColor = durationStyle.color;
+
+        $row.css({
+            '--row-accent-color': barColor
+        });
+
         // Category Icon Container
         const $iconContainer = $row.find('[data-field="iconContainer"]');
         const $icon = $row.find('[data-field="icon"]');
@@ -480,38 +404,27 @@ export default class TimelineController {
         // Duration Text & Badge Styling
         const formattedDuration = this.formatDuration(initDurationNanos);
         const $duration = $row.find('[data-field="duration"]');
-        $duration.text(formattedDuration);
+        $duration.text(formattedDuration).addClass(durationStyle.badgeClass);
 
-        const isBottleneck = initDurationMs >= 50;
-        const isModerate = initDurationMs >= 10 && initDurationMs < 50;
-
-        if (isBottleneck) {
-            $duration.addClass('bg-rose-50 text-rose-700 border-rose-200/80 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/40');
-        } else if (isModerate) {
-            $duration.addClass('bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/40');
-        } else {
-            $duration.addClass('bg-emerald-50/80 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800/30');
-        }
-
-        // Waterfall Bar Layout
+        // Waterfall Bar Layout (Left-aligned from 0, width scaled to init duration)
         const maxTime = this.maxTimeMs || 1;
-        const leftPct = Math.min(Math.max((relativeStartMs / maxTime) * 100, 0), 98.5);
-        const widthPct = Math.min(Math.max((initDurationMs / maxTime) * 100, 0.6), 100 - leftPct);
+        const widthPct = Math.min(Math.max((initDurationMs / maxTime) * 100, 0.6), 100);
 
         const $bar = $row.find('[data-field="bar"]');
         $bar.css({
-            left: `${leftPct}%`,
+            left: '0%',
             width: `${widthPct}%`,
-            background: `linear-gradient(135deg, ${layer.color}e6, ${layer.color}b3)`,
-            border: `1px solid ${layer.color}`,
-            '--bar-glow': `${layer.color}80`
+            background: durationStyle.gradient,
+            border: `1px solid ${barColor}`,
+            '--bar-glow': durationStyle.glow,
+            '--layer-color': barColor
         });
 
         // Bottleneck Flame Indicator
-        if (isBottleneck) {
+        if (durationStyle.isBottleneck) {
             $bar.addClass('gantt-bar-bottleneck');
             const $flame = $row.find('[data-field="bottleneckBadge"]');
-            $flame.removeClass('hidden').css('left', `calc(${leftPct}% + ${widthPct}% + 6px)`);
+            $flame.removeClass('hidden').css('left', `calc(${widthPct}% + 6px)`);
         }
 
         // Bar Label
@@ -541,7 +454,7 @@ export default class TimelineController {
             $btn.addClass('opacity-60 cursor-default pointer-events-none');
         }
 
-        $('#time-loaded-summary-text').text(`Showing ${currentCount.toLocaleString()} of ${totalElements.toLocaleString()} instances across ${this.formatMsValue(this.maxTimeMs || 0)} window`);
+        $('#time-loaded-summary-text').text(`Showing ${currentCount.toLocaleString()} of ${totalElements.toLocaleString()} instances (max latency ${this.formatDuration((this.maxTimeMs || 0) * 1e6)})`);
     }
 
     /* ======================================================================
@@ -608,18 +521,14 @@ export default class TimelineController {
         $row.find('[data-field="typeName"], [data-field="type"]').text(type || 'N/A').attr('title', type || '');
 
         // Scope badge
-        const scopeStyle = resolveScopeStyle(scope);
         $row.find('[data-field="scopeBadge"], [data-field="scope"]')
             .text((scope || 'singleton').toUpperCase())
-            .css({
-                backgroundColor: scopeStyle.backgroundColor,
-                color: scopeStyle.color,
-                borderColor: scopeStyle.borderColor
-            });
+            .addClass(resolveScopeBadgeClass(scope));
 
         // Duration formatted
+        const durationStyle = this.getDurationColor(initDurationNanos, this.maxDurationNanos);
         const formattedDuration = this.formatDuration(initDurationNanos);
-        $row.find('[data-field="durationFormatted"]').text(formattedDuration);
+        $row.find('[data-field="durationFormatted"]').text(formattedDuration).addClass(durationStyle.badgeClass);
 
         // Context ID
         $row.find('[data-field="contextId"]').text(contextId || 'root');
@@ -628,24 +537,29 @@ export default class TimelineController {
     }
 
     renderPagination() {
+        const $instPaginationInfo = $('#inst-pagination-info');
+        const $instPaginationButtons = $('#inst-pagination-buttons');
+
         const { totalElements, pageNumber, pageSize } = this.paginationState;
 
         const infoText = Pagination.formatInfoText(totalElements, pageNumber, pageSize, 'instances');
-        const $info = $('#inst-pagination-info').length ? $('#inst-pagination-info') : $('#time-pagination-info');
+        const $info = $instPaginationInfo.length ? $instPaginationInfo : $('#time-pagination-info');
         $info.text(infoText);
 
-        const $buttons = $('#inst-pagination-buttons').length ? $('#inst-pagination-buttons') : $('#time-pagination-buttons');
+        const $buttons = $instPaginationButtons.length ? $instPaginationButtons : $('#time-pagination-buttons');
         Pagination.renderPaginationButtons($buttons, this.paginationState);
     }
 
     renderLoadingState() {
+        const $beanInstanceTableBody = $('#beanInstanceTableBody');
+
         if (this.activeView === 'timeline') {
             const $container = $('#timeline-waterfall-rows');
             $container.children().not('#timeline-grid-lines, #timeline-scrubber-needle').remove();
             const clone = TemplateEngine.clone('tpl-timeline-loading');
             if (clone) $container.append(clone);
         } else {
-            const $tbody = $('#beanInstanceTableBody').length ? $('#beanInstanceTableBody') : $('#time-table-body');
+            const $tbody = $beanInstanceTableBody.length ? $beanInstanceTableBody : $('#time-table-body');
             if (!$tbody.length) return;
             const clone = TemplateEngine.clone('tpl-instance-loading') || TemplateEngine.clone('tpl-timeline-loading');
             if (clone) $tbody.empty().append(clone);
@@ -653,6 +567,8 @@ export default class TimelineController {
     }
 
     renderErrorState(errorMessage) {
+        const $beanInstanceTableBody = $('#beanInstanceTableBody');
+
         if (this.activeView === 'timeline') {
             const $container = $('#timeline-waterfall-rows');
             $container.children().not('#timeline-grid-lines, #timeline-scrubber-needle').remove();
@@ -662,7 +578,7 @@ export default class TimelineController {
                 $container.append(clone);
             }
         } else {
-            const $tbody = $('#beanInstanceTableBody').length ? $('#beanInstanceTableBody') : $('#time-table-body');
+            const $tbody = $beanInstanceTableBody.length ? $beanInstanceTableBody : $('#time-table-body');
             if (!$tbody.length) return;
             const clone = TemplateEngine.clone('tpl-instance-error') || TemplateEngine.clone('tpl-timeline-error');
             if (clone) {
@@ -686,28 +602,210 @@ export default class TimelineController {
         $(`.waterfall-row[data-context-id="${contextId}"][data-bean-name="${beanName}"]`).addClass('gantt-row-selected');
         $(`.timeline-table-row[data-context-id="${contextId}"][data-bean-name="${beanName}"]`).addClass('bg-primary/10 dark:bg-purple-950/30 font-semibold');
 
+        const localInstance = this.instances.find(i => i.contextId === contextId && i.beanName === beanName);
+        if (localInstance) {
+            this.renderSidebarDetails(localInstance);
+        }
+
+        const fetchDetailsPromise = (async () => {
+            try {
+                const queryParams = QueryParam.build({ contextId, beanName });
+                const instanceDetails = await httpClient.getWithQuery(
+                    this.beanInstanceFindApi,
+                    queryParams.toString()
+                );
+
+                if (this.selectedContextId === contextId && this.selectedBeanName === beanName) {
+                    this.selectedBeanInstance = instanceDetails;
+                    this.renderSidebarDetails(instanceDetails);
+                }
+            } catch (error) {
+                console.warn('Could not fetch single bean instance details:', error);
+                if (this.selectedContextId === contextId && this.selectedBeanName === beanName) {
+                    const fallback = this.instances.find(i => i.contextId === contextId && i.beanName === beanName);
+                    if (fallback) this.renderSidebarDetails(fallback);
+                }
+            }
+        })();
+
+        const fetchProxyPromise = this.fetchProxyInfo(contextId, beanName);
+
+        await Promise.allSettled([fetchDetailsPromise, fetchProxyPromise]);
+    }
+
+    /**
+     * Fetches runtime AOP & CGLIB proxy info for the selected bean instance.
+     */
+    async fetchProxyInfo(contextId, beanName) {
+        const $timeSidebarProxyLoading = $('#time-sidebar-proxy-loading');
+
+        if (!this.beanInstanceProxyApi) return;
+
+        // Reset and show loading state
+        $('#time-sidebar-proxy-type').addClass('hidden').hide();
+        $('#time-sidebar-proxy-content').addClass('hidden').hide();
+        $('#time-sidebar-proxy-empty').addClass('hidden').hide();
+        $timeSidebarProxyLoading.removeClass('hidden').show();
+
         try {
             const queryParams = QueryParam.build({ contextId, beanName });
-            const instanceDetails = await httpClient.getWithQuery(
-                this.beanInstanceFindApi,
+            const proxyInfo = await httpClient.getWithQuery(
+                this.beanInstanceProxyApi,
                 queryParams.toString()
             );
 
-            this.selectedBeanInstance = instanceDetails;
-            this.renderSidebarDetails(instanceDetails);
-        } catch (error) {
-            console.warn('Could not fetch single bean instance details:', error);
-            const localInstance = this.instances.find(i => i.contextId === contextId && i.beanName === beanName);
-            if (localInstance) {
-                this.renderSidebarDetails(localInstance);
+            // Guard against stale response if user switched bean during fetch
+            if (this.selectedContextId !== contextId || this.selectedBeanName !== beanName) {
+                return;
             }
+
+            if (proxyInfo && (proxyInfo.proxyType || proxyInfo.targetClass || (proxyInfo.advices && proxyInfo.advices.length > 0) || (proxyInfo.proxiedInterfaces && proxyInfo.proxiedInterfaces.length > 0))) {
+                this.renderProxyInfo(proxyInfo);
+            } else {
+                this.renderProxyEmptyState();
+            }
+        } catch (error) {
+            if (this.selectedContextId !== contextId || this.selectedBeanName !== beanName) {
+                return;
+            }
+            // 404 or missing proxy means direct raw bean instance
+            this.renderProxyEmptyState();
+        } finally {
+            if (this.selectedContextId === contextId && this.selectedBeanName === beanName) {
+                $timeSidebarProxyLoading.addClass('hidden').hide();
+            }
+        }
+    }
+
+    /**
+     * Renders AOP Proxy metadata details when proxy info is available.
+     */
+    renderProxyInfo(proxyInfo) {
+        const { targetClass, advices = [], proxiedInterfaces = [], adviceFrozen, proxyType } = proxyInfo;
+
+        const proxyStyles = resolveProxyBadgeStyles(proxyType);
+        const proxyTypeText = proxyType || 'CGLIB';
+
+        const $typeBadge = $('#time-sidebar-proxy-type');
+        const $tabBadge = $('#time-sidebar-tab-proxy-badge');
+
+        $typeBadge.text(proxyTypeText)
+            .removeClass(ALL_PROXY_PILL_CLASSES)
+            .addClass(proxyStyles.pill)
+            .removeClass('hidden')
+            .show();
+
+        $tabBadge.text(proxyTypeText)
+            .removeClass(ALL_PROXY_TAB_CLASSES)
+            .addClass(proxyStyles.tab)
+            .removeClass('hidden')
+            .show();
+
+        // Target Class
+        const targetClassDisplay = targetClass || 'N/A';
+        $('#time-sidebar-proxy-target-class')
+            .text(targetClassDisplay)
+            .attr('title', targetClassDisplay);
+
+        // Advice Frozen
+        $('#time-sidebar-proxy-frozen')
+            .text(adviceFrozen ? 'TRUE' : 'FALSE')
+            .removeClass(ALL_ADVICE_FROZEN_CLASSES)
+            .addClass(resolveAdviceFrozenClass(adviceFrozen));
+
+        // Advices list
+        $('#time-sidebar-proxy-advices-count').text(advices.length);
+        const $advicesList = $('#time-sidebar-proxy-advices-list');
+        $advicesList.empty();
+        if (advices.length === 0) {
+            const emptyClone = TemplateEngine.clone('tpl-proxy-empty-item');
+            emptyClone.find('[data-field="message"]').text('No custom advices attached');
+            $advicesList.append(emptyClone);
+        } else {
+            const fragment = $(document.createDocumentFragment());
+            advices.forEach(adv => {
+                const shortName = adv.includes('.') ? adv.split('.').pop() : adv;
+                const clone = TemplateEngine.clone('tpl-proxy-item');
+                clone.find('[data-field="name"]').text(shortName).attr('title', adv);
+                clone.find('[data-field="badge"]').text('Advice');
+                fragment.append(clone);
+            });
+            $advicesList.append(fragment);
+        }
+
+        // Interfaces list
+        $('#time-sidebar-proxy-interfaces-count').text(proxiedInterfaces.length);
+        const $interfacesList = $('#time-sidebar-proxy-interfaces-list');
+        $interfacesList.empty();
+        if (proxiedInterfaces.length === 0) {
+            const emptyClone = TemplateEngine.clone('tpl-proxy-empty-item');
+            emptyClone.find('[data-field="message"]').text('No interfaces proxied (CGLIB class proxy)');
+            $interfacesList.append(emptyClone);
+        } else {
+            const fragment = $(document.createDocumentFragment());
+            proxiedInterfaces.forEach(iface => {
+                const shortName = iface.includes('.') ? iface.split('.').pop() : iface;
+                const clone = TemplateEngine.clone('tpl-proxy-item');
+                clone.find('[data-field="name"]').text(shortName).attr('title', iface);
+                clone.find('[data-field="badge"]').text('Interface');
+                fragment.append(clone);
+            });
+            $interfacesList.append(fragment);
+        }
+
+        $('#time-sidebar-proxy-empty').addClass('hidden').hide();
+        $('#time-sidebar-proxy-content').removeClass('hidden').show();
+    }
+
+    /**
+     * Renders empty state card when bean is direct / non-proxied (e.g. 404 response).
+     */
+    renderProxyEmptyState() {
+        $('#time-sidebar-proxy-type').addClass('hidden').hide();
+        const directStyles = resolveProxyBadgeStyles('DIRECT');
+        $('#time-sidebar-tab-proxy-badge')
+            .text('Direct')
+            .removeClass(ALL_PROXY_TAB_CLASSES)
+            .addClass(directStyles.tab)
+            .removeClass('hidden')
+            .show();
+        $('#time-sidebar-proxy-content').addClass('hidden').hide();
+        $('#time-sidebar-proxy-empty').removeClass('hidden').show();
+    }
+
+    /**
+     * Switches active tab in details sidebar between 'telemetry' and 'proxy'.
+     */
+    switchSidebarTab(tabName) {
+        if (!tabName) return;
+        this.activeSidebarTab = tabName;
+
+        const isProxy = tabName === 'proxy';
+        const $telemetryBtn = $('#time-sidebar-tab-telemetry');
+        const $proxyBtn = $('#time-sidebar-tab-proxy');
+        const $telemetryPane = $('#time-sidebar-pane-telemetry');
+        const $proxyPane = $('#time-sidebar-pane-proxy');
+
+        $proxyBtn
+            .removeClass(ALL_TAB_BUTTON_CLASSES)
+            .addClass(resolveTabButtonClass(isProxy));
+        $telemetryBtn
+            .removeClass(ALL_TAB_BUTTON_CLASSES)
+            .addClass(resolveTabButtonClass(!isProxy));
+
+        if (isProxy) {
+            $telemetryPane.addClass('hidden').hide();
+            $proxyPane.removeClass('hidden').show();
+        } else {
+            $proxyPane.addClass('hidden').hide();
+            $telemetryPane.removeClass('hidden').show();
         }
     }
 
     renderSidebarDetails(instance) {
         if (!instance) return;
 
-        const { beanName, type, scope, initDurationNanos, relativeStartMs, contextId, createdAt, hasDefinition } = instance;
+        const { beanName, type, scope, initDurationNanos, contextId, createdAt, hasDefinition } = instance;
         const metadata = resolveBeanMetadata(instance);
 
         const data = {
@@ -715,7 +813,6 @@ export default class TimelineController {
             type: type || 'N/A',
             scope: capitalize(scope || 'singleton'),
             duration: this.formatDuration(initDurationNanos),
-            start: relativeStartMs != null ? `+${relativeStartMs.toFixed(2)} ms` : '-',
             context: contextId || 'root',
             created: createdAt || 'N/A',
             nanos: (initDurationNanos || 0).toLocaleString() + ' ns',
@@ -733,27 +830,36 @@ export default class TimelineController {
             borderColor: `${metadata.color}30`
         });
 
+        const titles = {
+            name: beanName,
+            type: type || 'N/A',
+            scope: capitalize(scope || 'singleton'),
+            duration: (initDurationNanos || 0).toLocaleString() + ' ns',
+            context: contextId || 'root',
+            created: createdAt || 'N/A',
+            nanos: (initDurationNanos || 0).toLocaleString() + ' ns',
+            definitionStatus: hasDefinition ? 'Defined in Application Context' : 'Dynamically Registered'
+        };
+
         $sidebar.find('[data-field]').each((_, el) => {
             const field = el.dataset.field;
             if (data[field] != null) {
                 $(el).text(data[field]);
             }
+            if (titles[field] != null) {
+                $(el).attr('title', titles[field]);
+            }
         });
 
-        const $defStatus = $('#time-sidebar-definition-status');
-        if (hasDefinition) {
-            $defStatus.removeClass('bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-gray-400')
-                .addClass('bg-emerald-50 text-emerald-700 border border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40');
-        } else {
-            $defStatus.removeClass('bg-emerald-50 text-emerald-700 border border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40')
-                .addClass('bg-gray-100 text-gray-600 border border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-slate-700');
-        }
+        $('#time-sidebar-definition-status')
+            .removeClass(ALL_DEFINITION_STATUS_CLASSES)
+            .addClass(resolveDefinitionStatusBadgeClass(hasDefinition));
 
         const $footer = $('#time-sidebar-footer');
         const $viewBtn = $('#time-btn-view-details');
 
         if (hasDefinition) {
-            const href = `#/definitions?bean=${encodeURIComponent(beanName)}${contextId ? `&contextId=${encodeURIComponent(contextId)}` : ''}`;
+            const href = `#/definitions?beanName=${encodeURIComponent(beanName)}${contextId ? `&contextId=${encodeURIComponent(contextId)}` : ''}`;
             $viewBtn.attr('href', href);
             $footer.removeClass('hidden').show();
         } else {
@@ -798,7 +904,11 @@ export default class TimelineController {
             'zoom-reset': () => this._setZoom(1),
             'clear-search': () => this._handleClearSearch(),
             'quick-filter': ($target) => this._handleQuickFilter($target),
-            'focus-slowest': () => this._handleFocusSlowest()
+            'focus-slowest': () => this._handleFocusSlowest(),
+            'switch-sidebar-tab': ($target) => {
+                const tab = $target.data('tab') || $target.closest('[data-tab]').data('tab');
+                this.switchSidebarTab(tab);
+            }
         };
 
         this._filterChangeActions = {
@@ -883,7 +993,7 @@ export default class TimelineController {
         if (!this.instances || this.instances.length === 0) return;
         const slowest = this.instances.reduce((prev, current) =>
             ((prev?.initDurationNanos || 0) > (current?.initDurationNanos || 0)) ? prev : current
-        , null);
+            , null);
         if (slowest) {
             const { contextId, beanName } = slowest;
             this.selectBean(contextId, beanName);
@@ -984,14 +1094,23 @@ export default class TimelineController {
     }
 
     _bindScrubberEvents() {
+        const $scrollContainer = $('#timeline-scroll-container');
+        const $waterfallRows = $('#timeline-waterfall-rows');
         const $needle = $('#timeline-scrubber-needle');
         const $badge = $('#timeline-scrubber-badge');
 
-        // Mousemove scrubber needle
-        this._on('#timeline-scroll-container', 'mousemove', (e) => {
+        const updateScrubberPosition = (e) => {
+            if (!e) return;
             const $inner = $('#timeline-inner-container');
             const offset = $inner.offset();
-            if (!offset) return;
+            const rowsOffset = $waterfallRows.offset();
+            if (!offset || !rowsOffset) return;
+
+            // Do not show scrubber if mouse is hovering above the table rows (i.e. on the ruler header)
+            if (e.pageY < rowsOffset.top) {
+                $needle.css('opacity', 0);
+                return;
+            }
 
             const manifestWidth = 340;
             const mouseX = e.pageX - offset.left;
@@ -1001,18 +1120,33 @@ export default class TimelineController {
                 const trackWidth = $inner.outerWidth() - manifestWidth;
                 const timeRatio = Math.max(0, Math.min(1, trackX / trackWidth));
                 const currentMs = timeRatio * this.maxTimeMs;
+                const scrollTop = $scrollContainer.scrollTop() || 0;
 
                 $needle.css({
                     left: `${mouseX}px`,
                     opacity: 1
                 });
-                $badge.text(`+${currentMs.toFixed(2)}ms`);
+                $badge.css('top', `${scrollTop + 4}px`).text(this.formatDuration(currentMs * 1e6));
             } else {
                 $needle.css('opacity', 0);
             }
+        };
+
+        // Mousemove scrubber needle
+        this._on($scrollContainer, 'mousemove', (e) => {
+            this._lastScrubberMouseEvent = e;
+            updateScrubberPosition(e);
         });
 
-        this._on('#timeline-scroll-container', 'mouseleave', () => {
+        // Keep badge anchored to visible top when scrolling
+        this._on($scrollContainer, 'scroll', () => {
+            if (this._lastScrubberMouseEvent && $needle.css('opacity') !== '0') {
+                updateScrubberPosition(this._lastScrubberMouseEvent);
+            }
+        });
+
+        this._on($scrollContainer, 'mouseleave', () => {
+            this._lastScrubberMouseEvent = null;
             $needle.css('opacity', 0);
         });
     }
@@ -1140,6 +1274,12 @@ export default class TimelineController {
     _handleCloseSidebar(immediate = false) {
         const $sidebar = $('#time-details-sidebar');
         $('#time-sidebar-footer').addClass('hidden').hide();
+        $('#time-sidebar-proxy-type').addClass('hidden').hide();
+        $('#time-sidebar-proxy-loading').addClass('hidden').hide();
+        $('#time-sidebar-proxy-content').addClass('hidden').hide();
+        $('#time-sidebar-proxy-empty').addClass('hidden').hide();
+        $('#time-sidebar-tab-proxy-badge').addClass('hidden').hide();
+        this.switchSidebarTab('telemetry');
         this.selectedBeanName = null;
         this.selectedContextId = null;
         this.selectedBeanInstance = null;
@@ -1177,11 +1317,20 @@ export default class TimelineController {
             currentPage: 1,
             sortBy: 'createdAt',
             sortDir: 'ASC',
-            zoomLevel: 1
+            zoomLevel: 1,
+            activeView: 'timeline',
+            activeSidebarTab: 'telemetry',
+            selectedBeanName: null,
+            selectedContextId: null,
+            selectedBeanInstance: null
         });
+
+        this.switchSidebarTab('telemetry');
+        $('#time-sidebar-tab-proxy-badge').addClass('hidden').hide();
 
         const defaults = {
             '#time-search-input': '',
+            '#inst-search-input': '',
             '#time-filter-created': 'oldest',
             '#time-filter-size': '20',
             '#time-zoom-slider': '1'
@@ -1192,6 +1341,17 @@ export default class TimelineController {
         $('#time-sort-label').text('Order');
         $('#time-sort-icon').text('swap_vert');
         $('#time-zoom-level-badge').text('100%');
+
+        // Reset View Toggle buttons & Card containers to default Timeline view
+        $('#time-view-btn-timeline')
+            .addClass('bg-white dark:bg-slate-800 text-primary dark:text-purple-300 font-bold shadow-xs')
+            .removeClass('text-gray-500 dark:text-gray-400 font-medium');
+        $('#time-view-btn-table')
+            .removeClass('bg-white dark:bg-slate-800 text-primary dark:text-purple-300 font-bold shadow-xs')
+            .addClass('text-gray-500 dark:text-gray-400 font-medium');
+        $('#timeline-gantt-card').removeClass('hidden');
+        $('#timeline-table-card').addClass('hidden');
+
         $('.time-quick-filter-btn')
             .removeClass('bg-white dark:bg-slate-800 text-primary dark:text-purple-300 font-bold shadow-xs')
             .addClass('text-gray-600 dark:text-gray-400 font-semibold');
@@ -1232,6 +1392,7 @@ export default class TimelineController {
         this._resetFilterState();
         this._debouncedSearch?.cancel();
         $(document).off('.timelineController');
-        $('#time-search-input, #time-zoom-slider, #time-filter-created, #time-filter-size, #timeline-scroll-container').off('.timelineController');
+        $(window).off('.timelineController');
+        $('#time-search-input, #inst-search-input, #time-zoom-slider, #time-filter-created, #time-filter-size, #timeline-scroll-container, #time-filter-duration, #time-sort-by, #time-details-sidebar').off('.timelineController');
     }
 }

@@ -2,10 +2,10 @@ import httpClient from '../../client/http-client.js';
 import GraphTreeBuilder from '../../builder/graph-tree-builder.js';
 import beanDataStore from '../../storage/bean-data-store.js';
 import {
-    tree, tbLink, lrLink, capitalize, formatPercentage, resolveBeanMetadata, resolveScopeStyle, NH, RX, NW,
+    tree, tbLink, lrLink, capitalize, formatPercentage, resolveBeanMetadata, resolveScopeStyle, resolveScopeBadgeClass, NH, RX, NW,
     ICON, GAP_X, GAP_Y, CSS_CLASSES, ROLE_COLORS, SCOPE_COLORS, ZOOM_SCALE_EXTENT, GRAPH_NODE_THEMES, GRAPH_NODE_THEMES_TINT,
     GRAPH_NODE_THEMES_BADGE, LOADING_MODE_COLORS, CONTEXT_THEME_COLORS, downloadJson, TemplateEngine, QueryParam, Pagination, Sidebar,
-    BeanSearchEngine, debounce
+    ToastNotification, BeanSearchEngine, debounce
 } from '../../utils/index.js';
 
 export default class BeanDefinitionsController {
@@ -13,14 +13,10 @@ export default class BeanDefinitionsController {
     _hasFetchedTableData = false;
     _debouncedFetchTableData = null;
 
-    constructor(
-        beanDefinitionsEndpoint,
-        beanDefinitionSummaryEndpoint,
-        beanDefinitionSearchEndpoint
-    ) {
-        this.beanDefinitionEndpoint = beanDefinitionsEndpoint;
-        this.beanDefinitionSummaryEndpoint = beanDefinitionSummaryEndpoint;
-        this.beanDefinitionSearchEndpoint = beanDefinitionSearchEndpoint;
+    constructor(endpoints = {}) {
+        this.beanDefinitionEndpoint = endpoints.BEAN_DEFINITION;
+        this.beanDefinitionSummaryEndpoint = endpoints.SUMMARY_BEAN_DEFINITION;
+        this.beanDefinitionSearchEndpoint = endpoints.FIND_BEAN_DEFINITION;
 
         this.activeCharts = {
             scopeChart: null,
@@ -80,7 +76,7 @@ export default class BeanDefinitionsController {
             this.closeSidebar(true);
 
             const queryParams = QueryParam.parse(params);
-            const targetBean = QueryParam.get(queryParams, 'search', 'bean');
+            const targetBean = QueryParam.get(queryParams, 'search', 'beanName');
             const targetContextId = QueryParam.get(queryParams, 'contextId', 'context');
             const scope = queryParams.get('scope');
             const role = queryParams.get('role');
@@ -297,7 +293,7 @@ export default class BeanDefinitionsController {
                         titleFont: { family: 'Inter, sans-serif', size: 11, weight: 'bold' },
                         bodyFont: { family: 'Inter, sans-serif', size: 11 },
                         callbacks: {
-                            label: function(context) {
+                            label: function (context) {
                                 const val = context.raw || 0;
                                 const pct = total > 0 ? Math.round((val / total) * 100) : 0;
                                 return ` ${context.label}: ${val} (${pct}%)`;
@@ -405,8 +401,8 @@ export default class BeanDefinitionsController {
             role: this.filterCriteria.role,
             primary: this.filterCriteria.primary,
             lazyInit: this.filterCriteria.lazyInit,
-            sortBy: this.sortColumn,
-            sortDir: this.sortDirection
+            sortBy: this.sortColumn || undefined,
+            sortDir: this.sortColumn ? (this.sortDirection || 'asc').toUpperCase() : undefined
         });
     }
 
@@ -542,9 +538,10 @@ export default class BeanDefinitionsController {
         $row.find('[data-field="context"]').text(contextId || '-').attr('title', contextId || '');
 
         // Scope Styling
+        const rawScope = (scope ? scope : 'SINGLETON').toUpperCase();
         $row.find('[data-field="scope"]')
-            .text(scope ? scope.toUpperCase() : 'SINGLETON')
-            .css(resolveScopeStyle(scope));
+            .text(rawScope)
+            .addClass(resolveScopeBadgeClass(scope));
 
         // 1. Inline Traits Micro-Badges (Beside Bean Name)
         const $inlineTraits = $row.find('[data-field="inlineTraits"]').empty();
@@ -557,9 +554,6 @@ export default class BeanDefinitionsController {
 
         // 2. Traits Column Badges
         const $traitsContainer = $row.find('[data-field="traitsContainer"]').empty();
-        if (primary) {
-            $traitsContainer.append(TemplateEngine.clone('tpl-trait-badge-primary'));
-        }
         if (lazyInit) {
             $traitsContainer.append(TemplateEngine.clone('tpl-trait-badge-lazy'));
         } else {
@@ -599,8 +593,16 @@ export default class BeanDefinitionsController {
     bindEvents() {
         this._bindSearchInput();
         this._bindFilterChangeEvents();
+        this._bindTableSorting();
         this._bindClickActionDelegation();
         this.bindModalControls();
+    }
+
+    _bindTableSorting() {
+        this._on(document, 'click', '.th-sortable, th[data-sort]', (e) => {
+            e.preventDefault();
+            this._handleSortColumn($(e.currentTarget));
+        });
     }
 
     _on(target, event, delegateOrHandler, maybeHandler) {
@@ -712,11 +714,13 @@ export default class BeanDefinitionsController {
 
     _handleResetFilters() {
         this._resetFilterState();
+        this.sortColumn = '';
+        this.sortDirection = 'asc';
         this.fetchTableData();
     }
 
     _handleSortColumn($target) {
-        const columnKey = $target.data('sort');
+        const columnKey = $target.data('sort') || $target.attr('data-sort');
         if (!columnKey) return;
 
         this.sortDirection = (this.sortColumn === columnKey && this.sortDirection === 'asc') ? 'desc' : 'asc';
@@ -728,12 +732,33 @@ export default class BeanDefinitionsController {
     async _handleSelectBean($target) {
         const beanName = $target.data('bean-name');
         const contextId = $target.data('context-id');
-        if (beanName) await this.selectBean(beanName, contextId);
+        if (beanName) {
+            const success = await this.selectBean(beanName, contextId);
+            if (!success) {
+                ToastNotification.show({
+                    title: 'Bean Not Found',
+                    message: `Bean definition for <strong class="font-mono text-purple-600 dark:text-purple-400 font-bold">${beanName}</strong> could not be loaded or is not registered in the application context.`,
+                    type: 'warning',
+                    duration: 4000
+                });
+            }
+        }
     }
 
     async _handleSelectDependency($target) {
-        const dependencyName = $target.data('fullname');
-        if (dependencyName) await this.selectBean(dependencyName);
+        const dependencyName = $target.data('fullname') || $target.find('[data-field="name"]').text().trim();
+        const contextId = $target.data('context-id') || this.selectedContextId;
+        if (!dependencyName) return;
+
+        const success = await this.selectBean(dependencyName, contextId);
+        if (!success) {
+            ToastNotification.show({
+                title: 'Dependency Not Found',
+                message: `The bean <strong class="font-mono text-purple-600 dark:text-purple-400 font-bold">${dependencyName}</strong> is referenced as a dependency, but its definition is not registered or not found in the application context.`,
+                type: 'warning',
+                duration: 4500
+            });
+        }
     }
 
     _handleChangePage($target) {
@@ -1033,6 +1058,10 @@ export default class BeanDefinitionsController {
     }
 
     _drawModalTree(root, gNode, gLink, svg, zoom) {
+        if (!gNode || !gLink) return;
+        gNode.selectAll('*').remove();
+        gLink.selectAll('*').remove();
+
         const isTB = this.modalGraphMode === 'tb';
         const descendants = root.descendants();
 
@@ -1136,6 +1165,13 @@ export default class BeanDefinitionsController {
                     const success = await this.selectBean(node.data.fullName);
                     if (success) {
                         await this.openGraphModal();
+                    } else {
+                        ToastNotification.show({
+                            title: 'Bean Definition Not Found',
+                            message: `Bean definition for <strong class="font-mono text-purple-600 dark:text-purple-400 font-bold">${node.data.fullName}</strong> is unavailable or not registered.`,
+                            type: 'warning',
+                            duration: 4000
+                        });
                     }
                 }
             })
