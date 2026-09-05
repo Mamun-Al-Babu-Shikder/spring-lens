@@ -201,23 +201,168 @@ export default class TimelineController {
     }
 
     /**
-     * Formats duration with clean units (µs, ms, s).
+     * Formats duration with clean, exact units (µs, ms, s).
+     * 1 µs = 1,000 ns
+     * 1 ms = 1,000,000 ns
+     * 1 s  = 1,000,000,000 ns
      */
     formatDuration(nanos) {
-        if (nanos === undefined || nanos === null) return '0ms';
-        if (nanos >= 1_000_000_000) return (nanos / 1e9).toFixed(2) + 's';
-        const ms = nanos / 1e6;
+        if (nanos === undefined || nanos === null || isNaN(nanos)) return '0µs';
+        const n = Number(nanos);
+        if (n >= 1_000_000_000) return (n / 1e9).toFixed(2) + 's';
+        const ms = n / 1e6;
         if (ms >= 100) return Math.round(ms) + 'ms';
         if (ms >= 10) return ms.toFixed(1) + 'ms';
         if (ms >= 1) return ms.toFixed(2) + 'ms';
-        if (nanos >= 1_000) return (nanos / 1e3).toFixed(0) + 'µs';
-        return nanos + 'ns';
+        if (n >= 100_000) return (n / 1e3).toFixed(0) + 'µs';
+        if (n >= 10_000) return (n / 1e3).toFixed(1) + 'µs';
+        if (n >= 1_000) return (n / 1e3).toFixed(2) + 'µs';
+        return n + 'ns';
     }
 
     formatMsValue(ms) {
         if (ms >= 1000) return (ms / 1000).toFixed(2) + ' s';
         if (ms >= 10) return ms.toFixed(1) + ' ms';
         return ms.toFixed(2) + ' ms';
+    }
+
+    /**
+     * Resolves dynamic latency heat-map color palette based on bean initialization duration.
+     * Spectrum Hierarchy:
+     * - < 2 µs (0 - 2,000 ns) -> Luminous Cyan (#06b6d4)
+     * - 2 - 5 µs (2,000 - 5,000 ns) -> Teal (#14b8a6)
+     * - 5 - 10 µs (5,000 - 10,000 ns) -> Emerald Green (#10b981)
+     * - 10 - 25 µs (10,000 - 25,000 ns) -> Lime / Chartreuse (#84cc16)
+     * - 25 - 100 µs (25,000 - 100,000 ns) -> Yellow / Gold (#eab308)
+     * - 100 - 500 µs (100,000 - 500,000 ns / 0.1ms - 0.5ms) -> Amber (#f59e0b)
+     * - 500 µs - 2 ms (500,000 - 2,000,000 ns / 0.5ms - 2ms) -> Warm Orange (#f97316)
+     * - 2 ms - 10 ms -> Coral / Rose (#f43f5e)
+     * - 10 ms - 50 ms -> Royal Purple / Violet (#8b5cf6)
+     * - >= 50 ms (or relative max time) -> Crimson Red (#ef4444)
+     */
+    getDurationColor(initDurationNanos, maxDurationNanos = 0) {
+        const nanos = initDurationNanos || 0;
+        const ms = nanos / 1e6;
+        const maxNanos = maxDurationNanos || 0;
+        const isMaxTime = maxNanos > 0 && nanos >= maxNanos * 0.95 && maxNanos >= 10000;
+
+        // 1. Critical Bottleneck / Max Time (>= 50ms or relative max in dataset)
+        if (ms >= 50 || isMaxTime) {
+            return {
+                color: '#ef4444',
+                gradient: 'linear-gradient(135deg, #ef4444e6, #dc2626cc)',
+                glow: 'rgba(239, 68, 68, 0.55)',
+                tier: 'bottleneck',
+                isBottleneck: true,
+                badgeClass: 'bg-rose-50 text-rose-700 border-rose-200/80 dark:bg-rose-950/50 dark:text-rose-400 dark:border-rose-800/50'
+            };
+        }
+
+        // 2. Heavy (10ms - 50ms) -> Royal Purple / Violet
+        if (ms >= 10) {
+            return {
+                color: '#8b5cf6',
+                gradient: 'linear-gradient(135deg, #8b5cf6e6, #7c3aedcc)',
+                glow: 'rgba(139, 92, 246, 0.5)',
+                tier: 'heavy',
+                isBottleneck: false,
+                badgeClass: 'bg-purple-50 text-purple-700 border-purple-200/80 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/40'
+            };
+        }
+
+        // 3. Slow (2ms - 10ms) -> Coral / Rose
+        if (ms >= 2) {
+            return {
+                color: '#f43f5e',
+                gradient: 'linear-gradient(135deg, #f43f5ee6, #e11d48cc)',
+                glow: 'rgba(244, 63, 94, 0.5)',
+                tier: 'slow',
+                isBottleneck: false,
+                badgeClass: 'bg-rose-50 text-rose-600 border-rose-200/80 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/40'
+            };
+        }
+
+        // 4. Elevated (500µs - 2ms / 0.5ms - 2ms) -> Warm Orange
+        if (nanos >= 500000) {
+            return {
+                color: '#f97316',
+                gradient: 'linear-gradient(135deg, #f97316e6, #ea580ccc)',
+                glow: 'rgba(249, 115, 22, 0.5)',
+                tier: 'elevated',
+                isBottleneck: false,
+                badgeClass: 'bg-orange-50 text-orange-700 border-orange-200/80 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-800/40'
+            };
+        }
+
+        // 5. Notable (100µs - 500µs) -> Amber
+        if (nanos >= 100000) {
+            return {
+                color: '#f59e0b',
+                gradient: 'linear-gradient(135deg, #f59e0be6, #d97706cc)',
+                glow: 'rgba(245, 158, 11, 0.5)',
+                tier: 'notable',
+                isBottleneck: false,
+                badgeClass: 'bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/40'
+            };
+        }
+
+        // 6. Moderate (25µs - 100µs) -> Yellow / Gold
+        if (nanos >= 25000) {
+            return {
+                color: '#eab308',
+                gradient: 'linear-gradient(135deg, #eab308e6, #ca8a04cc)',
+                glow: 'rgba(234, 179, 8, 0.5)',
+                tier: 'moderate',
+                isBottleneck: false,
+                badgeClass: 'bg-yellow-50 text-yellow-700 border-yellow-200/80 dark:bg-yellow-950/40 dark:text-yellow-400 dark:border-yellow-800/40'
+            };
+        }
+
+        // 7. Fast (10µs - 25µs) -> Lime / Chartreuse
+        if (nanos >= 10000) {
+            return {
+                color: '#84cc16',
+                gradient: 'linear-gradient(135deg, #84cc16e6, #65a30dcc)',
+                glow: 'rgba(132, 204, 22, 0.5)',
+                tier: 'fast',
+                isBottleneck: false,
+                badgeClass: 'bg-lime-50 text-lime-700 border-lime-200/80 dark:bg-lime-950/40 dark:text-lime-400 dark:border-lime-800/40'
+            };
+        }
+
+        // 8. Optimal (5µs - 10µs) -> Emerald Green
+        if (nanos >= 5000) {
+            return {
+                color: '#10b981',
+                gradient: 'linear-gradient(135deg, #10b981e6, #059669cc)',
+                glow: 'rgba(16, 185, 129, 0.5)',
+                tier: 'optimal',
+                isBottleneck: false,
+                badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40'
+            };
+        }
+
+        // 9. Ultra-Fast (2µs - 5µs) -> Teal
+        if (nanos >= 2000) {
+            return {
+                color: '#14b8a6',
+                gradient: 'linear-gradient(135deg, #14b8a6e6, #0d9488cc)',
+                glow: 'rgba(20, 184, 166, 0.5)',
+                tier: 'ultrafast',
+                isBottleneck: false,
+                badgeClass: 'bg-teal-50 text-teal-700 border-teal-200/80 dark:bg-teal-950/40 dark:text-teal-400 dark:border-teal-800/40'
+            };
+        }
+
+        // 10. Sub-Micro / Instant (< 2µs) -> Cyan / Sky Blue
+        return {
+            color: '#06b6d4',
+            gradient: 'linear-gradient(135deg, #06b6d4e6, #0284c7cc)',
+            glow: 'rgba(6, 182, 212, 0.5)',
+            tier: 'submicro',
+            isBottleneck: false,
+            badgeClass: 'bg-cyan-50 text-cyan-700 border-cyan-200/80 dark:bg-cyan-950/40 dark:text-cyan-400 dark:border-cyan-800/40'
+        };
     }
 
     /**
@@ -289,6 +434,7 @@ export default class TimelineController {
     computeTimelineMetrics() {
         if (!this.instances || this.instances.length === 0) {
             this.maxTimeMs = 10;
+            this.maxDurationNanos = 0;
             return;
         }
 
@@ -308,6 +454,7 @@ export default class TimelineController {
             }
         });
 
+        this.maxDurationNanos = maxDurationNanos;
         const maxDurationMs = maxDurationNanos / 1e6;
         this.maxTimeMs = maxDurationMs > 0 ? (maxDurationMs * 1.08) : 10;
     }
@@ -317,11 +464,20 @@ export default class TimelineController {
 
         // 1. Quick Filters
         if (this.quickFilter === 'bottlenecks') {
-            result = result.filter(inst => (inst.initDurationMs || 0) >= 50);
+            result = result.filter(inst => {
+                const dur = this.getDurationColor(inst.initDurationNanos, this.maxDurationNanos);
+                return dur.tier === 'bottleneck' || dur.tier === 'heavy' || dur.isBottleneck;
+            });
         } else if (this.quickFilter === 'slow') {
-            result = result.filter(inst => (inst.initDurationMs || 0) >= 10 && (inst.initDurationMs || 0) < 50);
+            result = result.filter(inst => {
+                const dur = this.getDurationColor(inst.initDurationNanos, this.maxDurationNanos);
+                return dur.tier === 'slow' || dur.tier === 'elevated' || dur.tier === 'notable';
+            });
         } else if (this.quickFilter === 'fast') {
-            result = result.filter(inst => (inst.initDurationMs || 0) < 10);
+            result = result.filter(inst => {
+                const dur = this.getDurationColor(inst.initDurationNanos, this.maxDurationNanos);
+                return dur.tier === 'submicro' || dur.tier === 'ultrafast' || dur.tier === 'optimal' || dur.tier === 'fast' || dur.tier === 'moderate';
+            });
         }
 
         // 2. Minimum Duration Filter
@@ -475,6 +631,13 @@ export default class TimelineController {
             'data-bean-name': beanName || ''
         });
 
+        const durationStyle = this.getDurationColor(initDurationNanos, this.maxDurationNanos);
+        const barColor = durationStyle.color;
+
+        $row.css({
+            '--row-accent-color': barColor
+        });
+
         // Category Icon Container
         const $iconContainer = $row.find('[data-field="iconContainer"]');
         const $icon = $row.find('[data-field="icon"]');
@@ -491,18 +654,7 @@ export default class TimelineController {
         // Duration Text & Badge Styling
         const formattedDuration = this.formatDuration(initDurationNanos);
         const $duration = $row.find('[data-field="duration"]');
-        $duration.text(formattedDuration);
-
-        const isBottleneck = initDurationMs >= 50;
-        const isModerate = initDurationMs >= 10 && initDurationMs < 50;
-
-        if (isBottleneck) {
-            $duration.addClass('bg-rose-50 text-rose-700 border-rose-200/80 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-800/40');
-        } else if (isModerate) {
-            $duration.addClass('bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/40');
-        } else {
-            $duration.addClass('bg-emerald-50/80 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800/30');
-        }
+        $duration.text(formattedDuration).addClass(durationStyle.badgeClass);
 
         // Waterfall Bar Layout (Left-aligned from 0, width scaled to init duration)
         const maxTime = this.maxTimeMs || 1;
@@ -512,13 +664,14 @@ export default class TimelineController {
         $bar.css({
             left: '0%',
             width: `${widthPct}%`,
-            background: `linear-gradient(135deg, ${layer.color}e6, ${layer.color}b3)`,
-            border: `1px solid ${layer.color}`,
-            '--bar-glow': `${layer.color}80`
+            background: durationStyle.gradient,
+            border: `1px solid ${barColor}`,
+            '--bar-glow': durationStyle.glow,
+            '--layer-color': barColor
         });
 
         // Bottleneck Flame Indicator
-        if (isBottleneck) {
+        if (durationStyle.isBottleneck) {
             $bar.addClass('gantt-bar-bottleneck');
             const $flame = $row.find('[data-field="bottleneckBadge"]');
             $flame.removeClass('hidden').css('left', `calc(${widthPct}% + 6px)`);
@@ -623,8 +776,9 @@ export default class TimelineController {
             .addClass(resolveScopeBadgeClass(scope));
 
         // Duration formatted
+        const durationStyle = this.getDurationColor(initDurationNanos, this.maxDurationNanos);
         const formattedDuration = this.formatDuration(initDurationNanos);
-        $row.find('[data-field="durationFormatted"]').text(formattedDuration);
+        $row.find('[data-field="durationFormatted"]').text(formattedDuration).addClass(durationStyle.badgeClass);
 
         // Context ID
         $row.find('[data-field="contextId"]').text(contextId || 'root');
@@ -926,10 +1080,24 @@ export default class TimelineController {
             borderColor: `${metadata.color}30`
         });
 
+        const titles = {
+            name: beanName,
+            type: type || 'N/A',
+            scope: capitalize(scope || 'singleton'),
+            duration: (initDurationNanos || 0).toLocaleString() + ' ns',
+            context: contextId || 'root',
+            created: createdAt || 'N/A',
+            nanos: (initDurationNanos || 0).toLocaleString() + ' ns',
+            definitionStatus: hasDefinition ? 'Defined in Application Context' : 'Dynamically Registered'
+        };
+
         $sidebar.find('[data-field]').each((_, el) => {
             const field = el.dataset.field;
             if (data[field] != null) {
                 $(el).text(data[field]);
+            }
+            if (titles[field] != null) {
+                $(el).attr('title', titles[field]);
             }
         });
 
