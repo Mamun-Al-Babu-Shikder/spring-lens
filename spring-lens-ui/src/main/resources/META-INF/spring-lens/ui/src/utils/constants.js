@@ -228,6 +228,101 @@ const LATENCY_THEME_RULES = [
     }
 ];
 
+const BEAN_LAYER_RULES = [
+    {
+        id: 'web',
+        label: 'Web Layer',
+        color: '#ef4444',
+        icon: 'api',
+        keywords: [
+            'controller', 'rest', 'mapper', 'objectmapper', 'json', 'jackson',
+            'serializer', 'deserializer', 'viewresolver', 'endpoint', 'router', 'feign', 'web'
+        ]
+    },
+    {
+        id: 'business',
+        label: 'Business Logic',
+        color: '#f59e0b',
+        icon: 'settings_input_component',
+        keywords: [
+            'service', 'manager', 'handler', 'facade', 'usecase', 'logic', 'processor', 'validator'
+        ]
+    },
+    {
+        id: 'data',
+        label: 'Data Access',
+        color: '#10b981',
+        icon: 'database',
+        keywords: [
+            'datasource', 'entitymanager', 'transaction', 'repository', 'dao', 'jpa',
+            'hibernate', 'jdbc', 'connection', 'flyway', 'liquibase', 'sql'
+        ]
+    },
+    {
+        id: 'infra',
+        label: 'Infrastructure',
+        color: '#3b82f6',
+        icon: 'memory',
+        keywords: [
+            'logging', 'logger', 'scheduler', 'task', 'security', 'auth', 'filter',
+            'cache', 'meter', 'metrics', 'health', 'actuator', 'management', 'kafka', 'rabbit', 'jms', 'template'
+        ]
+    },
+    {
+        id: 'config',
+        label: 'Configuration',
+        color: '#8b5cf6',
+        icon: 'settings',
+        keywords: [
+            'config', 'properties', 'postprocessor', 'initializer', 'environment',
+            'autoconfiguration', 'factory', 'context', 'profile'
+        ]
+    }
+];
+
+const DEFAULT_BEAN_LAYER = {
+    id: 'other',
+    label: 'Other',
+    color: '#94a3b8',
+    icon: 'deployed_code'
+};
+
+const PROXY_BADGE_STYLES = {
+    JDK_DYNAMIC: {
+        pill: 'bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/50',
+        tab: 'bg-amber-100 text-amber-700 dark:bg-amber-950/80 dark:text-amber-300'
+    },
+    CGLIB: {
+        pill: 'bg-indigo-50 text-indigo-700 border-indigo-200/80 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800/50',
+        tab: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300'
+    },
+    DIRECT: {
+        pill: '',
+        tab: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300'
+    }
+};
+
+const ADVICE_FROZEN_STYLES = {
+    true: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40',
+    false: 'bg-gray-100 text-gray-700 border border-gray-200 dark:bg-slate-800 dark:text-gray-300 dark:border-slate-700'
+};
+
+const DEFINITION_STATUS_STYLES = {
+    true: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40',
+    false: 'bg-gray-100 text-gray-600 border border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-slate-700'
+};
+
+const TAB_BUTTON_STYLES = {
+    active: 'bg-white dark:bg-slate-800 text-primary dark:text-purple-300 font-bold shadow-xs',
+    inactive: 'text-gray-500 dark:text-gray-400 font-semibold'
+};
+
+const ALL_PROXY_PILL_CLASSES = Object.values(PROXY_BADGE_STYLES).map(s => s.pill).filter(Boolean).join(' ');
+const ALL_PROXY_TAB_CLASSES = Object.values(PROXY_BADGE_STYLES).map(s => s.tab).filter(Boolean).join(' ');
+const ALL_ADVICE_FROZEN_CLASSES = Object.values(ADVICE_FROZEN_STYLES).join(' ');
+const ALL_DEFINITION_STATUS_CLASSES = Object.values(DEFINITION_STATUS_STYLES).join(' ');
+const ALL_TAB_BUTTON_CLASSES = Object.values(TAB_BUTTON_STYLES).join(' ');
+
 export {
     NW,
     NH,
@@ -243,6 +338,17 @@ export {
     NAV_STYLES,
     CSS_CLASSES,
     BEAN_TYPE_RULES,
+    BEAN_LAYER_RULES,
+    DEFAULT_BEAN_LAYER,
+    PROXY_BADGE_STYLES,
+    ALL_PROXY_PILL_CLASSES,
+    ALL_PROXY_TAB_CLASSES,
+    ADVICE_FROZEN_STYLES,
+    ALL_ADVICE_FROZEN_CLASSES,
+    DEFINITION_STATUS_STYLES,
+    ALL_DEFINITION_STATUS_CLASSES,
+    TAB_BUTTON_STYLES,
+    ALL_TAB_BUTTON_CLASSES,
     SCOPE_COLORS,
     ROLE_COLORS,
     LOADING_MODE_COLORS,
@@ -260,3 +366,4 @@ export {
     ALL_PROGRESS_DOT_CLASSES,
     LATENCY_THEME_RULES
 };
+

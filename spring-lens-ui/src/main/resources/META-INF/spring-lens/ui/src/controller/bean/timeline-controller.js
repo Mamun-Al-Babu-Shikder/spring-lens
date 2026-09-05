@@ -2,8 +2,12 @@ import httpClient from '../../client/http-client.js';
 import GraphTreeBuilder from '../../builder/graph-tree-builder.js';
 import beanDataStore from '../../storage/bean-data-store.js';
 import {
-    capitalize, resolveBeanMetadata, resolveScopeStyle, resolveScopeBadgeClass, downloadJson,
-    TemplateEngine, QueryParam, Pagination, debounce
+    capitalize, resolveBeanMetadata, resolveScopeBadgeClass, downloadJson,
+    TemplateEngine, QueryParam, Pagination, debounce,
+    formatDuration, resolveDurationColor, resolveBeanLayer,
+    calculateTimeTicks, formatTickLabel,
+    resolveProxyBadgeStyles, resolveAdviceFrozenClass, resolveDefinitionStatusBadgeClass, resolveTabButtonClass,
+    ALL_PROXY_PILL_CLASSES, ALL_PROXY_TAB_CLASSES, ALL_ADVICE_FROZEN_CLASSES, ALL_DEFINITION_STATUS_CLASSES, ALL_TAB_BUTTON_CLASSES
 } from '../../utils/index.js';
 
 export default class TimelineController {
@@ -42,7 +46,6 @@ export default class TimelineController {
 
         this.beanInstanceApi = endpoints.BEAN_INSTANCE;
         this.beanInstanceFindApi = endpoints.FIND_BEAN_INSTANCE;
-        this.beanDefinitionFindApi = endpoints.FIND_BEAN_DEFINITION;
         this.beanInstanceSummaryApi = endpoints.SUMMARY_BEAN_INSTANCE;
         this.beanInstanceProxyApi = endpoints.PROXY_BEAN_INSTANCE;
     }
@@ -182,253 +185,16 @@ export default class TimelineController {
         };
     }
 
-    /**
-     * Parses ISO timestamp string into millisecond accuracy.
-     */
-    parseIsoToMs(isoStr) {
-        if (!isoStr || typeof isoStr !== 'string') return 0;
-
-        const match = isoStr.match(/^(.*?)(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/);
-        if (!match) return 0;
-
-        const [, base, fractionStr, tz = ''] = match;
-        const baseMs = Date.parse(`${base}${tz}`);
-
-        if (Number.isNaN(baseMs)) return 0;
-
-        const fractionalMs = fractionStr ? parseFloat(fractionStr) * 1000 : 0;
-        return baseMs + fractionalMs;
-    }
-
-    /**
-     * Formats duration with clean, exact units (µs, ms, s).
-     * 1 µs = 1,000 ns
-     * 1 ms = 1,000,000 ns
-     * 1 s  = 1,000,000,000 ns
-     */
     formatDuration(nanos) {
-        if (nanos === undefined || nanos === null || isNaN(nanos)) return '0µs';
-        const n = Number(nanos);
-        if (n >= 1_000_000_000) return (n / 1e9).toFixed(2) + 's';
-        const ms = n / 1e6;
-        if (ms >= 100) return Math.round(ms) + 'ms';
-        if (ms >= 10) return ms.toFixed(1) + 'ms';
-        if (ms >= 1) return ms.toFixed(2) + 'ms';
-        if (n >= 100_000) return (n / 1e3).toFixed(0) + 'µs';
-        if (n >= 10_000) return (n / 1e3).toFixed(1) + 'µs';
-        if (n >= 1_000) return (n / 1e3).toFixed(2) + 'µs';
-        return n + 'ns';
+        return formatDuration(nanos);
     }
 
-    formatMsValue(ms) {
-        if (ms >= 1000) return (ms / 1000).toFixed(2) + ' s';
-        if (ms >= 10) return ms.toFixed(1) + ' ms';
-        return ms.toFixed(2) + ' ms';
-    }
-
-    /**
-     * Resolves dynamic latency heat-map color palette based on bean initialization duration.
-     * Spectrum Hierarchy:
-     * - < 2 µs (0 - 2,000 ns) -> Luminous Cyan (#06b6d4)
-     * - 2 - 5 µs (2,000 - 5,000 ns) -> Teal (#14b8a6)
-     * - 5 - 10 µs (5,000 - 10,000 ns) -> Emerald Green (#10b981)
-     * - 10 - 25 µs (10,000 - 25,000 ns) -> Lime / Chartreuse (#84cc16)
-     * - 25 - 100 µs (25,000 - 100,000 ns) -> Yellow / Gold (#eab308)
-     * - 100 - 500 µs (100,000 - 500,000 ns / 0.1ms - 0.5ms) -> Amber (#f59e0b)
-     * - 500 µs - 2 ms (500,000 - 2,000,000 ns / 0.5ms - 2ms) -> Warm Orange (#f97316)
-     * - 2 ms - 10 ms -> Coral / Rose (#f43f5e)
-     * - 10 ms - 50 ms -> Royal Purple / Violet (#8b5cf6)
-     * - >= 50 ms (or relative max time) -> Crimson Red (#ef4444)
-     */
     getDurationColor(initDurationNanos, maxDurationNanos = 0) {
-        const nanos = initDurationNanos || 0;
-        const ms = nanos / 1e6;
-        const maxNanos = maxDurationNanos || 0;
-        const isMaxTime = maxNanos > 0 && nanos >= maxNanos * 0.95 && maxNanos >= 10000;
-
-        // 1. Critical Bottleneck / Max Time (>= 50ms or relative max in dataset)
-        if (ms >= 50 || isMaxTime) {
-            return {
-                color: '#ef4444',
-                gradient: 'linear-gradient(135deg, #ef4444e6, #dc2626cc)',
-                glow: 'rgba(239, 68, 68, 0.55)',
-                tier: 'bottleneck',
-                isBottleneck: true,
-                badgeClass: 'bg-rose-50 text-rose-700 border-rose-200/80 dark:bg-rose-950/50 dark:text-rose-400 dark:border-rose-800/50'
-            };
-        }
-
-        // 2. Heavy (10ms - 50ms) -> Royal Purple / Violet
-        if (ms >= 10) {
-            return {
-                color: '#8b5cf6',
-                gradient: 'linear-gradient(135deg, #8b5cf6e6, #7c3aedcc)',
-                glow: 'rgba(139, 92, 246, 0.5)',
-                tier: 'heavy',
-                isBottleneck: false,
-                badgeClass: 'bg-purple-50 text-purple-700 border-purple-200/80 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/40'
-            };
-        }
-
-        // 3. Slow (2ms - 10ms) -> Coral / Rose
-        if (ms >= 2) {
-            return {
-                color: '#f43f5e',
-                gradient: 'linear-gradient(135deg, #f43f5ee6, #e11d48cc)',
-                glow: 'rgba(244, 63, 94, 0.5)',
-                tier: 'slow',
-                isBottleneck: false,
-                badgeClass: 'bg-rose-50 text-rose-600 border-rose-200/80 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/40'
-            };
-        }
-
-        // 4. Elevated (500µs - 2ms / 0.5ms - 2ms) -> Warm Orange
-        if (nanos >= 500000) {
-            return {
-                color: '#f97316',
-                gradient: 'linear-gradient(135deg, #f97316e6, #ea580ccc)',
-                glow: 'rgba(249, 115, 22, 0.5)',
-                tier: 'elevated',
-                isBottleneck: false,
-                badgeClass: 'bg-orange-50 text-orange-700 border-orange-200/80 dark:bg-orange-950/40 dark:text-orange-400 dark:border-orange-800/40'
-            };
-        }
-
-        // 5. Notable (100µs - 500µs) -> Amber
-        if (nanos >= 100000) {
-            return {
-                color: '#f59e0b',
-                gradient: 'linear-gradient(135deg, #f59e0be6, #d97706cc)',
-                glow: 'rgba(245, 158, 11, 0.5)',
-                tier: 'notable',
-                isBottleneck: false,
-                badgeClass: 'bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/40'
-            };
-        }
-
-        // 6. Moderate (25µs - 100µs) -> Yellow / Gold
-        if (nanos >= 25000) {
-            return {
-                color: '#eab308',
-                gradient: 'linear-gradient(135deg, #eab308e6, #ca8a04cc)',
-                glow: 'rgba(234, 179, 8, 0.5)',
-                tier: 'moderate',
-                isBottleneck: false,
-                badgeClass: 'bg-yellow-50 text-yellow-700 border-yellow-200/80 dark:bg-yellow-950/40 dark:text-yellow-400 dark:border-yellow-800/40'
-            };
-        }
-
-        // 7. Fast (10µs - 25µs) -> Lime / Chartreuse
-        if (nanos >= 10000) {
-            return {
-                color: '#84cc16',
-                gradient: 'linear-gradient(135deg, #84cc16e6, #65a30dcc)',
-                glow: 'rgba(132, 204, 22, 0.5)',
-                tier: 'fast',
-                isBottleneck: false,
-                badgeClass: 'bg-lime-50 text-lime-700 border-lime-200/80 dark:bg-lime-950/40 dark:text-lime-400 dark:border-lime-800/40'
-            };
-        }
-
-        // 8. Optimal (5µs - 10µs) -> Emerald Green
-        if (nanos >= 5000) {
-            return {
-                color: '#10b981',
-                gradient: 'linear-gradient(135deg, #10b981e6, #059669cc)',
-                glow: 'rgba(16, 185, 129, 0.5)',
-                tier: 'optimal',
-                isBottleneck: false,
-                badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40'
-            };
-        }
-
-        // 9. Ultra-Fast (2µs - 5µs) -> Teal
-        if (nanos >= 2000) {
-            return {
-                color: '#14b8a6',
-                gradient: 'linear-gradient(135deg, #14b8a6e6, #0d9488cc)',
-                glow: 'rgba(20, 184, 166, 0.5)',
-                tier: 'ultrafast',
-                isBottleneck: false,
-                badgeClass: 'bg-teal-50 text-teal-700 border-teal-200/80 dark:bg-teal-950/40 dark:text-teal-400 dark:border-teal-800/40'
-            };
-        }
-
-        // 10. Sub-Micro / Instant (< 2µs) -> Cyan / Sky Blue
-        return {
-            color: '#06b6d4',
-            gradient: 'linear-gradient(135deg, #06b6d4e6, #0284c7cc)',
-            glow: 'rgba(6, 182, 212, 0.5)',
-            tier: 'submicro',
-            isBottleneck: false,
-            badgeClass: 'bg-cyan-50 text-cyan-700 border-cyan-200/80 dark:bg-cyan-950/40 dark:text-cyan-400 dark:border-cyan-800/40'
-        };
+        return resolveDurationColor(initDurationNanos, maxDurationNanos);
     }
 
-    /**
-     * Categorizes bean into layer with color & icon matching the UI design.
-     */
     getBeanLayer(bean) {
-        if (!bean) {
-            return { id: 'other', label: 'Other', color: '#94a3b8', icon: 'deployed_code' };
-        }
-
-        const name = (bean.beanName || '').toLowerCase();
-        const type = (bean.type || '').toLowerCase();
-        const combined = `${name} ${type}`;
-
-        // 1. Web Layer (Red / Rose)
-        if (
-            combined.includes('controller') || combined.includes('rest') || combined.includes('mapper') ||
-            combined.includes('objectmapper') || combined.includes('json') || combined.includes('jackson') ||
-            combined.includes('serializer') || combined.includes('deserializer') || combined.includes('viewresolver') ||
-            combined.includes('endpoint') || combined.includes('router') || combined.includes('feign') || combined.includes('web')
-        ) {
-            return { id: 'web', label: 'Web Layer', color: '#ef4444', icon: 'api' };
-        }
-
-        // 2. Business Logic (Yellow / Amber)
-        if (
-            combined.includes('service') || combined.includes('manager') || combined.includes('handler') ||
-            combined.includes('facade') || combined.includes('usecase') || combined.includes('logic') ||
-            combined.includes('processor') || combined.includes('validator')
-        ) {
-            return { id: 'business', label: 'Business Logic', color: '#f59e0b', icon: 'settings_input_component' };
-        }
-
-        // 3. Data Access (Green / Emerald)
-        if (
-            combined.includes('datasource') || combined.includes('entitymanager') || combined.includes('transaction') ||
-            combined.includes('repository') || combined.includes('dao') || combined.includes('jpa') ||
-            combined.includes('hibernate') || combined.includes('jdbc') || combined.includes('connection') ||
-            combined.includes('flyway') || combined.includes('liquibase') || combined.includes('sql')
-        ) {
-            return { id: 'data', label: 'Data Access', color: '#10b981', icon: 'database' };
-        }
-
-        // 4. Infrastructure (Blue)
-        if (
-            combined.includes('logging') || combined.includes('logger') || combined.includes('scheduler') ||
-            combined.includes('task') || combined.includes('security') || combined.includes('auth') ||
-            combined.includes('filter') || combined.includes('cache') || combined.includes('meter') ||
-            combined.includes('metrics') || combined.includes('health') || combined.includes('actuator') ||
-            combined.includes('management') || combined.includes('kafka') || combined.includes('rabbit') ||
-            combined.includes('jms') || combined.includes('template')
-        ) {
-            return { id: 'infra', label: 'Infrastructure', color: '#3b82f6', icon: 'memory' };
-        }
-
-        // 5. Configuration (Purple)
-        if (
-            combined.includes('config') || combined.includes('properties') || combined.includes('postprocessor') ||
-            combined.includes('initializer') || combined.includes('environment') || combined.includes('autoconfiguration') ||
-            combined.includes('factory') || combined.includes('context') || combined.includes('profile')
-        ) {
-            return { id: 'config', label: 'Configuration', color: '#8b5cf6', icon: 'settings' };
-        }
-
-        // 6. Other (Gray / Slate)
-        return { id: 'other', label: 'Other', color: '#94a3b8', icon: 'deployed_code' };
+        return resolveBeanLayer(bean);
     }
 
     computeTimelineMetrics() {
@@ -515,80 +281,64 @@ export default class TimelineController {
     renderTimeRulerAndGrid() {
         const $ruler = $('#timeline-ruler-ticks');
         const $grid = $('#timeline-grid-lines');
-        if (!$ruler.length) return;
+        if (!$ruler.length || !$grid.length) return;
 
         $ruler.empty();
         $grid.empty();
 
         const ticks = this._calculateTimeTicks(this.maxTimeMs);
+        const rulerFragment = document.createDocumentFragment();
+        const gridFragment = document.createDocumentFragment();
 
         ticks.forEach((tick) => {
             const pct = (tick.ms / this.maxTimeMs) * 100;
             if (pct > 100) return;
 
-            // Tick container on ruler
-            const $tick = $(`
-                <div class="absolute top-0 bottom-0 pointer-events-none" style="left: ${pct}%;">
-                    <div class="ruler-tick-mark ${tick.isMajor ? 'ruler-tick-major' : ''}"></div>
-                    <span class="absolute top-0 transform -translate-x-1/2 whitespace-nowrap ${tick.isMajor ? 'font-bold text-gray-700 dark:text-gray-200' : 'text-gray-400 dark:text-gray-500'}">
-                        ${tick.label}
-                    </span>
-                </div>
-            `);
-            $ruler.append($tick);
+            // 1. Tick container on ruler
+            const tickClone = TemplateEngine.clone('tpl-timeline-ruler-tick');
+            if (tickClone?.firstElementChild) {
+                const $tick = $(tickClone.firstElementChild);
+                $tick.css('left', `${pct}%`);
 
-            // Vertical dashed grid line
-            const $gridLine = $(`<div class="absolute inset-y-0 pointer-events-none border-l ${tick.isMajor ? 'border-dashed border-gray-300/80 dark:border-slate-700/80' : 'border-dotted border-gray-200/60 dark:border-slate-800/60'}"></div>`);
-            $gridLine.css('left', `calc(${pct}% + 340px)`);
-            $grid.append($gridLine);
+                const $mark = $tick.find('[data-field="tickMark"]');
+                const $label = $tick.find('[data-field="tickLabel"]');
+
+                if (tick.isMajor) {
+                    $mark.addClass('ruler-tick-major');
+                    $label.addClass('font-bold text-gray-700 dark:text-gray-200').text(tick.label);
+                } else {
+                    $label.addClass('text-gray-400 dark:text-gray-500');
+                }
+
+                rulerFragment.appendChild(tickClone);
+            }
+
+            // 2. Vertical dashed/dotted grid line
+            const gridClone = TemplateEngine.clone('tpl-timeline-grid-line');
+            if (gridClone?.firstElementChild) {
+                const $gridLine = $(gridClone.firstElementChild);
+                $gridLine.css('left', `calc(${pct}% + 340px)`);
+
+                if (tick.isMajor) {
+                    $gridLine.addClass('border-dashed border-gray-300/80 dark:border-slate-700/80');
+                } else {
+                    $gridLine.addClass('border-dotted border-gray-200/60 dark:border-slate-800/60');
+                }
+
+                gridFragment.appendChild(gridClone);
+            }
         });
+
+        $ruler.append(rulerFragment);
+        $grid.append(gridFragment);
     }
 
     _calculateTimeTicks(maxMs) {
-        let majorStepMs;
-        if (maxMs <= 0.05) majorStepMs = 0.01;
-        else if (maxMs <= 0.1) majorStepMs = 0.02;
-        else if (maxMs <= 0.25) majorStepMs = 0.05;
-        else if (maxMs <= 0.5) majorStepMs = 0.1;
-        else if (maxMs <= 1) majorStepMs = 0.2;
-        else if (maxMs <= 2.5) majorStepMs = 0.5;
-        else if (maxMs <= 5) majorStepMs = 1;
-        else if (maxMs <= 10) majorStepMs = 2;
-        else if (maxMs <= 25) majorStepMs = 5;
-        else if (maxMs <= 50) majorStepMs = 10;
-        else if (maxMs <= 100) majorStepMs = 20;
-        else if (maxMs <= 250) majorStepMs = 50;
-        else if (maxMs <= 500) majorStepMs = 100;
-        else if (maxMs <= 1000) majorStepMs = 200;
-        else if (maxMs <= 2000) majorStepMs = 400;
-        else if (maxMs <= 5000) majorStepMs = 1000;
-        else if (maxMs <= 10000) majorStepMs = 2000;
-        else majorStepMs = Math.ceil(maxMs / 6 / 1000) * 1000;
-
-        const minorStepMs = majorStepMs / 2;
-        const ticks = [];
-        const precision = majorStepMs < 1 ? (majorStepMs < 0.05 ? 3 : 2) : 0;
-
-        for (let ms = 0; ms <= maxMs + (minorStepMs * 0.1); ms += minorStepMs) {
-            const roundedMs = parseFloat(ms.toFixed(precision + 1));
-            const isMajor = Math.abs(roundedMs % majorStepMs) < 1e-6 || Math.abs(roundedMs - Math.round(roundedMs / majorStepMs) * majorStepMs) < 1e-6 || roundedMs === 0;
-            ticks.push({
-                ms: roundedMs,
-                isMajor,
-                label: isMajor ? this._formatTickLabel(roundedMs) : ''
-            });
-        }
-        return ticks;
+        return calculateTimeTicks(maxMs);
     }
 
     _formatTickLabel(ms) {
-        if (ms === 0) return '0';
-        if (ms < 0.1) return `${(ms * 1000).toFixed(0)}µs`;
-        if (ms < 1) return `${ms.toFixed(2)}ms`;
-        if (ms < 10) return `${ms.toFixed(1)}ms`;
-        if (ms < 1000) return `${Math.round(ms)}ms`;
-        const sec = ms / 1000;
-        return `${Number.isInteger(sec) ? sec : sec.toFixed(1)}s`;
+        return formatTickLabel(ms);
     }
 
     renderGanttRows() {
@@ -787,24 +537,29 @@ export default class TimelineController {
     }
 
     renderPagination() {
+        const $instPaginationInfo = $('#inst-pagination-info');
+        const $instPaginationButtons = $('#inst-pagination-buttons');
+
         const { totalElements, pageNumber, pageSize } = this.paginationState;
 
         const infoText = Pagination.formatInfoText(totalElements, pageNumber, pageSize, 'instances');
-        const $info = $('#inst-pagination-info').length ? $('#inst-pagination-info') : $('#time-pagination-info');
+        const $info = $instPaginationInfo.length ? $instPaginationInfo : $('#time-pagination-info');
         $info.text(infoText);
 
-        const $buttons = $('#inst-pagination-buttons').length ? $('#inst-pagination-buttons') : $('#time-pagination-buttons');
+        const $buttons = $instPaginationButtons.length ? $instPaginationButtons : $('#time-pagination-buttons');
         Pagination.renderPaginationButtons($buttons, this.paginationState);
     }
 
     renderLoadingState() {
+        const $beanInstanceTableBody = $('#beanInstanceTableBody');
+
         if (this.activeView === 'timeline') {
             const $container = $('#timeline-waterfall-rows');
             $container.children().not('#timeline-grid-lines, #timeline-scrubber-needle').remove();
             const clone = TemplateEngine.clone('tpl-timeline-loading');
             if (clone) $container.append(clone);
         } else {
-            const $tbody = $('#beanInstanceTableBody').length ? $('#beanInstanceTableBody') : $('#time-table-body');
+            const $tbody = $beanInstanceTableBody.length ? $beanInstanceTableBody : $('#time-table-body');
             if (!$tbody.length) return;
             const clone = TemplateEngine.clone('tpl-instance-loading') || TemplateEngine.clone('tpl-timeline-loading');
             if (clone) $tbody.empty().append(clone);
@@ -812,6 +567,8 @@ export default class TimelineController {
     }
 
     renderErrorState(errorMessage) {
+        const $beanInstanceTableBody = $('#beanInstanceTableBody');
+
         if (this.activeView === 'timeline') {
             const $container = $('#timeline-waterfall-rows');
             $container.children().not('#timeline-grid-lines, #timeline-scrubber-needle').remove();
@@ -821,7 +578,7 @@ export default class TimelineController {
                 $container.append(clone);
             }
         } else {
-            const $tbody = $('#beanInstanceTableBody').length ? $('#beanInstanceTableBody') : $('#time-table-body');
+            const $tbody = $beanInstanceTableBody.length ? $beanInstanceTableBody : $('#time-table-body');
             if (!$tbody.length) return;
             const clone = TemplateEngine.clone('tpl-instance-error') || TemplateEngine.clone('tpl-timeline-error');
             if (clone) {
@@ -880,13 +637,15 @@ export default class TimelineController {
      * Fetches runtime AOP & CGLIB proxy info for the selected bean instance.
      */
     async fetchProxyInfo(contextId, beanName) {
+        const $timeSidebarProxyLoading = $('#time-sidebar-proxy-loading');
+
         if (!this.beanInstanceProxyApi) return;
 
         // Reset and show loading state
         $('#time-sidebar-proxy-type').addClass('hidden').hide();
         $('#time-sidebar-proxy-content').addClass('hidden').hide();
         $('#time-sidebar-proxy-empty').addClass('hidden').hide();
-        $('#time-sidebar-proxy-loading').removeClass('hidden').show();
+        $timeSidebarProxyLoading.removeClass('hidden').show();
 
         try {
             const queryParams = QueryParam.build({ contextId, beanName });
@@ -913,7 +672,7 @@ export default class TimelineController {
             this.renderProxyEmptyState();
         } finally {
             if (this.selectedContextId === contextId && this.selectedBeanName === beanName) {
-                $('#time-sidebar-proxy-loading').addClass('hidden').hide();
+                $timeSidebarProxyLoading.addClass('hidden').hide();
             }
         }
     }
@@ -924,24 +683,23 @@ export default class TimelineController {
     renderProxyInfo(proxyInfo) {
         const { targetClass, advices = [], proxiedInterfaces = [], adviceFrozen, proxyType } = proxyInfo;
 
+        const proxyStyles = resolveProxyBadgeStyles(proxyType);
+        const proxyTypeText = proxyType || 'CGLIB';
+
         const $typeBadge = $('#time-sidebar-proxy-type');
         const $tabBadge = $('#time-sidebar-tab-proxy-badge');
-        const proxyTypeText = proxyType || 'CGLIB';
-        $typeBadge.text(proxyTypeText);
-        $tabBadge.text(proxyTypeText).removeClass('hidden').show();
 
-        if (proxyTypeText === 'JDK_DYNAMIC') {
-            $typeBadge.removeClass('bg-indigo-50 text-indigo-700 border-indigo-200/80 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800/50')
-                .addClass('bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/50');
-            $tabBadge.removeClass('bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300')
-                .addClass('bg-amber-100 text-amber-700 dark:bg-amber-950/80 dark:text-amber-300');
-        } else {
-            $typeBadge.removeClass('bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/50')
-                .addClass('bg-indigo-50 text-indigo-700 border-indigo-200/80 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800/50');
-            $tabBadge.removeClass('bg-amber-100 text-amber-700 dark:bg-amber-950/80 dark:text-amber-300 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300')
-                .addClass('bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300');
-        }
-        $typeBadge.removeClass('hidden').show();
+        $typeBadge.text(proxyTypeText)
+            .removeClass(ALL_PROXY_PILL_CLASSES)
+            .addClass(proxyStyles.pill)
+            .removeClass('hidden')
+            .show();
+
+        $tabBadge.text(proxyTypeText)
+            .removeClass(ALL_PROXY_TAB_CLASSES)
+            .addClass(proxyStyles.tab)
+            .removeClass('hidden')
+            .show();
 
         // Target Class
         const targetClassDisplay = targetClass || 'N/A';
@@ -950,37 +708,29 @@ export default class TimelineController {
             .attr('title', targetClassDisplay);
 
         // Advice Frozen
-        const $frozenBadge = $('#time-sidebar-proxy-frozen');
-        if (adviceFrozen) {
-            $frozenBadge.text('TRUE')
-                .removeClass('bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-gray-300')
-                .addClass('bg-emerald-50 text-emerald-700 border border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40');
-        } else {
-            $frozenBadge.text('FALSE')
-                .removeClass('bg-emerald-50 text-emerald-700 border border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40')
-                .addClass('bg-gray-100 text-gray-700 border border-gray-200 dark:bg-slate-800 dark:text-gray-300 dark:border-slate-700');
-        }
+        $('#time-sidebar-proxy-frozen')
+            .text(adviceFrozen ? 'TRUE' : 'FALSE')
+            .removeClass(ALL_ADVICE_FROZEN_CLASSES)
+            .addClass(resolveAdviceFrozenClass(adviceFrozen));
 
         // Advices list
         $('#time-sidebar-proxy-advices-count').text(advices.length);
         const $advicesList = $('#time-sidebar-proxy-advices-list');
         $advicesList.empty();
         if (advices.length === 0) {
-            $advicesList.append(`
-                <div class="text-[10px] text-gray-400 dark:text-gray-500 italic py-0.5">
-                    No custom advices attached
-                </div>
-            `);
+            const emptyClone = TemplateEngine.clone('tpl-proxy-empty-item');
+            emptyClone.find('[data-field="message"]').text('No custom advices attached');
+            $advicesList.append(emptyClone);
         } else {
+            const fragment = $(document.createDocumentFragment());
             advices.forEach(adv => {
                 const shortName = adv.includes('.') ? adv.split('.').pop() : adv;
-                $advicesList.append(`
-                    <div class="flex items-center justify-between py-1 px-2 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-gray-100 dark:border-slate-800/80 text-[10.5px] font-mono">
-                        <span class="text-gray-800 dark:text-gray-200 truncate" title="${adv}">${shortName}</span>
-                        <span class="text-[9px] text-gray-400 dark:text-gray-500 font-sans ml-1 flex-shrink-0">Advice</span>
-                    </div>
-                `);
+                const clone = TemplateEngine.clone('tpl-proxy-item');
+                clone.find('[data-field="name"]').text(shortName).attr('title', adv);
+                clone.find('[data-field="badge"]').text('Advice');
+                fragment.append(clone);
             });
+            $advicesList.append(fragment);
         }
 
         // Interfaces list
@@ -988,21 +738,19 @@ export default class TimelineController {
         const $interfacesList = $('#time-sidebar-proxy-interfaces-list');
         $interfacesList.empty();
         if (proxiedInterfaces.length === 0) {
-            $interfacesList.append(`
-                <div class="text-[10px] text-gray-400 dark:text-gray-500 italic py-0.5">
-                    No interfaces proxied (CGLIB class proxy)
-                </div>
-            `);
+            const emptyClone = TemplateEngine.clone('tpl-proxy-empty-item');
+            emptyClone.find('[data-field="message"]').text('No interfaces proxied (CGLIB class proxy)');
+            $interfacesList.append(emptyClone);
         } else {
+            const fragment = $(document.createDocumentFragment());
             proxiedInterfaces.forEach(iface => {
                 const shortName = iface.includes('.') ? iface.split('.').pop() : iface;
-                $interfacesList.append(`
-                    <div class="flex items-center justify-between py-1 px-2 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-gray-100 dark:border-slate-800/80 text-[10.5px] font-mono">
-                        <span class="text-gray-800 dark:text-gray-200 truncate" title="${iface}">${shortName}</span>
-                        <span class="text-[9px] text-gray-400 dark:text-gray-500 font-sans ml-1 flex-shrink-0">Interface</span>
-                    </div>
-                `);
+                const clone = TemplateEngine.clone('tpl-proxy-item');
+                clone.find('[data-field="name"]').text(shortName).attr('title', iface);
+                clone.find('[data-field="badge"]').text('Interface');
+                fragment.append(clone);
             });
+            $interfacesList.append(fragment);
         }
 
         $('#time-sidebar-proxy-empty').addClass('hidden').hide();
@@ -1014,10 +762,12 @@ export default class TimelineController {
      */
     renderProxyEmptyState() {
         $('#time-sidebar-proxy-type').addClass('hidden').hide();
-        const $tabBadge = $('#time-sidebar-tab-proxy-badge');
-        $tabBadge.text('Direct')
-            .removeClass('bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 bg-amber-100 text-amber-700 dark:bg-amber-950/80 dark:text-amber-300 hidden')
-            .addClass('bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300')
+        const directStyles = resolveProxyBadgeStyles('DIRECT');
+        $('#time-sidebar-tab-proxy-badge')
+            .text('Direct')
+            .removeClass(ALL_PROXY_TAB_CLASSES)
+            .addClass(directStyles.tab)
+            .removeClass('hidden')
             .show();
         $('#time-sidebar-proxy-content').addClass('hidden').hide();
         $('#time-sidebar-proxy-empty').removeClass('hidden').show();
@@ -1030,23 +780,23 @@ export default class TimelineController {
         if (!tabName) return;
         this.activeSidebarTab = tabName;
 
+        const isProxy = tabName === 'proxy';
         const $telemetryBtn = $('#time-sidebar-tab-telemetry');
         const $proxyBtn = $('#time-sidebar-tab-proxy');
         const $telemetryPane = $('#time-sidebar-pane-telemetry');
         const $proxyPane = $('#time-sidebar-pane-proxy');
 
-        if (tabName === 'proxy') {
-            $proxyBtn.addClass('bg-white dark:bg-slate-800 text-primary dark:text-purple-300 font-bold shadow-xs')
-                .removeClass('text-gray-500 dark:text-gray-400 font-semibold');
-            $telemetryBtn.removeClass('bg-white dark:bg-slate-800 text-primary dark:text-purple-300 font-bold shadow-xs')
-                .addClass('text-gray-500 dark:text-gray-400 font-semibold');
+        $proxyBtn
+            .removeClass(ALL_TAB_BUTTON_CLASSES)
+            .addClass(resolveTabButtonClass(isProxy));
+        $telemetryBtn
+            .removeClass(ALL_TAB_BUTTON_CLASSES)
+            .addClass(resolveTabButtonClass(!isProxy));
+
+        if (isProxy) {
             $telemetryPane.addClass('hidden').hide();
             $proxyPane.removeClass('hidden').show();
         } else {
-            $telemetryBtn.addClass('bg-white dark:bg-slate-800 text-primary dark:text-purple-300 font-bold shadow-xs')
-                .removeClass('text-gray-500 dark:text-gray-400 font-semibold');
-            $proxyBtn.removeClass('bg-white dark:bg-slate-800 text-primary dark:text-purple-300 font-bold shadow-xs')
-                .addClass('text-gray-500 dark:text-gray-400 font-semibold');
             $proxyPane.addClass('hidden').hide();
             $telemetryPane.removeClass('hidden').show();
         }
@@ -1101,14 +851,9 @@ export default class TimelineController {
             }
         });
 
-        const $defStatus = $('#time-sidebar-definition-status');
-        if (hasDefinition) {
-            $defStatus.removeClass('bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-gray-400')
-                .addClass('bg-emerald-50 text-emerald-700 border border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40');
-        } else {
-            $defStatus.removeClass('bg-emerald-50 text-emerald-700 border border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40')
-                .addClass('bg-gray-100 text-gray-600 border border-gray-200 dark:bg-slate-800 dark:text-gray-400 dark:border-slate-700');
-        }
+        $('#time-sidebar-definition-status')
+            .removeClass(ALL_DEFINITION_STATUS_CLASSES)
+            .addClass(resolveDefinitionStatusBadgeClass(hasDefinition));
 
         const $footer = $('#time-sidebar-footer');
         const $viewBtn = $('#time-btn-view-details');

@@ -1,3 +1,4 @@
+import ENDPOINTS from './src/config/api-endpoints.js';
 import Route from './src/route/route.js';
 import BeanDefinitions from './src/controller/bean/definition-controller.js';
 import TimelineController from './src/controller/bean/timeline-controller.js';
@@ -8,29 +9,6 @@ import ApplicationState from './src/controller/application/application-state.js'
 import { PageHeader } from './src/utils/index.js';
 
 $(document).ready(() => {
-
-    const origin = window.location.origin;
-    const pathname = window.location.pathname;
-
-    const CONTEXT_PATH = pathname.split('/spring-lens/ui')[0];
-    const API_BASE_URL = origin + CONTEXT_PATH + '/spring-lens/api/beans';
-    const APPLICATION_INFO = origin + CONTEXT_PATH + '/spring-lens/api/application';
-
-    const ENDPOINTS = {
-        APPLICATION_INFO: APPLICATION_INFO,
-        APPLICATION_HEALTH: APPLICATION_INFO + "/health",
-        BEAN_DEFINITION: API_BASE_URL + "/definitions",
-        FIND_BEAN_DEFINITION: API_BASE_URL + "/definitions/find",
-        SUMMARY_BEAN_DEFINITION: API_BASE_URL + "/definitions/summary",
-        BEAN_INSTANCE: API_BASE_URL + "/instances",
-        FIND_BEAN_INSTANCE: API_BASE_URL + "/instances/find",
-        PROXY_BEAN_INSTANCE: API_BASE_URL + "/instances/proxy-info",
-        SUMMARY_BEAN_INSTANCE: API_BASE_URL + "/instances/summary",
-        GRAPH_DEPENDENCIES: API_BASE_URL + "/definitions/dependencies",
-        CONDITIONAL_REPORTS: API_BASE_URL + "/conditions",
-        FIND_CONDITIONAL_REPORTS: API_BASE_URL + "/conditions/find",
-        SUMMARY_CONDITIONAL_REPORTS: API_BASE_URL + "/conditions/summary",
-    };
 
     const applicationState = new ApplicationState({
         healthApi: ENDPOINTS.APPLICATION_HEALTH,

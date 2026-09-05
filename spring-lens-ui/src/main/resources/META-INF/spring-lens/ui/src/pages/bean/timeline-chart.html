@@ -663,6 +663,33 @@
 
 <!-- Reusable UI Templates -->
 
+<!-- Timeline Ruler Tick Template -->
+<template id="tpl-timeline-ruler-tick">
+    <div class="absolute top-0 bottom-0 pointer-events-none" data-field="tickContainer">
+        <div class="ruler-tick-mark" data-field="tickMark"></div>
+        <span class="absolute top-0 transform -translate-x-1/2 whitespace-nowrap text-xs" data-field="tickLabel"></span>
+    </div>
+</template>
+
+<!-- Timeline Grid Line Template -->
+<template id="tpl-timeline-grid-line">
+    <div class="absolute inset-y-0 pointer-events-none border-l" data-field="gridLine"></div>
+</template>
+
+<!-- Proxy Item Template (Advices & Interfaces) -->
+<template id="tpl-proxy-item">
+    <div class="flex items-center justify-between py-1 px-2 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-gray-100 dark:border-slate-800/80 text-[10.5px] font-mono"
+        data-field="itemContainer">
+        <span class="text-gray-800 dark:text-gray-200 truncate font-medium" data-field="name" title=""></span>
+        <span class="text-[9px] text-gray-400 dark:text-gray-500 font-sans ml-1 flex-shrink-0" data-field="badge"></span>
+    </div>
+</template>
+
+<!-- Proxy Empty List Template -->
+<template id="tpl-proxy-empty-item">
+    <div class="text-[10px] text-gray-400 dark:text-gray-500 italic py-0.5" data-field="message"></div>
+</template>
+
 <!-- Gantt Waterfall Row Template -->
 <template id="tpl-waterfall-row">
     <div class="waterfall-row flex items-center hover:bg-purple-50/40 dark:hover:bg-purple-950/20 transition-colors cursor-pointer group py-2 px-5 select-none relative z-[1]"
