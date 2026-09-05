@@ -80,7 +80,7 @@ export default class BeanDefinitionsController {
             this.closeSidebar(true);
 
             const queryParams = QueryParam.parse(params);
-            const targetBean = QueryParam.get(queryParams, 'search', 'bean');
+            const targetBean = QueryParam.get(queryParams, 'search', 'beanName');
             const targetContextId = QueryParam.get(queryParams, 'contextId', 'context');
             const scope = queryParams.get('scope');
             const role = queryParams.get('role');

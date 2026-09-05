@@ -7,7 +7,7 @@ import {
 } from '../../utils/index.js';
 
 export default class TimelineController {
-    constructor(beanInstanceApi, beanInstanceFindApi, beanDefinitionFindApi, beanInstanceSummaryApi) {
+    constructor(beanInstanceApi, beanInstanceFindApi, beanDefinitionFindApi, beanInstanceSummaryApi, beanInstanceProxyApi) {
         this.instances = [];
         this.filteredInstances = [];
         this.selectedBeanInstance = null;
@@ -20,6 +20,7 @@ export default class TimelineController {
         this.sortBy = 'createdAt';
         this.sortDir = 'ASC';
         this.activeView = 'timeline'; // 'timeline' or 'table'
+        this.activeSidebarTab = 'telemetry'; // 'telemetry' or 'proxy'
         this.zoomLevel = 1;
 
         this.selectedBeanName = null;
@@ -43,6 +44,7 @@ export default class TimelineController {
         this.beanInstanceFindApi = beanInstanceFindApi;
         this.beanDefinitionFindApi = beanDefinitionFindApi;
         this.beanInstanceSummaryApi = beanInstanceSummaryApi;
+        this.beanInstanceProxyApi = beanInstanceProxyApi;
     }
 
     async enter(params) {
@@ -286,32 +288,28 @@ export default class TimelineController {
 
     computeTimelineMetrics() {
         if (!this.instances || this.instances.length === 0) {
-            this.maxTimeMs = 100;
+            this.maxTimeMs = 10;
             return;
         }
 
-        const timestamps = this.instances.map(inst => this.parseIsoToMs(inst.createdAt)).filter(t => t > 0);
-        const minCreatedMs = timestamps.length > 0 ? Math.min(...timestamps) : 0;
-
-        let maxEndOffsetMs = 0;
+        let maxDurationNanos = 0;
 
         this.instances.forEach(inst => {
-            const createdMs = this.parseIsoToMs(inst.createdAt);
-            const initDurationMs = (inst.initDurationNanos || 0) / 1e6;
-            const relativeStartMs = createdMs > 0 ? Math.max(0, createdMs - minCreatedMs) : 0;
-            const relativeEndMs = relativeStartMs + initDurationMs;
+            const nanos = inst.initDurationNanos || 0;
+            const initDurationMs = nanos / 1e6;
 
-            inst.relativeStartMs = relativeStartMs;
             inst.initDurationMs = initDurationMs;
-            inst.relativeEndMs = relativeEndMs;
+            inst.relativeStartMs = 0;
+            inst.relativeEndMs = initDurationMs;
             inst.layer = this.getBeanLayer(inst);
 
-            if (relativeEndMs > maxEndOffsetMs) {
-                maxEndOffsetMs = relativeEndMs;
+            if (nanos > maxDurationNanos) {
+                maxDurationNanos = nanos;
             }
         });
 
-        this.maxTimeMs = maxEndOffsetMs > 0 ? Math.max(maxEndOffsetMs * 1.05, 10) : 100;
+        const maxDurationMs = maxDurationNanos / 1e6;
+        this.maxTimeMs = maxDurationMs > 0 ? (maxDurationMs * 1.08) : 10;
     }
 
     applyLocalFilters() {
@@ -392,7 +390,15 @@ export default class TimelineController {
 
     _calculateTimeTicks(maxMs) {
         let majorStepMs;
-        if (maxMs <= 20) majorStepMs = 5;
+        if (maxMs <= 0.05) majorStepMs = 0.01;
+        else if (maxMs <= 0.1) majorStepMs = 0.02;
+        else if (maxMs <= 0.25) majorStepMs = 0.05;
+        else if (maxMs <= 0.5) majorStepMs = 0.1;
+        else if (maxMs <= 1) majorStepMs = 0.2;
+        else if (maxMs <= 2.5) majorStepMs = 0.5;
+        else if (maxMs <= 5) majorStepMs = 1;
+        else if (maxMs <= 10) majorStepMs = 2;
+        else if (maxMs <= 25) majorStepMs = 5;
         else if (maxMs <= 50) majorStepMs = 10;
         else if (maxMs <= 100) majorStepMs = 20;
         else if (maxMs <= 250) majorStepMs = 50;
@@ -405,20 +411,25 @@ export default class TimelineController {
 
         const minorStepMs = majorStepMs / 2;
         const ticks = [];
+        const precision = majorStepMs < 1 ? (majorStepMs < 0.05 ? 3 : 2) : 0;
 
-        for (let ms = 0; ms <= maxMs; ms += minorStepMs) {
-            const isMajor = Math.round(ms) % Math.round(majorStepMs) === 0 || ms === 0;
+        for (let ms = 0; ms <= maxMs + (minorStepMs * 0.1); ms += minorStepMs) {
+            const roundedMs = parseFloat(ms.toFixed(precision + 1));
+            const isMajor = Math.abs(roundedMs % majorStepMs) < 1e-6 || Math.abs(roundedMs - Math.round(roundedMs / majorStepMs) * majorStepMs) < 1e-6 || roundedMs === 0;
             ticks.push({
-                ms,
+                ms: roundedMs,
                 isMajor,
-                label: isMajor ? this._formatTickLabel(ms) : ''
+                label: isMajor ? this._formatTickLabel(roundedMs) : ''
             });
         }
         return ticks;
     }
 
     _formatTickLabel(ms) {
-        if (ms === 0) return '0ms';
+        if (ms === 0) return '0';
+        if (ms < 0.1) return `${(ms * 1000).toFixed(0)}µs`;
+        if (ms < 1) return `${ms.toFixed(2)}ms`;
+        if (ms < 10) return `${ms.toFixed(1)}ms`;
         if (ms < 1000) return `${Math.round(ms)}ms`;
         const sec = ms / 1000;
         return `${Number.isInteger(sec) ? sec : sec.toFixed(1)}s`;
@@ -493,14 +504,13 @@ export default class TimelineController {
             $duration.addClass('bg-emerald-50/80 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800/30');
         }
 
-        // Waterfall Bar Layout
+        // Waterfall Bar Layout (Left-aligned from 0, width scaled to init duration)
         const maxTime = this.maxTimeMs || 1;
-        const leftPct = Math.min(Math.max((relativeStartMs / maxTime) * 100, 0), 98.5);
-        const widthPct = Math.min(Math.max((initDurationMs / maxTime) * 100, 0.6), 100 - leftPct);
+        const widthPct = Math.min(Math.max((initDurationMs / maxTime) * 100, 0.6), 100);
 
         const $bar = $row.find('[data-field="bar"]');
         $bar.css({
-            left: `${leftPct}%`,
+            left: '0%',
             width: `${widthPct}%`,
             background: `linear-gradient(135deg, ${layer.color}e6, ${layer.color}b3)`,
             border: `1px solid ${layer.color}`,
@@ -511,7 +521,7 @@ export default class TimelineController {
         if (isBottleneck) {
             $bar.addClass('gantt-bar-bottleneck');
             const $flame = $row.find('[data-field="bottleneckBadge"]');
-            $flame.removeClass('hidden').css('left', `calc(${leftPct}% + ${widthPct}% + 6px)`);
+            $flame.removeClass('hidden').css('left', `calc(${widthPct}% + 6px)`);
         }
 
         // Bar Label
@@ -541,7 +551,7 @@ export default class TimelineController {
             $btn.addClass('opacity-60 cursor-default pointer-events-none');
         }
 
-        $('#time-loaded-summary-text').text(`Showing ${currentCount.toLocaleString()} of ${totalElements.toLocaleString()} instances across ${this.formatMsValue(this.maxTimeMs || 0)} window`);
+        $('#time-loaded-summary-text').text(`Showing ${currentCount.toLocaleString()} of ${totalElements.toLocaleString()} instances (max latency ${this.formatDuration((this.maxTimeMs || 0) * 1e6)})`);
     }
 
     /* ======================================================================
@@ -681,28 +691,217 @@ export default class TimelineController {
         $(`.waterfall-row[data-context-id="${contextId}"][data-bean-name="${beanName}"]`).addClass('gantt-row-selected');
         $(`.timeline-table-row[data-context-id="${contextId}"][data-bean-name="${beanName}"]`).addClass('bg-primary/10 dark:bg-purple-950/30 font-semibold');
 
+        const localInstance = this.instances.find(i => i.contextId === contextId && i.beanName === beanName);
+        if (localInstance) {
+            this.renderSidebarDetails(localInstance);
+        }
+
+        const fetchDetailsPromise = (async () => {
+            try {
+                const queryParams = QueryParam.build({ contextId, beanName });
+                const instanceDetails = await httpClient.getWithQuery(
+                    this.beanInstanceFindApi,
+                    queryParams.toString()
+                );
+
+                if (this.selectedContextId === contextId && this.selectedBeanName === beanName) {
+                    this.selectedBeanInstance = instanceDetails;
+                    this.renderSidebarDetails(instanceDetails);
+                }
+            } catch (error) {
+                console.warn('Could not fetch single bean instance details:', error);
+                if (this.selectedContextId === contextId && this.selectedBeanName === beanName) {
+                    const fallback = this.instances.find(i => i.contextId === contextId && i.beanName === beanName);
+                    if (fallback) this.renderSidebarDetails(fallback);
+                }
+            }
+        })();
+
+        const fetchProxyPromise = this.fetchProxyInfo(contextId, beanName);
+
+        await Promise.allSettled([fetchDetailsPromise, fetchProxyPromise]);
+    }
+
+    /**
+     * Fetches runtime AOP & CGLIB proxy info for the selected bean instance.
+     */
+    async fetchProxyInfo(contextId, beanName) {
+        if (!this.beanInstanceProxyApi) return;
+
+        // Reset and show loading state
+        $('#time-sidebar-proxy-type').addClass('hidden').hide();
+        $('#time-sidebar-proxy-content').addClass('hidden').hide();
+        $('#time-sidebar-proxy-empty').addClass('hidden').hide();
+        $('#time-sidebar-proxy-loading').removeClass('hidden').show();
+
         try {
             const queryParams = QueryParam.build({ contextId, beanName });
-            const instanceDetails = await httpClient.getWithQuery(
-                this.beanInstanceFindApi,
+            const proxyInfo = await httpClient.getWithQuery(
+                this.beanInstanceProxyApi,
                 queryParams.toString()
             );
 
-            this.selectedBeanInstance = instanceDetails;
-            this.renderSidebarDetails(instanceDetails);
-        } catch (error) {
-            console.warn('Could not fetch single bean instance details:', error);
-            const localInstance = this.instances.find(i => i.contextId === contextId && i.beanName === beanName);
-            if (localInstance) {
-                this.renderSidebarDetails(localInstance);
+            // Guard against stale response if user switched bean during fetch
+            if (this.selectedContextId !== contextId || this.selectedBeanName !== beanName) {
+                return;
             }
+
+            if (proxyInfo && (proxyInfo.proxyType || proxyInfo.targetClass || (proxyInfo.advices && proxyInfo.advices.length > 0) || (proxyInfo.proxiedInterfaces && proxyInfo.proxiedInterfaces.length > 0))) {
+                this.renderProxyInfo(proxyInfo);
+            } else {
+                this.renderProxyEmptyState();
+            }
+        } catch (error) {
+            if (this.selectedContextId !== contextId || this.selectedBeanName !== beanName) {
+                return;
+            }
+            // 404 or missing proxy means direct raw bean instance
+            this.renderProxyEmptyState();
+        } finally {
+            if (this.selectedContextId === contextId && this.selectedBeanName === beanName) {
+                $('#time-sidebar-proxy-loading').addClass('hidden').hide();
+            }
+        }
+    }
+
+    /**
+     * Renders AOP Proxy metadata details when proxy info is available.
+     */
+    renderProxyInfo(proxyInfo) {
+        const { targetClass, advices = [], proxiedInterfaces = [], adviceFrozen, proxyType } = proxyInfo;
+
+        const $typeBadge = $('#time-sidebar-proxy-type');
+        const $tabBadge = $('#time-sidebar-tab-proxy-badge');
+        const proxyTypeText = proxyType || 'CGLIB';
+        $typeBadge.text(proxyTypeText);
+        $tabBadge.text(proxyTypeText).removeClass('hidden').show();
+
+        if (proxyTypeText === 'JDK_DYNAMIC') {
+            $typeBadge.removeClass('bg-indigo-50 text-indigo-700 border-indigo-200/80 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800/50')
+                .addClass('bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/50');
+            $tabBadge.removeClass('bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300')
+                .addClass('bg-amber-100 text-amber-700 dark:bg-amber-950/80 dark:text-amber-300');
+        } else {
+            $typeBadge.removeClass('bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/50')
+                .addClass('bg-indigo-50 text-indigo-700 border-indigo-200/80 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800/50');
+            $tabBadge.removeClass('bg-amber-100 text-amber-700 dark:bg-amber-950/80 dark:text-amber-300 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300')
+                .addClass('bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300');
+        }
+        $typeBadge.removeClass('hidden').show();
+
+        // Target Class
+        const targetClassDisplay = targetClass || 'N/A';
+        $('#time-sidebar-proxy-target-class')
+            .text(targetClassDisplay)
+            .attr('title', targetClassDisplay);
+
+        // Advice Frozen
+        const $frozenBadge = $('#time-sidebar-proxy-frozen');
+        if (adviceFrozen) {
+            $frozenBadge.text('TRUE')
+                .removeClass('bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-gray-300')
+                .addClass('bg-emerald-50 text-emerald-700 border border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40');
+        } else {
+            $frozenBadge.text('FALSE')
+                .removeClass('bg-emerald-50 text-emerald-700 border border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40')
+                .addClass('bg-gray-100 text-gray-700 border border-gray-200 dark:bg-slate-800 dark:text-gray-300 dark:border-slate-700');
+        }
+
+        // Advices list
+        $('#time-sidebar-proxy-advices-count').text(advices.length);
+        const $advicesList = $('#time-sidebar-proxy-advices-list');
+        $advicesList.empty();
+        if (advices.length === 0) {
+            $advicesList.append(`
+                <div class="text-[10px] text-gray-400 dark:text-gray-500 italic py-0.5">
+                    No custom advices attached
+                </div>
+            `);
+        } else {
+            advices.forEach(adv => {
+                const shortName = adv.includes('.') ? adv.split('.').pop() : adv;
+                $advicesList.append(`
+                    <div class="flex items-center justify-between py-1 px-2 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-gray-100 dark:border-slate-800/80 text-[10.5px] font-mono">
+                        <span class="text-gray-800 dark:text-gray-200 truncate" title="${adv}">${shortName}</span>
+                        <span class="text-[9px] text-gray-400 dark:text-gray-500 font-sans ml-1 flex-shrink-0">Advice</span>
+                    </div>
+                `);
+            });
+        }
+
+        // Interfaces list
+        $('#time-sidebar-proxy-interfaces-count').text(proxiedInterfaces.length);
+        const $interfacesList = $('#time-sidebar-proxy-interfaces-list');
+        $interfacesList.empty();
+        if (proxiedInterfaces.length === 0) {
+            $interfacesList.append(`
+                <div class="text-[10px] text-gray-400 dark:text-gray-500 italic py-0.5">
+                    No interfaces proxied (CGLIB class proxy)
+                </div>
+            `);
+        } else {
+            proxiedInterfaces.forEach(iface => {
+                const shortName = iface.includes('.') ? iface.split('.').pop() : iface;
+                $interfacesList.append(`
+                    <div class="flex items-center justify-between py-1 px-2 rounded-lg bg-white/80 dark:bg-slate-900/80 border border-gray-100 dark:border-slate-800/80 text-[10.5px] font-mono">
+                        <span class="text-gray-800 dark:text-gray-200 truncate" title="${iface}">${shortName}</span>
+                        <span class="text-[9px] text-gray-400 dark:text-gray-500 font-sans ml-1 flex-shrink-0">Interface</span>
+                    </div>
+                `);
+            });
+        }
+
+        $('#time-sidebar-proxy-empty').addClass('hidden').hide();
+        $('#time-sidebar-proxy-content').removeClass('hidden').show();
+    }
+
+    /**
+     * Renders empty state card when bean is direct / non-proxied (e.g. 404 response).
+     */
+    renderProxyEmptyState() {
+        $('#time-sidebar-proxy-type').addClass('hidden').hide();
+        const $tabBadge = $('#time-sidebar-tab-proxy-badge');
+        $tabBadge.text('Direct')
+            .removeClass('bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 bg-amber-100 text-amber-700 dark:bg-amber-950/80 dark:text-amber-300 hidden')
+            .addClass('bg-emerald-100 text-emerald-700 dark:bg-emerald-950/80 dark:text-emerald-300')
+            .show();
+        $('#time-sidebar-proxy-content').addClass('hidden').hide();
+        $('#time-sidebar-proxy-empty').removeClass('hidden').show();
+    }
+
+    /**
+     * Switches active tab in details sidebar between 'telemetry' and 'proxy'.
+     */
+    switchSidebarTab(tabName) {
+        if (!tabName) return;
+        this.activeSidebarTab = tabName;
+
+        const $telemetryBtn = $('#time-sidebar-tab-telemetry');
+        const $proxyBtn = $('#time-sidebar-tab-proxy');
+        const $telemetryPane = $('#time-sidebar-pane-telemetry');
+        const $proxyPane = $('#time-sidebar-pane-proxy');
+
+        if (tabName === 'proxy') {
+            $proxyBtn.addClass('bg-white dark:bg-slate-800 text-primary dark:text-purple-300 font-bold shadow-xs')
+                .removeClass('text-gray-500 dark:text-gray-400 font-semibold');
+            $telemetryBtn.removeClass('bg-white dark:bg-slate-800 text-primary dark:text-purple-300 font-bold shadow-xs')
+                .addClass('text-gray-500 dark:text-gray-400 font-semibold');
+            $telemetryPane.addClass('hidden').hide();
+            $proxyPane.removeClass('hidden').show();
+        } else {
+            $telemetryBtn.addClass('bg-white dark:bg-slate-800 text-primary dark:text-purple-300 font-bold shadow-xs')
+                .removeClass('text-gray-500 dark:text-gray-400 font-semibold');
+            $proxyBtn.removeClass('bg-white dark:bg-slate-800 text-primary dark:text-purple-300 font-bold shadow-xs')
+                .addClass('text-gray-500 dark:text-gray-400 font-semibold');
+            $proxyPane.addClass('hidden').hide();
+            $telemetryPane.removeClass('hidden').show();
         }
     }
 
     renderSidebarDetails(instance) {
         if (!instance) return;
 
-        const { beanName, type, scope, initDurationNanos, relativeStartMs, contextId, createdAt, hasDefinition } = instance;
+        const { beanName, type, scope, initDurationNanos, contextId, createdAt, hasDefinition } = instance;
         const metadata = resolveBeanMetadata(instance);
 
         const data = {
@@ -710,7 +909,6 @@ export default class TimelineController {
             type: type || 'N/A',
             scope: capitalize(scope || 'singleton'),
             duration: this.formatDuration(initDurationNanos),
-            start: relativeStartMs != null ? `+${relativeStartMs.toFixed(2)} ms` : '-',
             context: contextId || 'root',
             created: createdAt || 'N/A',
             nanos: (initDurationNanos || 0).toLocaleString() + ' ns',
@@ -748,7 +946,7 @@ export default class TimelineController {
         const $viewBtn = $('#time-btn-view-details');
 
         if (hasDefinition) {
-            const href = `#/definitions?bean=${encodeURIComponent(beanName)}${contextId ? `&contextId=${encodeURIComponent(contextId)}` : ''}`;
+            const href = `#/definitions?beanName=${encodeURIComponent(beanName)}${contextId ? `&contextId=${encodeURIComponent(contextId)}` : ''}`;
             $viewBtn.attr('href', href);
             $footer.removeClass('hidden').show();
         } else {
@@ -793,7 +991,11 @@ export default class TimelineController {
             'zoom-reset': () => this._setZoom(1),
             'clear-search': () => this._handleClearSearch(),
             'quick-filter': ($target) => this._handleQuickFilter($target),
-            'focus-slowest': () => this._handleFocusSlowest()
+            'focus-slowest': () => this._handleFocusSlowest(),
+            'switch-sidebar-tab': ($target) => {
+                const tab = $target.data('tab') || $target.closest('[data-tab]').data('tab');
+                this.switchSidebarTab(tab);
+            }
         };
 
         this._filterChangeActions = {
@@ -878,7 +1080,7 @@ export default class TimelineController {
         if (!this.instances || this.instances.length === 0) return;
         const slowest = this.instances.reduce((prev, current) =>
             ((prev?.initDurationNanos || 0) > (current?.initDurationNanos || 0)) ? prev : current
-        , null);
+            , null);
         if (slowest) {
             const { contextId, beanName } = slowest;
             this.selectBean(contextId, beanName);
@@ -979,14 +1181,23 @@ export default class TimelineController {
     }
 
     _bindScrubberEvents() {
+        const $scrollContainer = $('#timeline-scroll-container');
+        const $waterfallRows = $('#timeline-waterfall-rows');
         const $needle = $('#timeline-scrubber-needle');
         const $badge = $('#timeline-scrubber-badge');
 
-        // Mousemove scrubber needle
-        this._on('#timeline-scroll-container', 'mousemove', (e) => {
+        const updateScrubberPosition = (e) => {
+            if (!e) return;
             const $inner = $('#timeline-inner-container');
             const offset = $inner.offset();
-            if (!offset) return;
+            const rowsOffset = $waterfallRows.offset();
+            if (!offset || !rowsOffset) return;
+
+            // Do not show scrubber if mouse is hovering above the table rows (i.e. on the ruler header)
+            if (e.pageY < rowsOffset.top) {
+                $needle.css('opacity', 0);
+                return;
+            }
 
             const manifestWidth = 340;
             const mouseX = e.pageX - offset.left;
@@ -996,18 +1207,33 @@ export default class TimelineController {
                 const trackWidth = $inner.outerWidth() - manifestWidth;
                 const timeRatio = Math.max(0, Math.min(1, trackX / trackWidth));
                 const currentMs = timeRatio * this.maxTimeMs;
+                const scrollTop = $scrollContainer.scrollTop() || 0;
 
                 $needle.css({
                     left: `${mouseX}px`,
                     opacity: 1
                 });
-                $badge.text(`+${currentMs.toFixed(2)}ms`);
+                $badge.css('top', `${scrollTop + 4}px`).text(this.formatDuration(currentMs * 1e6));
             } else {
                 $needle.css('opacity', 0);
             }
+        };
+
+        // Mousemove scrubber needle
+        this._on($scrollContainer, 'mousemove', (e) => {
+            this._lastScrubberMouseEvent = e;
+            updateScrubberPosition(e);
         });
 
-        this._on('#timeline-scroll-container', 'mouseleave', () => {
+        // Keep badge anchored to visible top when scrolling
+        this._on($scrollContainer, 'scroll', () => {
+            if (this._lastScrubberMouseEvent && $needle.css('opacity') !== '0') {
+                updateScrubberPosition(this._lastScrubberMouseEvent);
+            }
+        });
+
+        this._on($scrollContainer, 'mouseleave', () => {
+            this._lastScrubberMouseEvent = null;
             $needle.css('opacity', 0);
         });
     }
@@ -1135,6 +1361,12 @@ export default class TimelineController {
     _handleCloseSidebar(immediate = false) {
         const $sidebar = $('#time-details-sidebar');
         $('#time-sidebar-footer').addClass('hidden').hide();
+        $('#time-sidebar-proxy-type').addClass('hidden').hide();
+        $('#time-sidebar-proxy-loading').addClass('hidden').hide();
+        $('#time-sidebar-proxy-content').addClass('hidden').hide();
+        $('#time-sidebar-proxy-empty').addClass('hidden').hide();
+        $('#time-sidebar-tab-proxy-badge').addClass('hidden').hide();
+        this.switchSidebarTab('telemetry');
         this.selectedBeanName = null;
         this.selectedContextId = null;
         this.selectedBeanInstance = null;
@@ -1172,11 +1404,20 @@ export default class TimelineController {
             currentPage: 1,
             sortBy: 'createdAt',
             sortDir: 'ASC',
-            zoomLevel: 1
+            zoomLevel: 1,
+            activeView: 'timeline',
+            activeSidebarTab: 'telemetry',
+            selectedBeanName: null,
+            selectedContextId: null,
+            selectedBeanInstance: null
         });
+
+        this.switchSidebarTab('telemetry');
+        $('#time-sidebar-tab-proxy-badge').addClass('hidden').hide();
 
         const defaults = {
             '#time-search-input': '',
+            '#inst-search-input': '',
             '#time-filter-created': 'oldest',
             '#time-filter-size': '20',
             '#time-zoom-slider': '1'
@@ -1187,6 +1428,17 @@ export default class TimelineController {
         $('#time-sort-label').text('Order');
         $('#time-sort-icon').text('swap_vert');
         $('#time-zoom-level-badge').text('100%');
+
+        // Reset View Toggle buttons & Card containers to default Timeline view
+        $('#time-view-btn-timeline')
+            .addClass('bg-white dark:bg-slate-800 text-primary dark:text-purple-300 font-bold shadow-xs')
+            .removeClass('text-gray-500 dark:text-gray-400 font-medium');
+        $('#time-view-btn-table')
+            .removeClass('bg-white dark:bg-slate-800 text-primary dark:text-purple-300 font-bold shadow-xs')
+            .addClass('text-gray-500 dark:text-gray-400 font-medium');
+        $('#timeline-gantt-card').removeClass('hidden');
+        $('#timeline-table-card').addClass('hidden');
+
         $('.time-quick-filter-btn')
             .removeClass('bg-white dark:bg-slate-800 text-primary dark:text-purple-300 font-bold shadow-xs')
             .addClass('text-gray-600 dark:text-gray-400 font-semibold');
@@ -1227,6 +1479,7 @@ export default class TimelineController {
         this._resetFilterState();
         this._debouncedSearch?.cancel();
         $(document).off('.timelineController');
-        $('#time-search-input, #time-zoom-slider, #time-filter-created, #time-filter-size, #timeline-scroll-container').off('.timelineController');
+        $(window).off('.timelineController');
+        $('#time-search-input, #inst-search-input, #time-zoom-slider, #time-filter-created, #time-filter-size, #timeline-scroll-container, #time-filter-duration, #time-sort-by, #time-details-sidebar').off('.timelineController');
     }
 }
