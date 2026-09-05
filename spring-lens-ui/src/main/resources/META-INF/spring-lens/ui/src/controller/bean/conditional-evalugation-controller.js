@@ -12,10 +12,10 @@ import {
 
 export default class ConditionalEvaluationController{
 
-    constructor(conditionalEvaluationApiUrl, searchConditionalEvaluationApiUrl, summaryConditionApi) {
-        this.conditionEvaluationApiUrl = conditionalEvaluationApiUrl;
-        this.searchConditionalEvaluationApiUrl = searchConditionalEvaluationApiUrl;
-        this.summaryConditionApiUrl = summaryConditionApi;
+    constructor(endpoints = {}) {
+        this.conditionEvaluationApiUrl = endpoints.CONDITIONAL_REPORTS;
+        this.searchConditionalEvaluationApiUrl = endpoints.FIND_CONDITIONAL_REPORTS;
+        this.summaryConditionApiUrl = endpoints.SUMMARY_CONDITIONAL_REPORTS;
 
         // Active data state
         this.conditions = [];

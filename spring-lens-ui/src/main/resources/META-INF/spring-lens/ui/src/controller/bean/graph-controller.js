@@ -11,11 +11,10 @@ import {
 
 export default class GraphController {
 
-    constructor(dependencyGraphApi, beanDefinitions, findBeanDefinitions) {
-
-        this.beanDefinitions = beanDefinitions;
-        this.dependencyGraphApi = dependencyGraphApi;
-        this.findBeanDefinitionsApi = findBeanDefinitions;
+    constructor(endpoints = {}) {
+        this.dependencyGraphApi = endpoints.GRAPH_DEPENDENCIES;
+        this.beanDefinitions = endpoints.BEAN_DEFINITION;
+        this.findBeanDefinitionsApi = endpoints.FIND_BEAN_DEFINITION;
 
         this.root = null;
         this.svg = null;

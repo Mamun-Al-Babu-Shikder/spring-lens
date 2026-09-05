@@ -7,7 +7,7 @@ import {
 } from '../../utils/index.js';
 
 export default class TimelineController {
-    constructor(beanInstanceApi, beanInstanceFindApi, beanDefinitionFindApi, beanInstanceSummaryApi, beanInstanceProxyApi) {
+    constructor(endpoints = {}) {
         this.instances = [];
         this.filteredInstances = [];
         this.selectedBeanInstance = null;
@@ -40,11 +40,11 @@ export default class TimelineController {
 
         this._debouncedSearch = debounce(() => this._resetPageAndFetch(), 250);
 
-        this.beanInstanceApi = beanInstanceApi;
-        this.beanInstanceFindApi = beanInstanceFindApi;
-        this.beanDefinitionFindApi = beanDefinitionFindApi;
-        this.beanInstanceSummaryApi = beanInstanceSummaryApi;
-        this.beanInstanceProxyApi = beanInstanceProxyApi;
+        this.beanInstanceApi = endpoints.BEAN_INSTANCE;
+        this.beanInstanceFindApi = endpoints.FIND_BEAN_INSTANCE;
+        this.beanDefinitionFindApi = endpoints.FIND_BEAN_DEFINITION;
+        this.beanInstanceSummaryApi = endpoints.SUMMARY_BEAN_INSTANCE;
+        this.beanInstanceProxyApi = endpoints.PROXY_BEAN_INSTANCE;
     }
 
     async enter(params) {

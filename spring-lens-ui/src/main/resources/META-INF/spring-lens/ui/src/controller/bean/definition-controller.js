@@ -13,14 +13,10 @@ export default class BeanDefinitionsController {
     _hasFetchedTableData = false;
     _debouncedFetchTableData = null;
 
-    constructor(
-        beanDefinitionsEndpoint,
-        beanDefinitionSummaryEndpoint,
-        beanDefinitionSearchEndpoint
-    ) {
-        this.beanDefinitionEndpoint = beanDefinitionsEndpoint;
-        this.beanDefinitionSummaryEndpoint = beanDefinitionSummaryEndpoint;
-        this.beanDefinitionSearchEndpoint = beanDefinitionSearchEndpoint;
+    constructor(endpoints = {}) {
+        this.beanDefinitionEndpoint = endpoints.BEAN_DEFINITION;
+        this.beanDefinitionSummaryEndpoint = endpoints.SUMMARY_BEAN_DEFINITION;
+        this.beanDefinitionSearchEndpoint = endpoints.FIND_BEAN_DEFINITION;
 
         this.activeCharts = {
             scopeChart: null,

@@ -39,10 +39,10 @@ $(document).ready(() => {
     PageHeader.init(applicationState);
 
     const dashboard = new DashboardController(ENDPOINTS, applicationState);
-    const beanDefinitions = new BeanDefinitions(ENDPOINTS.BEAN_DEFINITION, ENDPOINTS.SUMMARY_BEAN_DEFINITION, ENDPOINTS.FIND_BEAN_DEFINITION);
-    const beanDependencyGraph = new GraphController(ENDPOINTS.GRAPH_DEPENDENCIES, ENDPOINTS.BEAN_DEFINITION, ENDPOINTS.FIND_BEAN_DEFINITION);
-    const beanInstance = new TimelineController(ENDPOINTS.BEAN_INSTANCE, ENDPOINTS.FIND_BEAN_INSTANCE, ENDPOINTS.FIND_BEAN_DEFINITION, ENDPOINTS.SUMMARY_BEAN_INSTANCE, ENDPOINTS.PROXY_BEAN_INSTANCE);
-    const conditionEvaluation = new ConditionalEvaluationController(ENDPOINTS.CONDITIONAL_REPORTS, ENDPOINTS.FIND_CONDITIONAL_REPORTS, ENDPOINTS.SUMMARY_CONDITIONAL_REPORTS);
+    const beanDefinitions = new BeanDefinitions(ENDPOINTS);
+    const beanDependencyGraph = new GraphController(ENDPOINTS);
+    const beanInstance = new TimelineController(ENDPOINTS);
+    const conditionEvaluation = new ConditionalEvaluationController(ENDPOINTS);
 
     const appRouter = new Route({
         container: '#main-content',
