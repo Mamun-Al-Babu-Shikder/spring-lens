@@ -91,6 +91,21 @@ export default class GraphTreeBuilder {
         const rootBeans = beans.filter(bean => !hasParent.has(bean.name));
         const rootNames = rootBeans.length ? rootBeans.map(bean => bean.name) : [beans[0].name];
 
+        // Sort: Active dependency roots first, and application beans before framework auto-configuration
+        rootNames.sort((aName, bName) => {
+            const aRecord = beanMap.get(aName);
+            const bRecord = beanMap.get(bName);
+            const aDeps = aRecord?.dependencies?.length || 0;
+            const bDeps = bRecord?.dependencies?.length || 0;
+            if (aDeps > 0 && bDeps === 0) return -1;
+            if (aDeps === 0 && bDeps > 0) return 1;
+            const aIsAuto = aName.startsWith('org.springframework.boot.autoconfigure');
+            const bIsAuto = bName.startsWith('org.springframework.boot.autoconfigure');
+            if (!aIsAuto && bIsAuto) return -1;
+            if (aIsAuto && !bIsAuto) return 1;
+            return aName.localeCompare(bName);
+        });
+
         // 3. Build top-level root bean nodes (SHALLOW: 1 level only, eliminating exponential DAG explosion)
         contextNode.children = rootNames.map(name => {
             const beanRecord = beanMap.get(name) || {};

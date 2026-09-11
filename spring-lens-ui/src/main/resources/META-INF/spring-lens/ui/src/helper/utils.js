@@ -135,22 +135,14 @@ function getBeanCategory(node) {
     return 'leaf';
 }
 
-function nodeStyle(node, theme = null) {
+function nodeStyle(node, theme = 'badge') {
     const isDark = document.documentElement.classList.contains('dark');
     const category = getBeanCategory(node);
-    const activeTheme = theme || localStorage.getItem('sl-node-theme') || 'tint';
-
-    if (activeTheme === 'badge') {
-        if (isDark) {
-            return DARK_NODE_STYLES_BADGE[category] ?? DARK_NODE_STYLES_BADGE.adapter;
-        }
-        return NODE_STYLES_BADGE[category] ?? NODE_STYLES_BADGE.adapter;
-    }
 
     if (isDark) {
-        return DARK_NODE_STYLES_TINT[category] ?? DARK_NODE_STYLES_TINT.adapter;
+        return DARK_NODE_STYLES_BADGE[category] ?? DARK_NODE_STYLES_BADGE.adapter;
     }
-    return NODE_STYLES_TINT[category] ?? NODE_STYLES_TINT.adapter;
+    return NODE_STYLES_BADGE[category] ?? NODE_STYLES_BADGE.adapter;
 }
 
 function tbLink({ source, target }) {
