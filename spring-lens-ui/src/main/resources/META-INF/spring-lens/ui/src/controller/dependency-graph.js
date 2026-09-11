@@ -83,6 +83,11 @@ export default class DependencyGraph {
         });
 
         this._setupZoom();
+        const $graph = $('#beanGraph');
+        const initialWidth = $graph.width() || 800;
+        const initialHeight = $graph.height() || 600;
+        this.canvasRenderer.resize(initialWidth, initialHeight);
+
         this._setupResizeObserver();
         return true;
     }
@@ -102,7 +107,7 @@ export default class DependencyGraph {
             await this._fetchBeanGraphDependencies();
             this._buildHierarchyFromDependencies();
             this._updateTotalBeanCount();
-            this.update(null, { x: 0, y: 0, x0: 0, y0: 0 });
+            this.update(null, null, 0);
             this.fitView(0);
         } catch (error) {
             console.error('Error reloading graph data:', error);
@@ -130,7 +135,7 @@ export default class DependencyGraph {
 
     _renderInitialGraph() {
         this.setMode(this.mode, false);
-        this.update(null, { x: 0, y: 0, x0: 0, y0: 0 });
+        this.update(null, null, 0);
         this.fitView(0);
     }
 
@@ -293,7 +298,7 @@ export default class DependencyGraph {
     async _fetchBeanGraphDependencies() {
         this._updateProgressBadge({ loaded: 0, total: 0, isComplete: false });
 
-        const searchParams = QueryParam.build({ pageNumber: 0, pageSize: 500 }).toString();
+        const searchParams = QueryParam.build({ pageNumber: 0, pageSize: 1000 }).toString();
         const serverResponse = await httpClient.getWithQuery(this.dependencyGraphApi, searchParams);
         this.beanDependencies = serverResponse;
 
@@ -306,83 +311,23 @@ export default class DependencyGraph {
 
         beanDataStore.addBeans(initialBeanDefinitions);
 
-        const hasRemainingPages = this._hasSubsequentPages(serverResponse);
+        const totalPages = serverResponse?.totalPages ?? 1;
+        if (!Array.isArray(serverResponse) && !serverResponse?.last && totalPages > 1) {
+            for (let targetPageIndex = 1; targetPageIndex < totalPages; targetPageIndex++) {
+                const pageParams = QueryParam.build({ pageNumber: targetPageIndex, pageSize: 1000 }).toString();
+                const fetchedPagePayload = await httpClient.getWithQuery(this.dependencyGraphApi, pageParams);
+                const fetchedBeans = fetchedPagePayload?.content ?? [];
+                if (fetchedBeans.length === 0) break;
+                this.accumulatedBeans.push(...fetchedBeans);
+                beanDataStore.addBeans(fetchedBeans);
+            }
+        }
 
         this._updateProgressBadge({
             loaded: this.accumulatedBeans.length,
             total: this.totalElements,
-            isComplete: !hasRemainingPages
+            isComplete: true
         });
-
-        if (hasRemainingPages) {
-            setTimeout(() => this._fetchRemainingGraphPages(serverResponse), 500);
-        }
-    }
-
-    _hasSubsequentPages(paginationPayload) {
-        if (!paginationPayload || Array.isArray(paginationPayload)) return false;
-
-        const { totalPages = 1, pageNumber = 0, last = true } = paginationPayload;
-        return !last && pageNumber < totalPages - 1;
-    }
-
-    async _fetchRemainingGraphPages(firstPageData) {
-        if (this.isLoadingRemaining) return;
-        this.isLoadingRemaining = true;
-
-        try {
-            const { totalPages = 1, pageNumber = 0, pageSize = 500 } = firstPageData;
-
-            for (let targetPageIndex = pageNumber + 1; targetPageIndex < totalPages; targetPageIndex++) {
-                const searchParams = QueryParam.build({
-                    pageNumber: targetPageIndex,
-                    pageSize
-                }).toString();
-
-                const fetchedPagePayload = await httpClient.getWithQuery(this.dependencyGraphApi, searchParams);
-                const fetchedBeanDefinitions = fetchedPagePayload?.content ?? [];
-
-                if (fetchedBeanDefinitions.length === 0) break;
-
-                this.accumulatedBeans.push(...fetchedBeanDefinitions);
-                beanDataStore.addBeans(fetchedBeanDefinitions);
-
-                this._updateTotalBeanCount();
-
-                const isFinalPageBatch = targetPageIndex === totalPages - 1;
-                this._updateProgressBadge({
-                    loaded: this.accumulatedBeans.length,
-                    total: this.totalElements,
-                    isComplete: isFinalPageBatch
-                });
-
-                await this._yieldThreadToEventLoop(20);
-            }
-
-            // Once streaming completes: preserve active expanded nodes and focused bean
-            const expandedNodeNames = this._captureExpandedNodeIdentifiers();
-            const previousFocusedNode = this.focusedNodeFullName;
-            const previousFocusedContextId = this.focusedNodeContextId;
-
-            this._buildHierarchyFromDependencies(this.accumulatedBeans);
-            this._restoreExpandedNodeIdentifiers(expandedNodeNames);
-
-            this.update(null, this.root);
-            this._updateTotalBeanCount();
-
-            if (previousFocusedNode) {
-                const targetNode = this.findNodeInTree(this.root, previousFocusedNode, previousFocusedContextId);
-                if (targetNode) {
-                    this.markNodeAsFocused(targetNode);
-                }
-            }
-
-        } catch (networkStreamingError) {
-            console.error('Error loading lazy background bean graph data:', networkStreamingError);
-            this._updateProgressBadge({ hasError: true, errorMsg: networkStreamingError.message });
-        } finally {
-            this.isLoadingRemaining = false;
-        }
     }
 
     _captureExpandedNodeIdentifiers() {
@@ -535,10 +480,20 @@ export default class DependencyGraph {
     _createD3HierarchyRootNode(treeData) {
         const root = d3.hierarchy(treeData);
 
-        let autoIncId = 0;
+        const idCounts = new Map();
 
         root.descendants().forEach((node) => {
-            node.id = autoIncId++;
+            const contextId = node.data?.contextId || '';
+            const name = node.data?.fullName || node.data?.name || '';
+            const baseId = node.depth === 0
+                ? (contextId ? `ctx_${contextId}` : 'root_cluster')
+                : (node.data?.meta?.type === 'context'
+                    ? `ctx_${contextId || name}`
+                    : `node_${contextId}_${name}_${node.depth}`);
+            const count = (idCounts.get(baseId) || 0) + 1;
+            idCounts.set(baseId, count);
+            node.id = count > 1 ? `${baseId}_${count}` : baseId;
+
             node._children = node.children;
 
             if (node.data) {
@@ -720,11 +675,13 @@ export default class DependencyGraph {
         this._renderCanvas();
     }
 
-    update(event, source) {
+    update(event, source = null, customDuration = null) {
         if (!this.root) return;
 
         const isTB = this.mode === 'tb';
-        const duration = event?.altKey ? 4000 : 950;
+        const duration = customDuration !== null
+            ? customDuration
+            : (event?.altKey ? 4000 : (source ? 950 : 0));
 
         const descendants = this.root.descendants();
         const nodes = descendants.slice().reverse();
@@ -817,7 +774,7 @@ export default class DependencyGraph {
             .call(this.zoom.scaleBy, factor);
     }
 
-    fitView(duration = 500, padding = 35, minScale = 0.4, maxScale = 1.8) {
+    fitView(duration = 500, padding = 50, minScale = 0.25, maxScale = 0.88) {
         if (!this.canvas || !this.root) return;
 
         const $beanGraph = $('#beanGraph');
@@ -854,7 +811,7 @@ export default class DependencyGraph {
         const centerX = (minX + maxX) / 2;
         const centerY = (minY + maxY) / 2;
 
-        const rawScale = (Math.min(width / graphW, height / graphH)) * 1.25;
+        const rawScale = Math.min(width / graphW, height / graphH) * 0.88;
         const scale = Math.max(minScale, Math.min(maxScale, rawScale));
 
         const tx = width / 2 - centerX * scale;
@@ -986,7 +943,7 @@ export default class DependencyGraph {
         const oldWidth = this.canvasRenderer.width;
         const oldHeight = this.canvasRenderer.height;
 
-        if (Math.abs(oldWidth - width) > 1 || Math.abs(oldHeight - height) > 1) {
+        if (Math.abs(oldWidth - width) > 2 || Math.abs(oldHeight - height) > 2) {
             if (oldWidth > 0 && oldHeight > 0) {
                 const dx = (width - oldWidth) / 2;
                 const dy = (height - oldHeight) / 2;
@@ -1176,7 +1133,7 @@ export default class DependencyGraph {
             $('#context-filter').val(contextId);
             const beans = this.accumulatedBeans.length > 0 ? this.accumulatedBeans : null;
             this._buildHierarchyFromDependencies(beans);
-            this.update(null, { x: 0, y: 0, x0: 0, y0: 0 });
+            this.update(null, null, 0);
             this._updateTotalBeanCount();
         }
 
@@ -1231,7 +1188,7 @@ export default class DependencyGraph {
                 const width = $graph.width() || 800;
                 const height = $graph.height() || 600;
 
-                const zoomScale = 1.3;
+                const zoomScale = 1.15;
                 const translateX = width / 2 - targetX * zoomScale;
                 const translateY = height / 2 - targetY * zoomScale;
 
@@ -1273,7 +1230,7 @@ export default class DependencyGraph {
         this._renderCanvas();
     }
 
-    setMode(layoutMode) {
+    setMode(layoutMode, triggerUpdate = true) {
         this.mode = layoutMode;
         localStorage.setItem('sl-layout', layoutMode);
 
@@ -1290,7 +1247,7 @@ export default class DependencyGraph {
             .toggleClass(activeClasses, !isTopBottom)
             .toggleClass(inactiveClasses, isTopBottom);
 
-        if (!this.root) return;
+        if (!triggerUpdate || !this.root) return;
 
         // Cache previous positions before recalculating layout
         this.root.eachBefore(node => {
@@ -1612,7 +1569,7 @@ export default class DependencyGraph {
             this.selectedContextId = $(event.target).val();
             const beans = this.accumulatedBeans.length > 0 ? this.accumulatedBeans : null;
             this._buildHierarchyFromDependencies(beans);
-            this.update(null, { x: 0, y: 0, x0: 0, y0: 0 });
+            this.update(null, null, 0);
             this._updateTotalBeanCount();
             this.fitView(500);
         });

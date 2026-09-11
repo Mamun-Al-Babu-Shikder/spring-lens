@@ -5,54 +5,13 @@
     <meta charset="UTF-8">
     <title>Spring Lens</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
-        rel="stylesheet">
-    <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <script src="./src/lib/tailwindcss.3.4.17.min.js"></script>
+    <link rel="stylesheet" href="./src/lib/fonts.css">
+    <link rel="stylesheet" href="./src/lib/material-symbols.css">
     <link rel="stylesheet" href="style.css">
     <script src="./src/lib/jquery-3.6.0.min.js"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['"Inter"', 'system-ui', '-apple-system', 'sans-serif'],
-                        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
-                    },
-                    colors: {
-                        primary: '#6b46c1',
-                        'primary-light': '#f3f0ff',
-                        'gray-50': '#f8fafc',
-                        'gray-100': '#f1f5f9',
-                        'gray-200': '#e2e8f0',
-                        'gray-400': '#94a3b8',
-                        'gray-500': '#64748b',
-                        'gray-800': '#1e293b',
-                        success: '#22c55e',
-                        'success-light': '#dcfce7',
-                        warning: '#f59e0b',
-                        info: '#3b82f6',
-                    }
-                }
-            }
-        }
-    </script>
-    <script>
-            (function () {
-                const savedTheme = localStorage.getItem('theme');
-                const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
-                    document.documentElement.classList.add('dark');
-                } else {
-                    document.documentElement.classList.remove('dark');
-                }
-            })();
-    </script>
+    <script src="./src/lib/tailwind.config.js"></script>
+    <script src="./src/helper/theme.js"></script>
 </head>
 
 <body
@@ -189,8 +148,7 @@
         <header
             class="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-6 sm:px-8 py-4 flex items-center justify-between z-10 flex-shrink-0 h-[72px] transition-colors duration-300">
             <div class="flex items-center gap-3 min-w-0">
-                <div
-                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 via-purple-500/10 to-indigo-500/20 text-primary dark:text-purple-300 flex items-center justify-center border border-primary/20 shadow-xs flex-shrink-0"
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 via-purple-500/10 to-indigo-500/20 text-primary dark:text-purple-300 flex items-center justify-center border border-primary/20 shadow-xs flex-shrink-0"
                     data-header-field="iconContainer">
                     <span class="material-symbols-outlined text-[22px]" data-header-field="icon">widgets</span>
                 </div>
@@ -216,14 +174,16 @@
     <template id="tpl-page-header-btn">
         <button
             class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/80 hover:border-gray-300 dark:hover:border-slate-600 shadow-xs transition-all cursor-pointer">
-            <span class="material-symbols-outlined text-[16px] text-gray-500 dark:text-gray-400" data-btn-field="icon"></span>
+            <span class="material-symbols-outlined text-[16px] text-gray-500 dark:text-gray-400"
+                data-btn-field="icon"></span>
             <span data-btn-field="label"></span>
         </button>
     </template>
 
     <template id="tpl-page-header-search">
         <div class="relative flex items-center">
-            <span class="material-symbols-outlined absolute left-3 text-gray-400 dark:text-gray-500 text-[18px]">search</span>
+            <span
+                class="material-symbols-outlined absolute left-3 text-gray-400 dark:text-gray-500 text-[18px]">search</span>
             <input type="text"
                 class="pl-9 pr-4 py-1.5 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all w-64 shadow-xs" />
         </div>
@@ -384,23 +344,29 @@
                     </div>
                     <div class="min-w-0">
                         <div class="flex items-center gap-1.5 flex-wrap">
-                            <h3 class="font-black text-xs text-gray-900 dark:text-white uppercase tracking-wider truncate">Bean Inspector</h3>
-                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-purple-50 text-primary border border-purple-200/80 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/40">
+                            <h3
+                                class="font-black text-xs text-gray-900 dark:text-white uppercase tracking-wider truncate">
+                                Bean Inspector</h3>
+                            <span
+                                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-purple-50 text-primary border border-purple-200/80 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/40">
                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Active
                             </span>
                         </div>
-                        <p class="text-[10.5px] text-gray-400 dark:text-gray-500 font-medium truncate">Definition & Metadata Explorer</p>
+                        <p class="text-[10.5px] text-gray-400 dark:text-gray-500 font-medium truncate">Definition &
+                            Metadata Explorer</p>
                     </div>
                 </div>
                 <button data-action="close-sidebar"
                     class="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition-all cursor-pointer group flex-shrink-0"
                     id="btn-close-sidebar" title="Close sidebar">
-                    <span class="material-symbols-outlined text-[18px] group-hover:rotate-90 transition-transform duration-200">close</span>
+                    <span
+                        class="material-symbols-outlined text-[18px] group-hover:rotate-90 transition-transform duration-200">close</span>
                 </button>
             </div>
 
             <!-- Hero Identity Card: Dynamic Icon Box, Name, Type, Metagrid -->
-            <div class="p-4 border-b border-gray-100 dark:border-slate-800 bg-gray-50/40 dark:bg-slate-900/40 space-y-3 flex-shrink-0">
+            <div
+                class="p-4 border-b border-gray-100 dark:border-slate-800 bg-gray-50/40 dark:bg-slate-900/40 space-y-3 flex-shrink-0">
                 <!-- Identity Header -->
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-primary dark:text-purple-300 flex items-center justify-center border border-primary/25 shadow-2xs flex-shrink-0"
@@ -419,7 +385,8 @@
                 <div class="space-y-2">
                     <div class="grid grid-cols-2 gap-2">
                         <!-- Scope -->
-                        <div class="bg-white dark:bg-slate-950 p-2.5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-2xs">
+                        <div
+                            class="bg-white dark:bg-slate-950 p-2.5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-2xs">
                             <div class="flex items-center gap-1 text-gray-400 dark:text-gray-500 mb-0.5">
                                 <span class="material-symbols-outlined text-[13px]">pie_chart</span>
                                 <span class="text-[9.5px] font-bold uppercase tracking-wider">Scope</span>
@@ -428,7 +395,8 @@
                                 id="detail-bean-scope">-</div>
                         </div>
                         <!-- Role -->
-                        <div class="bg-white dark:bg-slate-950 p-2.5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-2xs">
+                        <div
+                            class="bg-white dark:bg-slate-950 p-2.5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-2xs">
                             <div class="flex items-center gap-1 text-gray-400 dark:text-gray-500 mb-0.5">
                                 <span class="material-symbols-outlined text-[13px]">shield</span>
                                 <span class="text-[9.5px] font-bold uppercase tracking-wider">Role</span>
@@ -439,7 +407,8 @@
                     </div>
 
                     <!-- Context ID (Full Width) -->
-                    <div class="bg-white dark:bg-slate-950 px-3 py-2 rounded-xl border border-gray-100 dark:border-slate-800 shadow-2xs flex items-center justify-between gap-2">
+                    <div
+                        class="bg-white dark:bg-slate-950 px-3 py-2 rounded-xl border border-gray-100 dark:border-slate-800 shadow-2xs flex items-center justify-between gap-2">
                         <div class="flex items-center gap-1 text-gray-400 dark:text-gray-500 flex-shrink-0">
                             <span class="material-symbols-outlined text-[13px]">hub</span>
                             <span class="text-[9.5px] font-bold uppercase tracking-wider">Context</span>
@@ -463,14 +432,16 @@
                         class="flex-1 py-1.5 px-2 text-[11px] font-medium text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 rounded-lg transition-all tab-btn cursor-pointer flex items-center justify-center gap-1"
                         data-tab="dependencies" id="tab-dependencies">
                         <span>Deps</span>
-                        <span class="px-1.5 py-0.2 rounded-full text-[9px] font-bold font-mono bg-purple-100 text-primary dark:bg-purple-950 dark:text-purple-300"
+                        <span
+                            class="px-1.5 py-0.2 rounded-full text-[9px] font-bold font-mono bg-purple-100 text-primary dark:bg-purple-950 dark:text-purple-300"
                             id="detail-deps-count">0</span>
                     </button>
                     <button data-action="switch-tab"
                         class="flex-1 py-1.5 px-2 text-[11px] font-medium text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 rounded-lg transition-all tab-btn cursor-pointer flex items-center justify-center gap-1"
                         data-tab="dependents" id="tab-dependents">
                         <span>Dependent</span>
-                        <span class="px-1.5 py-0.2 rounded-full text-[9px] font-bold font-mono bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                        <span
+                            class="px-1.5 py-0.2 rounded-full text-[9px] font-bold font-mono bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
                             id="detail-dependents-count">0</span>
                     </button>
                 </div>
@@ -484,29 +455,41 @@
                     <div
                         class="p-3.5 rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-3">
                         <div class="flex items-center justify-between">
-                            <h4 class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                                <span class="material-symbols-outlined text-[13px] text-amber-500">toggle_on</span> Flags & Traits
+                            <h4
+                                class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[13px] text-amber-500">toggle_on</span>
+                                Flags & Traits
                             </h4>
                             <span class="text-[10px] font-mono text-gray-400">Spring DI</span>
                         </div>
                         <div class="space-y-2 text-xs">
-                            <div class="flex justify-between items-center py-1.5 px-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
-                                <span class="text-gray-600 dark:text-gray-300 font-medium text-[11px] flex items-center gap-1.5">
-                                    <span class="material-symbols-outlined text-[15px] text-amber-500">star</span> Primary Bean
+                            <div
+                                class="flex justify-between items-center py-1.5 px-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
+                                <span
+                                    class="text-gray-600 dark:text-gray-300 font-medium text-[11px] flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-[15px] text-amber-500">star</span>
+                                    Primary Bean
                                 </span>
                                 <span class="font-bold text-[10px] font-mono px-2 py-0.5 rounded-md"
                                     id="detail-prop-primary">FALSE</span>
                             </div>
-                            <div class="flex justify-between items-center py-1.5 px-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
-                                <span class="text-gray-600 dark:text-gray-300 font-medium text-[11px] flex items-center gap-1.5">
-                                    <span class="material-symbols-outlined text-[15px] text-purple-500">bedtime</span> Lazy Initialized
+                            <div
+                                class="flex justify-between items-center py-1.5 px-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
+                                <span
+                                    class="text-gray-600 dark:text-gray-300 font-medium text-[11px] flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-[15px] text-purple-500">bedtime</span>
+                                    Lazy Initialized
                                 </span>
                                 <span class="font-bold text-[10px] font-mono px-2 py-0.5 rounded-md"
                                     id="detail-prop-lazy">FALSE</span>
                             </div>
-                            <div class="flex justify-between items-center py-1.5 px-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
-                                <span class="text-gray-600 dark:text-gray-300 font-medium text-[11px] flex items-center gap-1.5">
-                                    <span class="material-symbols-outlined text-[15px] text-emerald-500">check_circle</span> Autowired Candidate
+                            <div
+                                class="flex justify-between items-center py-1.5 px-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
+                                <span
+                                    class="text-gray-600 dark:text-gray-300 font-medium text-[11px] flex items-center gap-1.5">
+                                    <span
+                                        class="material-symbols-outlined text-[15px] text-emerald-500">check_circle</span>
+                                    Autowired Candidate
                                 </span>
                                 <span class="font-bold text-[10px] font-mono px-2 py-0.5 rounded-md"
                                     id="detail-prop-autowired">TRUE</span>
@@ -517,18 +500,28 @@
                     <!-- Factory Details Section -->
                     <div
                         class="p-3.5 rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-2.5">
-                        <h4 class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                            <span class="material-symbols-outlined text-[13px] text-blue-500">factory</span> Factory Provider
+                        <h4
+                            class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[13px] text-blue-500">factory</span> Factory
+                            Provider
                         </h4>
                         <div class="space-y-2 text-xs">
-                            <div class="p-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
-                                <span class="text-[9.5px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider block mb-0.5">Factory Bean</span>
-                                <span class="text-[11px] font-mono font-medium text-gray-800 dark:text-gray-200 break-all leading-normal block"
+                            <div
+                                class="p-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
+                                <span
+                                    class="text-[9.5px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider block mb-0.5">Factory
+                                    Bean</span>
+                                <span
+                                    class="text-[11px] font-mono font-medium text-gray-800 dark:text-gray-200 break-all leading-normal block"
                                     id="detail-factory-bean">-</span>
                             </div>
-                            <div class="p-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
-                                <span class="text-[9.5px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider block mb-0.5">Factory Method</span>
-                                <span class="text-[11px] font-mono font-bold text-primary dark:text-purple-300 break-all leading-normal block"
+                            <div
+                                class="p-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
+                                <span
+                                    class="text-[9.5px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider block mb-0.5">Factory
+                                    Method</span>
+                                <span
+                                    class="text-[11px] font-mono font-bold text-primary dark:text-purple-300 break-all leading-normal block"
                                     id="detail-factory-method">-</span>
                             </div>
                         </div>
@@ -537,20 +530,29 @@
                     <!-- Lifecycle Hooks Section -->
                     <div
                         class="p-3.5 rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-2.5">
-                        <h4 class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                            <span class="material-symbols-outlined text-[13px] text-rose-500">cyclone</span> Lifecycle Callbacks
+                        <h4
+                            class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[13px] text-rose-500">cyclone</span> Lifecycle
+                            Callbacks
                         </h4>
                         <div class="space-y-2 text-xs">
-                            <div class="flex justify-between items-center p-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
-                                <span class="text-gray-500 dark:text-gray-400 font-medium text-[11px] flex items-center gap-1.5">
-                                    <span class="material-symbols-outlined text-[14px] text-emerald-500">play_arrow</span> Init Method
+                            <div
+                                class="flex justify-between items-center p-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
+                                <span
+                                    class="text-gray-500 dark:text-gray-400 font-medium text-[11px] flex items-center gap-1.5">
+                                    <span
+                                        class="material-symbols-outlined text-[14px] text-emerald-500">play_arrow</span>
+                                    Init Method
                                 </span>
                                 <span class="font-bold text-gray-800 dark:text-gray-200 font-mono text-[11px]"
                                     id="detail-init-method">-</span>
                             </div>
-                            <div class="flex justify-between items-center p-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
-                                <span class="text-gray-500 dark:text-gray-400 font-medium text-[11px] flex items-center gap-1.5">
-                                    <span class="material-symbols-outlined text-[14px] text-rose-500">stop</span> Destroy Method
+                            <div
+                                class="flex justify-between items-center p-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
+                                <span
+                                    class="text-gray-500 dark:text-gray-400 font-medium text-[11px] flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-[14px] text-rose-500">stop</span>
+                                    Destroy Method
                                 </span>
                                 <span class="font-bold text-gray-800 dark:text-gray-200 font-mono text-[11px]"
                                     id="detail-destroy-method">-</span>

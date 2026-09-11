@@ -329,10 +329,14 @@ export default class CanvasTreeRenderer {
         this.currentTransform = transform || this.currentTransform;
         this.currentConfig = config;
 
-        // If an animation is currently running, just redraw the current frame
+        // If any animation is currently running, cancel it so instant render takes effect
         if (this.animFrameId) {
-            this._drawCanvasFrame();
-            return;
+            cancelAnimationFrame(this.animFrameId);
+            this.animFrameId = null;
+        }
+        if (this.transformAnimFrameId) {
+            cancelAnimationFrame(this.transformAnimFrameId);
+            this.transformAnimFrameId = null;
         }
 
         const isTB = config.mode === 'tb';
