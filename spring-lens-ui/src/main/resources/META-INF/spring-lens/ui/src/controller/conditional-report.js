@@ -48,6 +48,9 @@ export default class ConditionalReport {
             totalConditions: 0
         };
 
+        // Search count cache
+        this.searchTotalCount = null;
+
         this._debouncedSearch = debounce(() => {
             this.currentPage = 1;
             this.fetchConditionEvaluationData();
@@ -58,6 +61,7 @@ export default class ConditionalReport {
         this.currentPage = 1;
         this.pageSize = 10;
         this.searchQuery = '';
+        this.searchTotalCount = null;
         this.outcomeFilter = '';
         this.groupBy = 'none';
         this.sortBy = 'source';
@@ -107,10 +111,10 @@ export default class ConditionalReport {
     async fetchSummaryMetrics() {
         try {
             const responseData = await httpClient.get(this.summaryConditionApiUrl);
-            const {totalConditionSources, matchedConditionSources, unmatchedConditionSources, totalEvaluatedConditions} = responseData
+            const { totalConditionSources, matchedConditionSources, unmatchedConditionSources, totalEvaluatedConditions } = responseData
 
             this.kpiMetrics = {
-                total : totalConditionSources,
+                total: totalConditionSources,
                 matched: matchedConditionSources,
                 unmatched: unmatchedConditionSources,
                 totalConditions: totalEvaluatedConditions
@@ -139,6 +143,16 @@ export default class ConditionalReport {
 
             this.processPaginatedResponse(responseData);
 
+            if (this.searchQuery) {
+                if (!this.outcomeFilter) {
+                    this.searchTotalCount = this.paginationState.totalElements;
+                } else if (this.searchTotalCount === null) {
+                    this._fetchSearchTotalCount();
+                }
+            } else {
+                this.searchTotalCount = null;
+            }
+
             this.renderKpiCards();
             this.renderTabs();
             this.renderTableRows();
@@ -156,6 +170,31 @@ export default class ConditionalReport {
         } catch (error) {
             console.error('Error fetching condition evaluations:', error);
             this.renderErrorState(error.message);
+        }
+    }
+
+    /**
+     * Fetches the total count of matching conditions across all outcomes during search.
+     * @private
+     */
+    async _fetchSearchTotalCount() {
+        if (!this.searchQuery) return;
+        try {
+            const queryParams = QueryParam.build({
+                search: this.searchQuery,
+                pageNumber: 0,
+                pageSize: 1
+            });
+            const responseData = await httpClient.getWithQuery(
+                this.conditionEvaluationApiUrl,
+                queryParams.toString()
+            );
+            if (responseData?.totalElements !== undefined) {
+                this.searchTotalCount = responseData.totalElements;
+                this.renderTabCounts();
+            }
+        } catch (error) {
+            console.warn('Could not fetch all-outcomes count for search query:', error);
         }
     }
 
@@ -229,7 +268,11 @@ export default class ConditionalReport {
      */
     renderTabCounts() {
         const { total, matched, unmatched } = this.kpiMetrics;
-        $('#condition-count-all').text(total.toLocaleString());
+        const allCount = (this.searchQuery && this.searchTotalCount !== null)
+            ? this.searchTotalCount
+            : total;
+
+        $('#condition-count-all').text(allCount.toLocaleString());
         $('#condition-count-matched').text(matched.toLocaleString());
         $('#condition-count-unmatched').text(unmatched.toLocaleString());
     }
@@ -239,6 +282,10 @@ export default class ConditionalReport {
      */
     renderTabs() {
         const activeOutcome = this.outcomeFilter;
+        const isSearching = Boolean(this.searchQuery);
+
+        // Hide Matched and Did Not Match filter buttons while searching
+        $('#condition-tab-matched, #condition-tab-unmatched').toggleClass('hidden', isSearching);
 
         // Update active tab button styles
         $('#condition-tabs-container button').each((_, el) => {
@@ -939,6 +986,13 @@ export default class ConditionalReport {
     _bindSearchInput() {
         this._on('#condition-search-input', 'input', (e) => {
             this.searchQuery = e.target.value.trim();
+            if (this.searchQuery && this.outcomeFilter) {
+                this.outcomeFilter = '';
+            }
+            if (!this.searchQuery) {
+                this.searchTotalCount = null;
+            }
+            this.renderTabs();
             this._debouncedSearch();
         });
 
@@ -949,7 +1003,9 @@ export default class ConditionalReport {
             } else if (e.key === 'Escape') {
                 this._debouncedSearch.cancel();
                 this.searchQuery = '';
+                this.searchTotalCount = null;
                 $('#condition-search-input').val('');
+                this.renderTabs();
                 this.currentPage = 1;
                 this.fetchConditionEvaluationData();
             }

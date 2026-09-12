@@ -1179,7 +1179,7 @@ export default class Instance {
 
             this.bottleneckThresholdNanos = parsedNanos;
         } else {
-            const nanos = parseInt(val, 10);
+            const nanos = Math.parseInt(val, 10);
             if (Number.isFinite(nanos) && nanos > 0) {
                 this.bottleneckThresholdNanos = nanos;
             }
@@ -1203,20 +1203,20 @@ export default class Instance {
         if (!str) return null;
         const trimmed = String(str).trim().toLowerCase().replace(/\s+/g, '');
         if (/^\d+(\.\d+)?$/.test(trimmed)) {
-            const num = parseFloat(trimmed);
+            const num = Math.parseFloat(trimmed);
             return num < 10000 ? Math.round(num * 1000) : Math.round(num);
         }
         if (trimmed.endsWith('ns')) {
-            return Math.round(parseFloat(trimmed));
+            return Math.round(Math.parseFloat(trimmed));
         }
         if (trimmed.endsWith('us') || trimmed.endsWith('µs')) {
-            return Math.round(parseFloat(trimmed) * 1000);
+            return Math.round(Math.parseFloat(trimmed) * 1000);
         }
         if (trimmed.endsWith('ms')) {
-            return Math.round(parseFloat(trimmed) * 1e6);
+            return Math.round(Math.parseFloat(trimmed) * 1e6);
         }
         if (trimmed.endsWith('s')) {
-            return Math.round(parseFloat(trimmed) * 1e9);
+            return Math.round(Math.parseFloat(trimmed) * 1e9);
         }
         return null;
     }
@@ -1529,8 +1529,8 @@ export default class Instance {
     }
 
     _handleChangePage($target) {
-        const targetPage = parseInt($target.data('page'), 10);
-        if (!isNaN(targetPage) && targetPage !== this.currentPage) {
+        const targetPage = Math.parseInt($target.data('page'), 10);
+        if (!Number.isNaN(targetPage) && targetPage !== this.currentPage) {
             this.currentPage = targetPage;
             this.fetchInstanceData();
         }
@@ -1580,18 +1580,6 @@ export default class Instance {
         }
 
         this._closeSidebarUI();
-    }
-
-    _on(target, event, delegateOrHandler, maybeHandler) {
-        const namespace = '.instanceController';
-        const namespacedEvent = `${event}${namespace}`;
-        const $target = $(target);
-
-        if (typeof delegateOrHandler === 'string') {
-            $target.off(namespacedEvent, delegateOrHandler).on(namespacedEvent, delegateOrHandler, maybeHandler);
-        } else {
-            $target.off(namespacedEvent).on(namespacedEvent, delegateOrHandler);
-        }
     }
 
     _resetPageAndFetch() {
