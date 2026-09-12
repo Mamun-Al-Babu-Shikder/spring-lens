@@ -359,7 +359,8 @@
                     </div>
                     <div class="flex items-center gap-1.5">
                         <span class="w-2 h-2 rounded bg-rose-500"></span>
-                        <span class="font-bold text-rose-500 dark:text-rose-400" id="time-legend-bottleneck">&gt;500µs (Bottleneck)</span>
+                        <span class="font-bold text-rose-500 dark:text-rose-400" id="time-legend-bottleneck">&gt;500µs
+                            (Bottleneck)</span>
                     </div>
                     <div class="flex items-center gap-1 border-l border-gray-200 dark:border-slate-800 pl-3">
                         <span>Relative to boot</span>
@@ -793,7 +794,7 @@
 
 <!-- Table Row Template (Matching Instances Table) -->
 <template id="tpl-instance-row">
-    <tr class="hover:bg-purple-50/40 dark:hover:bg-purple-950/20 transition-colors cursor-pointer instance-row group"
+    <tr class="hover:bg-purple-50/40 dark:hover:bg-purple-950/20 transition-colors cursor-pointer instance-table-row instance-row group"
         data-action="select-instance">
         <!-- Bean Name -->
         <td class="px-5 py-3.5">
@@ -841,7 +842,8 @@
                 data-field="durationBadge">
                 <span class="material-symbols-outlined text-[14px]" data-field="durationIcon">timer</span>
                 <span data-field="durationFormatted">-</span>
-                <span class="material-symbols-outlined text-[13px] hidden" data-field="bottleneckFlame" title="Bottleneck Bean">local_fire_department</span>
+                <span class="material-symbols-outlined text-[13px] hidden" data-field="bottleneckFlame"
+                    title="Bottleneck Bean">local_fire_department</span>
             </div>
         </td>
 

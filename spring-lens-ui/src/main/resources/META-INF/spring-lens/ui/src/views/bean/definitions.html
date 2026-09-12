@@ -317,24 +317,6 @@
                         <span class="material-symbols-outlined text-[15px]">south</span> Top-Down
                     </button>
                 </div>
-
-                <!-- Node Style Mode Toggle group -->
-                <div
-                    class="flex items-center border border-gray-200 dark:border-slate-800 rounded-xl bg-gray-50/80 dark:bg-slate-950 p-1 shadow-xs">
-                    <button id="modal-btn-theme-tint"
-                        class="px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1 bg-white dark:bg-slate-800 text-gray-800 dark:text-white shadow-xs"
-                        title="Soft Tinted Node Style">
-                        <span class="material-symbols-outlined text-[15px]">palette</span> Tint
-                    </button>
-                    <button id="modal-btn-theme-badge"
-                        class="px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
-                        title="Card with Icon Badge Style">
-                        <span class="material-symbols-outlined text-[15px]">view_quilt</span> Badge
-                    </button>
-                </div>
-
-                <div class="h-4 w-px bg-gray-200 dark:bg-slate-800 mx-1"></div>
-
                 <button id="btn-close-graph-modal" data-action="close-graph-modal"
                     class="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
                     <span class="material-symbols-outlined text-[20px]">close</span>
@@ -458,7 +440,7 @@
 
         <!-- Action -->
         <td class="px-5 py-3.5 text-right whitespace-nowrap">
-            <button
+            <button data-action="select-bean"
                 class="w-7 h-7 rounded-lg inline-flex items-center justify-center text-gray-400 hover:text-primary dark:hover:text-purple-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                 title="View bean details" data-field="view-btn">
                 <span class="material-symbols-outlined text-[18px]">chevron_right</span>

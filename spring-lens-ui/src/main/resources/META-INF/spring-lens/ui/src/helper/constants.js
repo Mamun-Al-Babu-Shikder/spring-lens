@@ -53,7 +53,7 @@ const CSS_CLASSES = {
     navInactive: NAV_STYLES.parent.inactive,
     subnavActive: NAV_STYLES.sublink.active,
     subnavInactive: NAV_STYLES.sublink.inactive,
-    rowActive: 'row-active bg-gradient-to-r from-purple-100/70 via-purple-50/40 to-transparent dark:from-purple-950/60 dark:via-purple-900/20 dark:to-transparent font-semibold border-l-4 border-primary dark:border-purple-400',
+    rowActive: 'row-active bg-gradient-to-r from-purple-100/70 via-purple-50/40 to-transparent dark:from-purple-950/60 dark:via-purple-900/20 dark:to-transparent font-semibold border-l-2 border-primary dark:border-purple-400',
     defRowActive: 'def-row-active bg-gradient-to-r from-purple-100/70 via-purple-50/40 to-transparent dark:from-purple-950/60 dark:via-purple-900/20 dark:to-transparent border-l-2 border-primary dark:border-purple-400 font-medium',
     toggleActive: 'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-white shadow-sm',
     toggleInactive: 'text-gray-500 dark:text-gray-400',

@@ -30,7 +30,15 @@ export default class Instance {
     constructor(endpoints = {}) {
         this.instances = [];
         this.filteredInstances = [];
-        this.selectedBeanInstance = null;
+
+        // Decoupled selection state: separate Gantt vs Table
+        this.selectedGanttBeanName = null;
+        this.selectedGanttContextId = null;
+        this.selectedGanttInstance = null;
+
+        this.selectedTableBeanName = null;
+        this.selectedTableContextId = null;
+        this.selectedTableInstance = null;
 
         this.currentPage = 1;
         this.pageSize = 20;
@@ -45,9 +53,6 @@ export default class Instance {
 
         const savedThreshold = parseInt(localStorage.getItem('sl-bottleneck-threshold-nanos'), 10);
         this.bottleneckThresholdNanos = Number.isFinite(savedThreshold) && savedThreshold > 0 ? savedThreshold : 500000;
-
-        this.selectedBeanName = null;
-        this.selectedContextId = null;
 
         this.paginationState = {
             totalElements: 0,
@@ -67,6 +72,42 @@ export default class Instance {
         this.beanInstanceFindApi = endpoints.FIND_BEAN_INSTANCE;
         this.beanInstanceSummaryApi = endpoints.SUMMARY_BEAN_INSTANCE;
         this.beanInstanceProxyApi = endpoints.PROXY_BEAN_INSTANCE;
+    }
+
+    get selectedBeanName() {
+        return this.activeView === 'instance' ? this.selectedGanttBeanName : this.selectedTableBeanName;
+    }
+
+    set selectedBeanName(val) {
+        if (this.activeView === 'instance') {
+            this.selectedGanttBeanName = val;
+        } else {
+            this.selectedTableBeanName = val;
+        }
+    }
+
+    get selectedContextId() {
+        return this.activeView === 'instance' ? this.selectedGanttContextId : this.selectedTableContextId;
+    }
+
+    set selectedContextId(val) {
+        if (this.activeView === 'instance') {
+            this.selectedGanttContextId = val;
+        } else {
+            this.selectedTableContextId = val;
+        }
+    }
+
+    get selectedBeanInstance() {
+        return this.activeView === 'instance' ? this.selectedGanttInstance : this.selectedTableInstance;
+    }
+
+    set selectedBeanInstance(val) {
+        if (this.activeView === 'instance') {
+            this.selectedGanttInstance = val;
+        } else {
+            this.selectedTableInstance = val;
+        }
     }
 
     async enter(params) {
@@ -382,7 +423,7 @@ export default class Instance {
         const $row = $(clone.firstElementChild);
         const { beanName, contextId, initDurationMs = 0, initDurationNanos = 0, layer } = inst;
 
-        const isSelected = (this.selectedBeanName === beanName) && (this.selectedContextId === contextId);
+        const isSelected = (this.selectedGanttBeanName === beanName) && (this.selectedGanttContextId === contextId);
         if (isSelected) {
             $row.addClass('gantt-row-selected');
         }
@@ -503,9 +544,15 @@ export default class Instance {
         const $row = $(clone.firstElementChild);
         const { beanName, contextId, initDurationNanos, scope, type, layer, createdAt } = inst;
 
-        const isSelected = (this.selectedBeanName === beanName) && (this.selectedContextId === contextId);
+        const durationStyle = this.getDurationColor(initDurationNanos, this.maxDurationNanos);
+        const barColor = layer?.color || durationStyle.color || '#8b5cf6';
+        $row.css({
+            '--row-accent-color': barColor
+        });
+
+        const isSelected = (this.selectedTableBeanName === beanName) && (this.selectedTableContextId === contextId);
         if (isSelected) {
-            $row.addClass('bg-primary/10 dark:bg-purple-950/30 border-l-4 border-primary font-semibold');
+            $row.addClass('instance-row-selected font-semibold');
         }
 
         $row.attr({
@@ -549,7 +596,6 @@ export default class Instance {
             .addClass(resolveScopeBadgeClass(scope));
 
         // Duration formatted & latency badge
-        const durationStyle = this.getDurationColor(initDurationNanos, this.maxDurationNanos);
         const formattedDuration = this.formatDuration(initDurationNanos);
         const $durationBadge = $row.find('[data-field="durationBadge"]');
         const $durationFormatted = $row.find('[data-field="durationFormatted"]');
@@ -642,19 +688,48 @@ export default class Instance {
     }
 
     async selectBean(contextId, beanName) {
+        if (this.activeView === 'table') {
+            return this.selectTableBean(contextId, beanName);
+        }
+        return this.selectGanttBean(contextId, beanName);
+    }
+
+    async selectGanttBean(contextId, beanName) {
         if (!contextId || !beanName) return;
 
-        this.selectedContextId = contextId;
-        this.selectedBeanName = beanName;
+        this.selectedGanttContextId = contextId;
+        this.selectedGanttBeanName = beanName;
 
-        $('.waterfall-row, .instance-table-row').removeClass('gantt-row-selected bg-primary/10 dark:bg-purple-950/30 border-l-4 border-primary font-semibold');
+        $('.waterfall-row').removeClass('gantt-row-selected');
         $(`.waterfall-row[data-context-id="${contextId}"][data-bean-name="${beanName}"]`).addClass('gantt-row-selected');
-        $(`.instance-table-row[data-context-id="${contextId}"][data-bean-name="${beanName}"]`).addClass('bg-primary/10 dark:bg-purple-950/30 font-semibold');
 
+        await this._loadBeanDetailsAndProxy(contextId, beanName, 'instance');
+    }
+
+    async selectTableBean(contextId, beanName) {
+        if (!contextId || !beanName) return;
+
+        this.selectedTableContextId = contextId;
+        this.selectedTableBeanName = beanName;
+
+        $('.instance-table-row, .instance-row').removeClass('instance-row-selected font-semibold bg-primary/10 dark:bg-purple-950/30 border-l-4 border-primary');
+        $(`.instance-table-row[data-context-id="${contextId}"][data-bean-name="${beanName}"], .instance-row[data-context-id="${contextId}"][data-bean-name="${beanName}"]`).addClass('instance-row-selected font-semibold');
+
+        await this._loadBeanDetailsAndProxy(contextId, beanName, 'table');
+    }
+
+    async _loadBeanDetailsAndProxy(contextId, beanName, viewType) {
         const localInstance = this.instances.find(i => i.contextId === contextId && i.beanName === beanName);
-        if (localInstance) {
+        if (localInstance && this.activeView === viewType) {
             this.renderSidebarDetails(localInstance);
         }
+
+        const isStillSelected = () => {
+            if (viewType === 'table') {
+                return this.selectedTableContextId === contextId && this.selectedTableBeanName === beanName;
+            }
+            return this.selectedGanttContextId === contextId && this.selectedGanttBeanName === beanName;
+        };
 
         const fetchDetailsPromise = (async () => {
             try {
@@ -664,20 +739,30 @@ export default class Instance {
                     queryParams.toString()
                 );
 
-                if (this.selectedContextId === contextId && this.selectedBeanName === beanName) {
-                    this.selectedBeanInstance = instanceDetails;
-                    this.renderSidebarDetails(instanceDetails);
+                if (isStillSelected()) {
+                    if (viewType === 'table') {
+                        this.selectedTableInstance = instanceDetails;
+                    } else {
+                        this.selectedGanttInstance = instanceDetails;
+                    }
+                    if (this.activeView === viewType) {
+                        this.renderSidebarDetails(instanceDetails);
+                    }
                 }
             } catch (error) {
                 console.warn('Could not fetch single bean instance details:', error);
-                if (this.selectedContextId === contextId && this.selectedBeanName === beanName) {
+                if (isStillSelected() && this.activeView === viewType) {
                     const fallback = this.instances.find(i => i.contextId === contextId && i.beanName === beanName);
                     if (fallback) this.renderSidebarDetails(fallback);
                 }
             }
         })();
 
-        const fetchProxyPromise = this.fetchProxyInfo(contextId, beanName);
+        const fetchProxyPromise = (async () => {
+            if (this.activeView === viewType) {
+                await this.fetchProxyInfo(contextId, beanName);
+            }
+        })();
 
         await Promise.allSettled([fetchDetailsPromise, fetchProxyPromise]);
     }
@@ -933,8 +1018,8 @@ export default class Instance {
                 this._updateSortHeaderIcons();
                 return this.fetchInstanceData();
             },
-            'select-bean': ($target) => this._handleSelectBean($target),
-            'select-instance': ($target) => this._handleSelectBean($target),
+            'select-bean': ($target) => this._handleSelectGanttBean($target),
+            'select-instance': ($target) => this._handleSelectTableBean($target),
             'change-page': ($target) => this._handleChangePage($target),
             'prev-page': () => this._handlePrevPage(),
             'next-page': () => this._handleNextPage(),
@@ -1021,10 +1106,18 @@ export default class Instance {
             , null);
         if (slowest) {
             const { contextId, beanName } = slowest;
-            this.selectBean(contextId, beanName);
-            const $targetRow = $(`.waterfall-row[data-bean-name="${beanName}"]`);
-            if ($targetRow.length) {
-                $targetRow[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            if (this.activeView === 'table') {
+                this.selectTableBean(contextId, beanName);
+                const $targetRow = $(`.instance-table-row[data-bean-name="${beanName}"], .instance-row[data-bean-name="${beanName}"]`);
+                if ($targetRow.length) {
+                    $targetRow[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            } else {
+                this.selectGanttBean(contextId, beanName);
+                const $targetRow = $(`.waterfall-row[data-bean-name="${beanName}"]`);
+                if ($targetRow.length) {
+                    $targetRow[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
             }
         }
     }
@@ -1316,9 +1409,27 @@ export default class Instance {
         });
     }
 
+    clearSelection() {
+        this.selectedGanttBeanName = null;
+        this.selectedGanttContextId = null;
+        this.selectedGanttInstance = null;
+
+        this.selectedTableBeanName = null;
+        this.selectedTableContextId = null;
+        this.selectedTableInstance = null;
+
+        $('.waterfall-row').removeClass('gantt-row-selected');
+        $('.instance-table-row, .instance-row').removeClass('instance-row-selected font-semibold bg-primary/10 dark:bg-purple-950/30 border-l-4 border-primary');
+        this._closeSidebarUI();
+    }
+
     _handleSwitchView($target) {
         const view = $target.data('view') || 'instance';
+        if (this.activeView === view) return;
         this.activeView = view;
+
+        // Reset selected row state and clear selection when switching tabs
+        this.clearSelection();
 
         if (view === 'instance') {
             $('#time-view-btn-instance')
@@ -1337,6 +1448,22 @@ export default class Instance {
         }
 
         this.renderCurrentView();
+    }
+
+    _syncSidebarForActiveView() {
+        const activeBeanName = this.activeView === 'instance' ? this.selectedGanttBeanName : this.selectedTableBeanName;
+        const activeContextId = this.activeView === 'instance' ? this.selectedGanttContextId : this.selectedTableContextId;
+        const activeInstance = this.activeView === 'instance' ? this.selectedGanttInstance : this.selectedTableInstance;
+
+        if (activeBeanName) {
+            const instance = activeInstance || this.instances?.find(i => i.beanName === activeBeanName && (!activeContextId || i.contextId === activeContextId));
+            if (instance) {
+                this.renderSidebarDetails(instance);
+                this.fetchProxyInfo(activeContextId, activeBeanName);
+            }
+        } else {
+            this._closeSidebarUI();
+        }
     }
 
     _handleToggleSort() {
@@ -1374,14 +1501,31 @@ export default class Instance {
         }
     }
 
-    async _handleSelectBean($target) {
+    async _handleSelectGanttBean($target) {
         const $row = $target.closest('[data-bean-name]');
         const beanName = $row.data('bean-name') || $row.attr('data-bean-name');
         const contextId = $row.data('context-id') || $row.attr('data-context-id');
 
         if (beanName) {
-            await this.selectBean(contextId, beanName);
+            await this.selectGanttBean(contextId, beanName);
         }
+    }
+
+    async _handleSelectTableBean($target) {
+        const $row = $target.closest('[data-bean-name]');
+        const beanName = $row.data('bean-name') || $row.attr('data-bean-name');
+        const contextId = $row.data('context-id') || $row.attr('data-context-id');
+
+        if (beanName) {
+            await this.selectTableBean(contextId, beanName);
+        }
+    }
+
+    async _handleSelectBean($target) {
+        if (this.activeView === 'table') {
+            return this._handleSelectTableBean($target);
+        }
+        return this._handleSelectGanttBean($target);
     }
 
     _handleChangePage($target) {
@@ -1406,7 +1550,7 @@ export default class Instance {
         }
     }
 
-    _handleCloseSidebar(immediate = false) {
+    _closeSidebarUI() {
         const $sidebar = $('#time-details-sidebar');
         $('#time-sidebar-footer').addClass('hidden').hide();
         $('#time-sidebar-proxy-type').addClass('hidden').hide();
@@ -1415,15 +1559,27 @@ export default class Instance {
         $('#time-sidebar-proxy-empty').addClass('hidden').hide();
         $('#time-sidebar-tab-proxy-badge').addClass('hidden').hide();
         this.switchSidebarTab('telemetry');
-        this.selectedBeanName = null;
-        this.selectedContextId = null;
-        this.selectedBeanInstance = null;
-        $('.waterfall-row, .instance-table-row').removeClass('gantt-row-selected bg-primary/10 dark:bg-purple-950/30 font-semibold');
 
         if (!$sidebar.length) return;
 
         $sidebar.removeClass('w-[380px] max-w-[380px] opacity-100 mr-0 border')
             .addClass('w-0 max-w-0 opacity-0 pointer-events-none -mr-6 border-0');
+    }
+
+    _handleCloseSidebar(immediate = false) {
+        if (this.activeView === 'table') {
+            this.selectedTableBeanName = null;
+            this.selectedTableContextId = null;
+            this.selectedTableInstance = null;
+            $('.instance-table-row, .instance-row').removeClass('instance-row-selected font-semibold bg-primary/10 dark:bg-purple-950/30 border-l-4 border-primary');
+        } else {
+            this.selectedGanttBeanName = null;
+            this.selectedGanttContextId = null;
+            this.selectedGanttInstance = null;
+            $('.waterfall-row').removeClass('gantt-row-selected');
+        }
+
+        this._closeSidebarUI();
     }
 
     _on(target, event, delegateOrHandler, maybeHandler) {
@@ -1457,10 +1613,16 @@ export default class Instance {
             zoomLevel: 1,
             activeView: targetView,
             activeSidebarTab: 'telemetry',
-            selectedBeanName: null,
-            selectedContextId: null,
-            selectedBeanInstance: null
+            selectedGanttBeanName: null,
+            selectedGanttContextId: null,
+            selectedGanttInstance: null,
+            selectedTableBeanName: null,
+            selectedTableContextId: null,
+            selectedTableInstance: null
         });
+
+        $('.waterfall-row').removeClass('gantt-row-selected');
+        $('.instance-table-row, .instance-row').removeClass('instance-row-selected font-semibold bg-primary/10 dark:bg-purple-950/30 border-l-4 border-primary');
 
         this.switchSidebarTab('telemetry');
         $('#time-sidebar-tab-proxy-badge').addClass('hidden').hide();

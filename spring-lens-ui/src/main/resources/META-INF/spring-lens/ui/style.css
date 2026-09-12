@@ -72,9 +72,35 @@ pre,
     font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-tr.bg-primary-light\/40 td:first-child,
-tr.dark\:bg-primary\/20 td:first-child {
-    border-left: 2px solid #6b46c1 !important;
+/* Active row left indicator bar (2px) */
+tr.def-row-active,
+tr.row-active,
+.bean-row.def-row-active {
+    border-left: 1.5px solid #6b46c1 !important;
+}
+
+tr.def-row-active>td:first-child,
+tr.row-active>td:first-child,
+tr.bg-primary-light\/40>td:first-child,
+tr.dark\:bg-primary\/20>td:first-child,
+.bean-row.def-row-active>td:first-child {
+    border-left: 1.5px solid #6b46c1 !important;
+    box-shadow: inset 1.5px 0 0 0 #6b46c1 !important;
+}
+
+.dark tr.def-row-active,
+.dark tr.row-active,
+.dark .bean-row.def-row-active {
+    border-left: 1.5px solid #c084fc !important;
+}
+
+.dark tr.def-row-active>td:first-child,
+.dark tr.row-active>td:first-child,
+.dark tr.bg-primary-light\/40>td:first-child,
+.dark tr.dark\:bg-primary\/20>td:first-child,
+.dark .bean-row.def-row-active>td:first-child {
+    border-left: 1.5px solid #c084fc !important;
+    box-shadow: inset 1.5px 0 0 0 #c084fc !important;
 }
 
 /* Silky-Smooth Accordion Expansion (Slower, elegant deceleration) */
@@ -335,6 +361,87 @@ g.node.node-focused text.node-text {
 .gantt-row-selected .gantt-bar {
     box-shadow: 0 0 0 2px var(--layer-color, var(--row-accent-color, #8b5cf6)), 0 4px 14px color-mix(in srgb, var(--layer-color, var(--row-accent-color, #8b5cf6)) 55%, transparent) !important;
     border-color: var(--layer-color, var(--row-accent-color, #8b5cf6)) !important;
+}
+
+/* Selected Instance Table Row - dynamically styled with bean layer category color */
+tr.instance-table-row-selected,
+tr.instance-row-selected,
+tr.instance-table-row-selected>td,
+tr.instance-row-selected>td {
+    background: color-mix(in srgb, var(--row-accent-color, #8b5cf6) 13%, #ffffff) !important;
+}
+
+.dark tr.instance-table-row-selected,
+.dark tr.instance-row-selected,
+.dark tr.instance-table-row-selected>td,
+.dark tr.instance-row-selected>td {
+    background: color-mix(in srgb, var(--row-accent-color, #8b5cf6) 24%, #0f172a) !important;
+}
+
+tr.instance-table-row-selected>td:first-child,
+tr.instance-row-selected>td:first-child {
+    border-left: 1.5px solid var(--row-accent-color, #8b5cf6) !important;
+    box-shadow: inset 1.5px 0 0 0 var(--row-accent-color, #8b5cf6) !important;
+}
+
+.dark tr.instance-table-row-selected>td:first-child,
+.dark tr.instance-row-selected>td:first-child {
+    border-left: 1.5px solid var(--row-accent-color, #a855f7) !important;
+    box-shadow: inset 1.5px 0 0 0 var(--row-accent-color, #a855f7) !important;
+}
+
+tr.instance-table-row-selected:hover,
+tr.instance-row-selected:hover,
+tr.instance-table-row-selected:hover>td,
+tr.instance-row-selected:hover>td {
+    background: color-mix(in srgb, var(--row-accent-color, #8b5cf6) 18%, #ffffff) !important;
+}
+
+.dark tr.instance-table-row-selected:hover,
+.dark tr.instance-row-selected:hover,
+.dark tr.instance-table-row-selected:hover>td,
+.dark tr.instance-row-selected:hover>td {
+    background: color-mix(in srgb, var(--row-accent-color, #8b5cf6) 30%, #0f172a) !important;
+}
+
+tr.instance-table-row-selected [data-field="beanName"],
+tr.instance-row-selected [data-field="beanName"] {
+    color: var(--row-accent-color, #6d28d9) !important;
+    font-weight: 700 !important;
+}
+
+.dark tr.instance-table-row-selected [data-field="beanName"],
+.dark tr.instance-row-selected [data-field="beanName"] {
+    color: #c084fc !important;
+    font-weight: 700 !important;
+}
+
+tr.instance-table-row-selected [data-field="beanIconContainer"],
+tr.instance-row-selected [data-field="beanIconContainer"] {
+    background: color-mix(in srgb, var(--row-accent-color, #8b5cf6) 22%, transparent) !important;
+    border: 1px solid color-mix(in srgb, var(--row-accent-color, #8b5cf6) 45%, transparent) !important;
+}
+
+tr.instance-table-row-selected [data-field="beanIcon"],
+tr.instance-row-selected [data-field="beanIcon"] {
+    color: var(--row-accent-color, #8b5cf6) !important;
+}
+
+.dark tr.instance-table-row-selected [data-field="beanIcon"],
+.dark tr.instance-row-selected [data-field="beanIcon"] {
+    color: #d8b4fe !important;
+}
+
+tr.instance-table-row-selected button[data-action="select-instance"],
+tr.instance-row-selected button[data-action="select-instance"] {
+    color: var(--row-accent-color, #8b5cf6) !important;
+    background: color-mix(in srgb, var(--row-accent-color, #8b5cf6) 15%, transparent) !important;
+}
+
+.dark tr.instance-table-row-selected button[data-action="select-instance"],
+.dark tr.instance-row-selected button[data-action="select-instance"] {
+    color: #c084fc !important;
+    background: color-mix(in srgb, var(--row-accent-color, #8b5cf6) 25%, transparent) !important;
 }
 
 /* Density Compact Mode */

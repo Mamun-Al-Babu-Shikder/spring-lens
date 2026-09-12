@@ -3,7 +3,7 @@ import GraphTreeBuilder from '../helper/graph-tree-builder.js';
 import beanDataStore from '../helper/bean-data-store.js';
 import {
     tree, tbLink, lrLink, capitalize, formatPercentage, resolveBeanMetadata, resolveScopeStyle, resolveScopeBadgeClass, NH, RX, NW,
-    ICON, GAP_X, GAP_Y, CSS_CLASSES, ROLE_COLORS, SCOPE_COLORS, ZOOM_SCALE_EXTENT, GRAPH_NODE_THEMES, GRAPH_NODE_THEMES_TINT,
+    ICON, GAP_X, GAP_Y, CSS_CLASSES, ROLE_COLORS, SCOPE_COLORS, ZOOM_SCALE_EXTENT,
     GRAPH_NODE_THEMES_BADGE, LOADING_MODE_COLORS, CONTEXT_THEME_COLORS, downloadJson, TemplateEngine, QueryParam, Pagination, Sidebar,
     ToastNotification, BeanSearchEngine, debounce
 } from '../helper/index.js';
@@ -61,7 +61,6 @@ export default class Definitions {
         this.activeSidebarTab = 'properties';
 
         this.modalGraphMode = 'lr';
-        this.modalNodeTheme = localStorage.getItem('sl-node-theme') || 'tint';
         this.modalZoom = null;
         this.modalSvg = null;
         this.modalGraphData = null;
@@ -493,7 +492,8 @@ export default class Definitions {
     _createBeanRowNode(beanInformation) {
         const { beanName, role, scope, type, primary, lazyInit, contextId } = beanInformation;
         const uniqueBeanId = this._generateBeanUniqueId(contextId, beanName);
-        const isSelected = this.selectedBeanId === uniqueBeanId;
+        const isSelected = this.selectedBeanId === uniqueBeanId ||
+            (Boolean(this.selectedBeanName) && beanName === this.selectedBeanName && (!contextId || !this.selectedContextId || contextId === this.selectedContextId));
 
         const clone = TemplateEngine.clone('tpl-bean-definition-row');
         if (!clone) return null;
@@ -573,7 +573,14 @@ export default class Definitions {
     }
 
     _generateBeanUniqueId(contextIdOrBean, beanName) {
-        return `${contextIdOrBean}:${beanName}`;
+        if (contextIdOrBean && typeof contextIdOrBean === 'object') {
+            const ctx = contextIdOrBean.contextId || '';
+            const name = contextIdOrBean.beanName || '';
+            return `${ctx}:${name}`;
+        }
+        const ctx = contextIdOrBean || '';
+        const name = beanName || '';
+        return `${ctx}:${name}`;
     }
 
     renderPagination() {
@@ -739,8 +746,9 @@ export default class Definitions {
     }
 
     async _handleSelectBean($target) {
-        const beanName = $target.data('bean-name');
-        const contextId = $target.data('context-id');
+        const $row = $target.closest('tr');
+        const beanName = $row.attr('data-bean-name') || $target.data('bean-name') || $target.attr('data-bean-name');
+        const contextId = $row.attr('data-context-id') || $target.data('context-id') || $target.attr('data-context-id');
         if (beanName) {
             const success = await this.selectBean(beanName, contextId);
             if (!success) {
@@ -806,7 +814,9 @@ export default class Definitions {
     async selectBean(beanName, contextId = null) {
         if (!beanName) return false;
 
-        const targetContextId = contextId || this.selectedContextId || '';
+        const targetContextId = (contextId !== null && contextId !== undefined && contextId !== '')
+            ? contextId
+            : (this.selectedContextId || '');
         const beanId = this._generateBeanUniqueId(targetContextId, beanName);
         let targetBean = this._getBeanByIdFromCache(beanId) || this._getBeanByNameFromCache(beanName, targetContextId);
 
@@ -827,7 +837,9 @@ export default class Definitions {
 
         if (!targetBean) return false;
 
-        const resolvedContextId = targetBean.contextId || targetContextId;
+        const resolvedContextId = (targetBean.contextId !== undefined && targetBean.contextId !== null)
+            ? targetBean.contextId
+            : targetContextId;
         this.selectedBeanId = this._generateBeanUniqueId(resolvedContextId, targetBean.beanName);
         this.selectedBeanName = targetBean.beanName;
         this.selectedContextId = resolvedContextId;
@@ -844,8 +856,14 @@ export default class Definitions {
         $('.bean-row').each((_, element) => {
             const $row = $(element);
             const rowBeanId = $row.attr('data-bean-id');
-            const isSelected = rowBeanId === activeBeanId;
-            $row.toggleClass(CSS_CLASSES.defRowActive, isSelected);
+            const rowBeanName = $row.attr('data-bean-name');
+            const rowContextId = $row.attr('data-context-id') || '';
+            const generatedId = `${rowContextId}:${rowBeanName}`;
+            const isSelected = (rowBeanId && rowBeanId === activeBeanId) ||
+                (generatedId === activeBeanId) ||
+                (Boolean(this.selectedBeanName) && rowBeanName === this.selectedBeanName &&
+                    (!rowContextId || !this.selectedContextId || rowContextId === this.selectedContextId));
+            $row.toggleClass(CSS_CLASSES.defRowActive, Boolean(isSelected));
         });
     }
 
@@ -950,8 +968,7 @@ export default class Definitions {
         $beanNameModalGraphContainer.text(targetBean.beanName).attr('title', targetBean.beanName);
         $beanGraphModalContainer.removeClass('hidden');
 
-        // Sync node theme and layout mode button state
-        this.setModalNodeTheme(this.modalNodeTheme, false);
+        // Sync layout mode button state
         this.updateGraphModeButtons(this.modalGraphMode);
 
         requestAnimationFrame(() => {
@@ -1100,7 +1117,6 @@ export default class Definitions {
         const { target, dependencies = [], dependents = [] } = graphData;
         const isTB = this.modalGraphMode === 'tb';
         const isDark = document.documentElement.classList.contains('dark');
-        const isBadge = (this.modalNodeTheme === 'badge');
 
         const calcWidth = (node) => {
             const nameLen = node?.name?.length || 0;
@@ -1271,10 +1287,14 @@ export default class Definitions {
         const getModalNodeStyle = (node) => {
             const kind = node?.meta?.kind || 'default';
             const mode = isDark ? 'dark' : 'light';
-            const themeMap = (isBadge ? GRAPH_NODE_THEMES_BADGE : GRAPH_NODE_THEMES_TINT) || GRAPH_NODE_THEMES;
-
-            const modeMap = themeMap?.[mode] || (isDark ? GRAPH_NODE_THEMES_TINT.dark : GRAPH_NODE_THEMES_TINT.light);
-            return modeMap[kind] || modeMap.default || { fill: '#eff6ff', stroke: '#3b82f6', icon: '#2563eb', text: '#1d4ed8' };
+            const modeMap = GRAPH_NODE_THEMES_BADGE?.[mode] || GRAPH_NODE_THEMES_BADGE.light;
+            return modeMap[kind] || modeMap.default || {
+                fill: isDark ? '#0f172a' : '#ffffff',
+                stroke: '#3b82f6',
+                icon: '#2563eb',
+                text: isDark ? '#f1f5f9' : '#1e293b',
+                iconBg: isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.1)'
+            };
         };
 
         const nodes = gNode.selectAll('g.node')
@@ -1296,19 +1316,16 @@ export default class Definitions {
 
         nodes.append('rect')
             .attr('class', 'node-icon-bg')
-            .style('display', isBadge ? 'block' : 'none')
             .attr('x', d => -d.width / 2 + 8)
             .attr('y', -14)
             .attr('width', 28)
             .attr('height', 28)
             .attr('rx', 8)
-            .attr('fill', d => getModalNodeStyle(d).iconBg ?? 'rgba(0,0,0,0.05)');
+            .attr('fill', d => getModalNodeStyle(d).iconBg ?? (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'));
 
         nodes.append('g')
             .attr('class', 'node-icon')
-            .attr('transform', d => isBadge
-                ? `translate(${-d.width / 2 + 12}, -10)`
-                : `translate(${-d.width / 2 + 14}, -10)`)
+            .attr('transform', d => `translate(${-d.width / 2 + 12}, -10)`)
             .append('path')
             .attr('d', ICON)
             .attr('stroke', d => getModalNodeStyle(d).icon)
@@ -1319,7 +1336,7 @@ export default class Definitions {
 
         nodes.append('text')
             .attr('class', 'node-text')
-            .attr('x', d => isBadge ? -d.width / 2 + 44 : -d.width / 2 + 42)
+            .attr('x', d => -d.width / 2 + 44)
             .attr('y', 1)
             .attr('dy', '0.35em')
             .attr('font-size', 13)
@@ -1413,8 +1430,6 @@ export default class Definitions {
         const actions = {
             '#modal-btn-tb': () => this.setGraphMode('tb'),
             '#modal-btn-lr': () => this.setGraphMode('lr'),
-            '#modal-btn-theme-tint': () => this.setModalNodeTheme('tint'),
-            '#modal-btn-theme-badge': () => this.setModalNodeTheme('badge'),
             '#modal-btn-zoom-in': () => this.zoomModal(1.25),
             '#modal-btn-zoom-out': () => this.zoomModal(0.8),
             '#modal-btn-reset, #modal-btn-fit': () => this.fitModalView(),
@@ -1445,34 +1460,6 @@ export default class Definitions {
         this.updateGraphModeButtons(mode);
 
         if (this.modalGraphData && this.modalSvg) {
-            this._drawModalTree(
-                this.modalGraphData,
-                this.modalSvg.select('g.nodes'),
-                this.modalSvg.select('g.links'),
-                this.modalSvg,
-                this.modalZoom,
-                this.modalSvg.select('g.tier-headers')
-            );
-        }
-    }
-
-    setModalNodeTheme(theme, shouldUpdate = true) {
-        this.modalNodeTheme = theme;
-        localStorage.setItem('sl-node-theme', theme);
-
-        const isTint = theme === 'tint';
-        const activeClasses = 'bg-white dark:bg-slate-800 text-gray-800 dark:text-white shadow-xs font-bold';
-        const inactiveClasses = 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white font-medium';
-
-        $('#modal-btn-theme-tint')
-            .toggleClass(activeClasses, isTint)
-            .toggleClass(inactiveClasses, !isTint);
-
-        $('#modal-btn-theme-badge')
-            .toggleClass(activeClasses, !isTint)
-            .toggleClass(inactiveClasses, isTint);
-
-        if (shouldUpdate && this.modalGraphData && this.modalSvg) {
             this._drawModalTree(
                 this.modalGraphData,
                 this.modalSvg.select('g.nodes'),
