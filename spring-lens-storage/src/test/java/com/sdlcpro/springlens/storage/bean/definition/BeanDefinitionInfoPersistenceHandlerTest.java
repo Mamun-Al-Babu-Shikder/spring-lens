@@ -27,7 +27,7 @@ class BeanDefinitionInfoPersistenceHandlerTest {
     private BeanDefinitionInfoPersistenceHandler persistenceHandler;
 
     @Test
-    @DisplayName("should save bean definition info exactly once when onBeanDefinitionInfoCollect is called")
+    @DisplayName("should save bean bean-definition info exactly once when onBeanDefinitionInfoCollect is called")
     void shouldSaveBeanDefinitionInfoWhenCollected() {
         // given
         BeanDefinitionInfo beanDefinitionInfo = new BeanDefinitionInfo(

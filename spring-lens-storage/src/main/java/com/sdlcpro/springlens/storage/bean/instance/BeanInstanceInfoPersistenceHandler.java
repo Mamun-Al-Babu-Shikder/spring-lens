@@ -6,7 +6,7 @@ import com.sdlcpro.springlens.model.bean.instance.BeanInstanceInfo;
 import com.sdlcpro.springlens.repository.bean.BeanInstanceInfoRepository;
 
 /**
- * Persistence handler that bridges bean instance telemetry collection and storage.
+ * Persistence handler that bridges bean bean=instance telemetry collection and storage.
  * <p>
  * Whenever a {@link BeanInstanceInfo} is collected, this component receives the
  * event and persists it using the {@link BeanInstanceInfoRepository}.

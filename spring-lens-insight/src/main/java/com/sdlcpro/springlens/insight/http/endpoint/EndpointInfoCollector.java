@@ -17,7 +17,7 @@ public interface EndpointInfoCollector {
 
     /**
      * Evaluates whether this collector is able to process the given
-     * {@link HandlerMapping} instance.
+     * {@link HandlerMapping} bean=instance.
      *
      * @param mapping the handler mapping to evaluate
      * @return {@code true} if this collector supports the given mapping type,

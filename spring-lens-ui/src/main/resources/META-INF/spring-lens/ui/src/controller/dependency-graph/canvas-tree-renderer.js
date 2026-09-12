@@ -1,5 +1,4 @@
-import { NH, NW, RX, ICON } from './constants.js';
-import { nodeStyle } from './utils.js';
+import { NH, NW, RX, ICON, BeanMetadataRules } from '../../helper/index.js';
 
 /**
  * High-performance HTML5 Canvas renderer for D3 collapsible dependency trees.
@@ -604,7 +603,7 @@ export default class CanvasTreeRenderer {
     }
 
     _drawSingleNodeCard(ctx, state, node, width, height, cx, cy, isDark, isHighlightActive, config, isFocused) {
-        const style = nodeStyle(node);
+        const style = BeanMetadataRules.nodeStyle(node);
         const x = cx - width / 2;
         const y = cy - height / 2;
 

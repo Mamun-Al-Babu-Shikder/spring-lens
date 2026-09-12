@@ -7,7 +7,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 
 public class BeanInstanceInfoContextInitializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
 
-    private static final String INSTANCE_ENABLED_PROPERTY = "spring.lens.bean.instance.enabled";
+    private static final String INSTANCE_ENABLED_PROPERTY = "spring.lens.bean.bean=instance.enabled";
 
     @Override
     public void initialize(ConfigurableApplicationContext context) {

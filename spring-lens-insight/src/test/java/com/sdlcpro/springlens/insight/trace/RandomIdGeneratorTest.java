@@ -179,7 +179,7 @@ class RandomIdGeneratorTest {
     }
 
     @Test
-    @DisplayName("18. Check if HEX chars match definition")
+    @DisplayName("18. Check if HEX chars match bean-definition")
     void testHexCharDefinition() {
 
         String id = generator.generateTraceId();

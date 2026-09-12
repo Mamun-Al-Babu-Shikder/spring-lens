@@ -30,7 +30,7 @@ public final class BeanInfoUtils {
     /**
      * Resolves the proxy type of the given bean.
      *
-     * @param bean the bean instance, must not be null
+     * @param bean the bean bean=instance, must not be null
      * @return the resolved {@link ProxyType}
      */
     public static ProxyType resolveBeanProxyType(Object bean) {
@@ -48,7 +48,7 @@ public final class BeanInfoUtils {
     /**
      * Resolves the runtime class of the given bean.
      *
-     * @param bean the bean instance, may be null
+     * @param bean the bean bean=instance, may be null
      * @return the bean's runtime class, or null if the bean is null
      */
     public static Class<?> resolveRuntimeClass(Object bean) {
@@ -58,7 +58,7 @@ public final class BeanInfoUtils {
     /**
      * Resolves the fully qualified runtime type name of the given bean.
      *
-     * @param bean the bean instance, may be null
+     * @param bean the bean bean=instance, may be null
      * @return the bean's fully qualified type name, or null if the bean is null
      */
     public static String resolveRuntimeBeanType(Object bean) {
@@ -68,7 +68,7 @@ public final class BeanInfoUtils {
     /**
      * Resolves the {@link BeanRole} of the given bean name using the provided bean factory.
      *
-     * @param beanFactory the bean factory to resolve the bean definition from
+     * @param beanFactory the bean factory to resolve the bean bean-definition from
      * @param beanName    the name of the bean
      * @return the resolved bean role
      */
@@ -81,7 +81,7 @@ public final class BeanInfoUtils {
     /**
      * Checks whether the given bean's class is annotated with {@link SpringLensInternalComponent}.
      *
-     * @param bean the bean instance, may be null
+     * @param bean the bean bean=instance, may be null
      * @return true if the bean is a SpringLens internal component, false otherwise
      */
     public static boolean isSpringLensComponent(Object bean) {

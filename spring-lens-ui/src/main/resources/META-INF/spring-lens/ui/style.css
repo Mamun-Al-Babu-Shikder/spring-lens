@@ -272,10 +272,10 @@ g.node.node-focused text.node-text {
 }
 
 /* ==========================================================================
-   GANTT instance & WATERFALL CHART STYLES
+   GANTT bean=instance & WATERFALL CHART STYLES
    ========================================================================== */
 
-/* instance Scrubber Needle Line */
+/* bean=instance Scrubber Needle Line */
 .instance-scrubber-needle {
     pointer-events: none;
     position: absolute;

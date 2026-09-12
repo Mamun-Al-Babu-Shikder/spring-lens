@@ -189,7 +189,7 @@
 
             <!-- Right Controls: View Switcher Toggle -->
             <div class="flex items-center gap-2 self-start lg:self-auto flex-shrink-0">
-                <!-- View Switcher Toggle (instance vs Table) -->
+                <!-- View Switcher Toggle (bean=instance vs Table) -->
                 <div
                     class="flex items-center bg-gray-100/90 dark:bg-slate-950/90 p-1 rounded-xl border border-gray-200/70 dark:border-slate-800 shadow-2xs">
                     <button id="time-view-btn-instance" data-action="switch-view" data-view="instance"
@@ -204,7 +204,7 @@
             </div>
         </div>
 
-        <!-- instance GANTT VIEW CONTAINER -->
+        <!-- bean=instance GANTT VIEW CONTAINER -->
         <div id="instance-gantt-card"
             class="bg-white dark:bg-slate-900 border border-gray-200/80 dark:border-slate-800 rounded-2xl shadow-xs flex flex-col flex-1 min-h-0 overflow-hidden transition-colors duration-300">
 
@@ -723,7 +723,7 @@
 
 <!-- Reusable UI Templates -->
 
-<!-- instance Ruler Tick Template -->
+<!-- bean=instance Ruler Tick Template -->
 <template id="tpl-instance-ruler-tick">
     <div class="absolute top-0 bottom-0 pointer-events-none" data-field="tickContainer">
         <div class="ruler-tick-mark" data-field="tickMark"></div>
@@ -731,7 +731,7 @@
     </div>
 </template>
 
-<!-- instance Grid Line Template -->
+<!-- bean=instance Grid Line Template -->
 <template id="tpl-instance-grid-line">
     <div class="absolute inset-y-0 pointer-events-none border-l" data-field="gridLine"></div>
 </template>

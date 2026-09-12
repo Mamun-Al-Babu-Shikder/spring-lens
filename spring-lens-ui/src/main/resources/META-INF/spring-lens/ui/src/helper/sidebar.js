@@ -1,6 +1,7 @@
 import TemplateEngine from './template-engine.js';
 import { DEPENDENCY_CATEGORY_COLORS } from './constants.js';
-import { capitalize, getBeanCategory, resolveBeanMetadata } from './utils.js';
+import { Formatter } from './formatters.js';
+import { BeanMetadataRules } from './bean-metadata-rules.js';
 import GraphTreeBuilder from './graph-tree-builder.js';
 import beanDataStore from './bean-data-store.js';
 
@@ -70,8 +71,8 @@ export default class Sidebar {
         } = beanInformation;
 
         const cleanRole = role ? String(role).replace(/^ROLE_/, '') : '';
-        const displayRole = cleanRole ? capitalize(cleanRole) : 'N/A';
-        const displayScope = scope ? capitalize(scope) : 'N/A';
+        const displayRole = cleanRole ? Formatter.capitalize(cleanRole) : 'N/A';
+        const displayScope = scope ? Formatter.capitalize(scope) : 'N/A';
 
         return {
             beanName,
@@ -91,7 +92,7 @@ export default class Sidebar {
     }
 
     static updateSidebarIcon(bean, iconSelector = '#sidebar-icon', containerSelector = '#sidebar-icon-container') {
-        const { icon, color } = resolveBeanMetadata(bean);
+        const { icon, color } = BeanMetadataRules.resolveBeanMetadata(bean);
 
         if (iconSelector) {
             $(iconSelector).text(icon);
@@ -109,7 +110,7 @@ export default class Sidebar {
         const record = beanDataStore.findBeanByName(beanName, contextId) || beanDataStore.getBean(beanName);
         if (!record) return 'blue';
 
-        const category = getBeanCategory({
+        const category = BeanMetadataRules.getBeanCategory({
             fullName: beanName,
             meta: { type: record.type }
         });

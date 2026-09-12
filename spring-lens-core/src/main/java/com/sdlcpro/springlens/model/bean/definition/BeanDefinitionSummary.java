@@ -8,7 +8,7 @@ import com.sdlcpro.springlens.util.Preconditions;
 import java.util.Map;
 
 /**
- * Immutable summary of bean definition metrics across Spring application
+ * Immutable summary of bean bean-definition metrics across Spring application
  * contexts.
  *
  * <p>The summary contains distributions of bean definitions by application
@@ -44,12 +44,12 @@ public record BeanDefinitionSummary(
 
         Preconditions.isTrue(
                 totalBeanDefinitions >= 0,
-                "Total bean definition count must not be negative value"
+                "Total bean bean-definition count must not be negative value"
         );
     }
 
     /**
-     * Creates an empty bean definition summary.
+     * Creates an empty bean bean-definition summary.
      *
      * @return an empty summary with zero total bean definitions
      */
