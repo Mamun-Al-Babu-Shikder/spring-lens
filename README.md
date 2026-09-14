@@ -143,7 +143,7 @@ Simply add the dependency:
 ```xml
 
 <dependency>
-    <groupId>com.sdlc.pro</groupId>
+    <groupId>io.github.sdlc-pro</groupId>
     <artifactId>spring-lens-starter</artifactId>
     <version>1.0.0</version>
 </dependency>

@@ -6,7 +6,7 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.sdlc.pro</groupId>
+    <groupId>io.github.sdlc-pro</groupId>
     <artifactId>spring-lens</artifactId>
     <version>1.0.0</version>
     <packaging>pom</packaging>
@@ -32,15 +32,6 @@
         that helps developers understand what’s happening inside their system.
     </description>
     <url>https://github.com/sdlc-pro/spring-lens</url>
-
-    <developers>
-        <developer>
-            <id>Mamun-Al-Babu-Shikder</id>
-            <name>Abdullah Al Mamun</name>
-            <email>aalmamun295@email.com</email>
-            <url>https://github.com/Mamun-Al-Babu-Shikder</url>
-        </developer>
-    </developers>
 
     <issueManagement>
         <system>GitHub Issues</system>
@@ -70,12 +61,12 @@
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.sdlc.pro</groupId>
+                <groupId>${project.groupId}</groupId>
                 <artifactId>spring-lens-storage</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.sdlc.pro</groupId>
+                <groupId>${project.groupId}</groupId>
                 <artifactId>spring-lens-exposure</artifactId>
                 <version>${project.version}</version>
             </dependency>
