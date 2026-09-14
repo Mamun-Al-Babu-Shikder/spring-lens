@@ -3,7 +3,7 @@ export * from './constants.js';
 // 2. Core Utilities & Classes
 export { Formatter } from './formatters.js';
 export { AsyncUtils } from './async-utils.js';
-export { DomUtils } from './dom-utils.js';
+export { default as DomUtils } from './dom-utils.js';
 export { default as QueryParam } from './query-param.js';
 export { default as TemplateEngine } from './template-engine.js';
 

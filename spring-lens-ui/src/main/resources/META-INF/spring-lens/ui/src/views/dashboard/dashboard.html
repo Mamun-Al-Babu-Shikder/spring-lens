@@ -1,5 +1,47 @@
-<!-- Dashboard Content Container -->
-<div class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+<!-- Dashboard View Root (Alpine.js Scope) -->
+<div x-data="dashboard" class="flex-1 flex flex-col min-h-0 overflow-hidden">
+
+    <!-- Top Page Header -->
+    <header
+        class="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-6 sm:px-8 py-4 flex items-center justify-between z-10 flex-shrink-0 h-[72px] transition-colors duration-300">
+        <div class="flex items-center gap-3 min-w-0">
+            <div
+                class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 via-purple-500/10 to-indigo-500/20 text-primary dark:text-purple-300 flex items-center justify-center border border-primary/20 shadow-xs flex-shrink-0">
+                <span class="material-symbols-outlined text-[22px]">dashboard</span>
+            </div>
+            <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                    <h1 class="text-lg font-bold text-gray-900 dark:text-white tracking-tight truncate">
+                        Platform Overview
+                    </h1>
+                    <span
+                        class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-primary border border-primary/20 dark:bg-purple-950/40 dark:text-purple-300 flex-shrink-0">
+                        Dashboard
+                    </span>
+                </div>
+                <div class="text-xs text-gray-500 dark:text-gray-400 font-medium flex items-center gap-1 truncate">
+                    <span x-text="appName || 'SpringLens'"></span>
+                    <span class="material-symbols-outlined text-[12px] opacity-60">chevron_right</span>
+                    <span class="text-gray-700 dark:text-gray-300 font-semibold">Dashboard</span>
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center gap-2.5 flex-shrink-0">
+            <button id="btn-refresh-dashboard"
+                @click="reloadDashboardData()"
+                :disabled="refreshing"
+                data-action="refresh-data"
+                class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/80 hover:border-gray-300 dark:hover:border-slate-600 shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                title="Refresh dashboard metrics">
+                <span class="material-symbols-outlined text-[16px] text-gray-500 dark:text-gray-400"
+                    :class="{ 'animate-spin': refreshing }">refresh</span>
+                <span>Refresh</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Dashboard Scrollable Content -->
+    <div class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
 
     <!-- Quick Bean Search & Discovery Bar -->
     <div
@@ -16,19 +58,67 @@
             <div class="relative flex-1 max-w-md">
                 <span
                     class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
-                <input type="text" id="db-quick-search-input"
+                <input type="text" id="db-quick-search-input" x-model="searchQuery" @input.debounce.200ms="search()"
+                    @keydown.escape="resetSearch()"
                     placeholder="Search bean by name (e.g. dataSource, controller, security)..."
-                    class="w-full pl-9 pr-4 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
+                    class="w-full pl-9 pr-8 py-2 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all">
+                <button type="button" x-show="searchQuery && searchQuery.length > 0" x-cloak @click="resetSearch()"
+                    id="db-clear-search"
+                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-0.5 rounded transition-colors"
+                    title="Clear search">
+                    <span class="material-symbols-outlined text-[16px] block">close</span>
+                </button>
             </div>
         </div>
 
         <!-- Live Quick Search Results Container (Hidden when empty) -->
-        <div id="db-quick-search-results"
-            class="mt-4 pt-4 border-t border-gray-100 dark:border-slate-800 hidden space-y-2">
-            <div class="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Matching Beans
+        <div x-show="searchVisible" x-cloak id="db-quick-search-results"
+            class="mt-4 pt-4 border-t border-gray-100 dark:border-slate-800 space-y-2">
+            <div x-show="searchItems.length > 0"
+                class="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                Matching Beans (<span x-text="searchItems.length"></span>)
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2" id="db-quick-search-chips">
-                <!-- Search chips -->
+
+            <!-- Loading State -->
+            <div x-show="searchLoading" class="text-center py-4 text-xs text-gray-400 dark:text-gray-500">
+                <span class="animate-pulse">Searching beans...</span>
+            </div>
+
+            <!-- Empty State -->
+            <div x-show="!searchLoading && searchEmpty"
+                class="text-center py-4 text-xs text-gray-400 dark:text-gray-500">
+                No matching beans found for "<span x-text="searchQuery"
+                    class="font-semibold text-gray-600 dark:text-gray-300"></span>".
+            </div>
+
+            <!-- Results Chips Grid -->
+            <div x-show="!searchLoading && searchItems.length > 0"
+                class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2" id="db-quick-search-chips">
+                <template x-for="(chip, index) in searchItems" :key="chip.name + '_' + index">
+                    <div
+                        class="flex items-center justify-between p-2 rounded-xl bg-gray-50 dark:bg-slate-800 hover:bg-purple-50 dark:hover:bg-purple-950/30 border border-gray-200 dark:border-slate-700 hover:border-primary/40 transition-all cursor-pointer group search-chip-item">
+                        <div class="flex items-center gap-2 min-w-0 flex-1 btn-goto-def"
+                            :title="'View Definition: ' + chip.name"
+                            @click="goTo('definitions', chip.name, chip.contextId)">
+                            <span class="material-symbols-outlined text-[16px]" :style="{ color: chip.iconColor }"
+                                x-text="chip.icon"></span>
+                            <span
+                                class="text-xs font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary transition-colors truncate"
+                                x-html="chip.highlightedName" :title="chip.name"></span>
+                        </div>
+                        <div class="flex items-center gap-1.5 flex-shrink-0">
+                            <button type="button" @click.stop="goTo('definitions', chip.name, chip.contextId)"
+                                class="btn-goto-def px-1.5 py-0.5 rounded text-[10px] font-semibold text-primary dark:text-purple-300 hover:bg-primary/10 transition-colors"
+                                title="View Definition & Details">Def</button>
+                            <button type="button" @click.stop="goTo('graph', chip.name, chip.contextId)"
+                                class="btn-goto-graph px-1.5 py-0.5 rounded text-[10px] font-semibold text-blue-500 dark:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                                title="Inspect in Dependency Graph">Graph</button>
+                            <button type="button" @click.stop="goTo('instances', chip.name, chip.contextId)"
+                                class="btn-goto-inst px-1.5 py-0.5 rounded text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                                title="View Bean Instances">Inst</button>
+                        </div>
+                    </div>
+                </template>
             </div>
         </div>
     </div>
@@ -53,8 +143,9 @@
                             Spring Boot App
                         </span>
                         <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2"
-                            data-field="appName" id="hero-app-name">
-                            <span class="animate-pulse opacity-70">Loading Application...</span>
+                            id="hero-app-name">
+                            <span x-show="loading" class="animate-pulse opacity-70">Loading Application...</span>
+                            <span x-show="!loading" x-cloak x-text="appName"></span>
                         </h2>
                     </div>
                     <p class="text-xs sm:text-sm text-slate-300/90 leading-relaxed max-w-2xl">
@@ -65,7 +156,8 @@
 
                 <!-- Live Uptime Chip -->
                 <div id="hero-uptime-container" class="flex items-center gap-3">
-                    <div
+                    <!-- Live Uptime Card -->
+                    <div x-show="isLive" x-cloak
                         class="bg-white/10 backdrop-blur-md border border-white/15 rounded-xl px-4 py-2.5 flex items-center gap-3 shadow-inner">
                         <div
                             class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center">
@@ -74,8 +166,21 @@
                         <div>
                             <span
                                 class="text-[10px] uppercase font-bold text-slate-300 tracking-wider block">Uptime</span>
-                            <span class="text-sm font-bold text-white font-mono" data-field="uptime"
+                            <span class="text-sm font-bold text-white font-mono" x-text="uptime"
                                 id="hero-app-uptime">--</span>
+                        </div>
+                    </div>
+
+                    <!-- Service Down Card -->
+                    <div x-show="!isLive" x-cloak
+                        class="bg-rose-500/15 backdrop-blur-md border border-rose-400/30 rounded-xl px-4 py-2.5 flex items-center gap-3 shadow-inner">
+                        <div class="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-300 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-[20px]">cloud_off</span>
+                        </div>
+                        <div>
+                            <span
+                                class="text-[10px] uppercase font-bold text-rose-200 tracking-wider block">Status</span>
+                            <span class="text-sm font-bold text-white font-mono">Service Down</span>
                         </div>
                     </div>
                 </div>
@@ -94,10 +199,10 @@
                         <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Spring
                             Runtime</span>
                         <div class="text-xs font-semibold text-white truncate" id="hero-spring-boot">Boot: <span
-                                class="font-mono font-bold text-emerald-300" data-field="bootVersion"
+                                class="font-mono font-bold text-emerald-300" x-text="bootVersion"
                                 id="hero-spring-boot-val">--</span></div>
                         <div class="text-[11px] text-slate-300/80 truncate" id="hero-spring-framework">Framework: <span
-                                class="font-mono text-slate-300" data-field="frameworkVersion"
+                                class="font-mono text-slate-300" x-text="frameworkVersion"
                                 id="hero-spring-framework-val">--</span></div>
                     </div>
                 </div>
@@ -113,11 +218,11 @@
                         <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Java
                             Runtime</span>
                         <div class="text-xs font-semibold text-white truncate" id="hero-java-version">Version: <span
-                                class="font-mono font-bold text-amber-300" data-field="javaVersion"
+                                class="font-mono font-bold text-amber-300" x-text="javaVersion"
                                 id="hero-java-version-val">--</span></div>
                         <div class="text-[11px] text-slate-300/80 truncate" id="hero-java-vendor">Vendor: <span
                                 class="font-mono text-slate-300 truncate inline-block max-w-[120px] align-bottom"
-                                data-field="javaVendor" id="hero-java-vendor-val">--</span></div>
+                                :title="javaVendor" x-text="javaVendor" id="hero-java-vendor-val">--</span></div>
                     </div>
                 </div>
 
@@ -132,11 +237,11 @@
                         <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Startup
                             Time</span>
                         <div class="text-xs font-semibold text-white truncate" id="hero-startup-duration">Duration:
-                            <span class="font-mono font-bold text-cyan-300" data-field="startupDuration"
+                            <span class="font-mono font-bold text-cyan-300" x-text="startupDuration"
                                 id="hero-startup-duration-val">--</span>
                         </div>
                         <div class="text-[11px] text-slate-300/80 truncate" id="hero-started-at">Started: <span
-                                class="font-mono text-slate-300" data-field="startedAt"
+                                class="font-mono text-slate-300" :title="startedAt" x-text="startedAt"
                                 id="hero-started-at-val">--</span></div>
                     </div>
                 </div>
@@ -150,11 +255,13 @@
                     </div>
                     <div class="min-w-0 flex-1">
                         <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block"
-                            data-field="profilesLabel" id="hero-profiles-label">Active
-                            Profiles</span>
+                            x-text="profilesLabel" id="hero-profiles-label">Active Profiles</span>
                         <div class="flex flex-wrap gap-1 mt-1" id="hero-profiles-list">
-                            <span
-                                class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-white/10 text-white">default</span>
+                            <template x-for="(profile, index) in profiles" :key="index">
+                                <span
+                                    :class="isActiveProfiles ? 'bg-primary/40 text-purple-200 border border-purple-400/30 font-bold' : 'bg-white/10 text-slate-300 font-medium'"
+                                    class="px-2 py-0.5 rounded text-[10px] font-mono" x-text="profile"></span>
+                            </template>
                         </div>
                     </div>
                 </div>
@@ -201,13 +308,13 @@
             </div>
             <div>
                 <div class="text-3xl font-extrabold text-gray-800 dark:text-white tracking-tight"
-                    id="kpi-definitions-count">--</div>
+                    id="kpi-definitions-count" x-text="kpiDefinitionsCount">--</div>
                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center justify-between"
                     id="kpi-definitions-sub">
-                    <span><strong class="text-purple-600 dark:text-purple-400 font-bold"
-                            id="kpi-def-singletons">0</strong> Singleton</span>
-                    <span><strong class="text-gray-700 dark:text-gray-300 font-bold" id="kpi-def-prototypes">0</strong>
-                        Prototype</span>
+                    <span><strong class="text-purple-600 dark:text-purple-400 font-bold" id="kpi-def-singletons"
+                            x-text="kpiDefSingletons">0</strong> Singleton</span>
+                    <span><strong class="text-gray-700 dark:text-gray-300 font-bold" id="kpi-def-prototypes"
+                            x-text="kpiDefPrototypes">0</strong> Prototype</span>
                 </div>
             </div>
         </a>
@@ -225,11 +332,11 @@
             </div>
             <div>
                 <div class="text-3xl font-extrabold text-gray-800 dark:text-white tracking-tight"
-                    id="kpi-instances-count">--</div>
+                    id="kpi-instances-count" x-text="kpiInstancesCount">--</div>
                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center justify-between"
                     id="kpi-instances-sub">
                     <span>Total startup cost: <strong class="text-emerald-600 dark:text-emerald-400 font-mono"
-                            id="kpi-inst-total-cost">--</strong></span>
+                            id="kpi-inst-total-cost" x-text="kpiInstTotalCost">--</strong></span>
                 </div>
             </div>
         </a>
@@ -247,12 +354,14 @@
             </div>
             <div>
                 <div class="text-3xl font-extrabold text-gray-800 dark:text-white tracking-tight"
-                    id="kpi-conditions-count">--</div>
+                    id="kpi-conditions-count" x-text="kpiConditionsCount">--</div>
                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center justify-between"
                     id="kpi-conditions-sub">
-                    <span><strong class="text-emerald-600 dark:text-emerald-400" id="kpi-cond-matched">0</strong>
-                        Matched (<span id="kpi-cond-matched-pct">0</span>%)</span>
-                    <span><strong class="text-slate-500" id="kpi-cond-skipped">0</strong> Skipped</span>
+                    <span><strong class="text-emerald-600 dark:text-emerald-400" id="kpi-cond-matched"
+                            x-text="kpiCondMatched">0</strong> Matched (<span id="kpi-cond-matched-pct"
+                            x-text="kpiCondMatchedPct">0</span>%)</span>
+                    <span><strong class="text-slate-500" id="kpi-cond-skipped" x-text="kpiCondSkipped">0</strong>
+                        Skipped</span>
                 </div>
             </div>
         </a>
@@ -270,13 +379,13 @@
             </div>
             <div>
                 <div class="text-3xl font-extrabold text-gray-800 dark:text-white tracking-tight"
-                    id="kpi-dependencies-count">--</div>
+                    id="kpi-dependencies-count" x-text="kpiDependenciesCount">--</div>
                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center justify-between"
                     id="kpi-dependencies-sub">
-                    <span><strong class="text-blue-600 dark:text-blue-400" id="kpi-dep-edges">0</strong> Dependency
-                        Edges</span>
-                    <span><strong class="text-gray-700 dark:text-gray-300" id="kpi-dep-beans">0</strong> Depended
-                        Beans</span>
+                    <span><strong class="text-blue-600 dark:text-blue-400" id="kpi-dep-edges"
+                            x-text="kpiDepEdges">0</strong> Dependency Edges</span>
+                    <span><strong class="text-gray-700 dark:text-gray-300" id="kpi-dep-beans"
+                            x-text="kpiDepBeans">0</strong> Depended Beans</span>
                 </div>
             </div>
         </a>
@@ -301,19 +410,19 @@
                 <div id="chart-mode-toggle"
                     class="inline-flex bg-gray-100 dark:bg-slate-800 p-0.5 rounded-lg text-xs font-medium self-start sm:self-auto"
                     role="group" aria-label="Bean definition chart mode">
-                    <button data-chart-mode="scope"
-                        class="px-2.5 py-1 rounded-md text-xs font-semibold bg-white dark:bg-slate-700 text-gray-800 dark:text-white shadow-sm transition-all cursor-pointer"
-                        aria-pressed="true">
+                    <button @click="setChartMode('scope')"
+                        :class="chartMode === 'scope' ? 'bg-white dark:bg-slate-700 text-gray-800 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'"
+                        class="px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer">
                         Scope
                     </button>
-                    <button data-chart-mode="role"
-                        class="px-2.5 py-1 rounded-md text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-all cursor-pointer"
-                        aria-pressed="false">
+                    <button @click="setChartMode('role')"
+                        :class="chartMode === 'role' ? 'bg-white dark:bg-slate-700 text-gray-800 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'"
+                        class="px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer">
                         Role
                     </button>
-                    <button data-chart-mode="loading"
-                        class="px-2.5 py-1 rounded-md text-xs font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-all cursor-pointer"
-                        aria-pressed="false">
+                    <button @click="setChartMode('loading')"
+                        :class="chartMode === 'loading' ? 'bg-white dark:bg-slate-700 text-gray-800 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'"
+                        class="px-2.5 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer">
                         Mode
                     </button>
                 </div>
@@ -324,19 +433,37 @@
                 <div class="relative flex items-center justify-center h-[200px] w-full">
                     <canvas id="dbDefinitionChart"></canvas>
                     <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                        <span class="text-2xl font-black text-gray-800 dark:text-white" id="db-chart-total">--</span>
+                        <span class="text-2xl font-black text-gray-800 dark:text-white" id="db-chart-total"
+                            x-text="chartTotalDefinitions">--</span>
                         <span
                             class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">Definitions</span>
                     </div>
                 </div>
                 <div class="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-1" id="db-definition-legend">
-                    <!-- Dynamic legend items -->
+                    <template x-for="item in chartLegendItems" :key="item.label">
+                        <div
+                            class="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors text-xs">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                    :style="{ backgroundColor: item.color }"></span>
+                                <span class="font-medium text-gray-700 dark:text-gray-300 truncate" :title="item.label"
+                                    x-text="item.label"></span>
+                            </div>
+                            <div class="flex items-center gap-2 flex-shrink-0">
+                                <span class="font-bold text-gray-800 dark:text-white font-mono"
+                                    x-text="item.value"></span>
+                                <span class="text-[11px] text-gray-400 dark:text-gray-500 font-mono w-9 text-right"
+                                    x-text="item.percentage"></span>
+                            </div>
+                        </div>
+                    </template>
                 </div>
             </div>
 
             <div
                 class="pt-3 mt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                <span class="text-gray-500 dark:text-gray-400" id="db-chart-footer-info">Showing scope breakdown</span>
+                <span class="text-gray-500 dark:text-gray-400" id="db-chart-footer-info"
+                    x-text="chartFooterInfo">Showing scope breakdown</span>
                 <a href="#/definitions"
                     class="font-semibold text-primary dark:text-purple-400 hover:underline flex items-center gap-0.5">
                     View Definitions <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
@@ -373,17 +500,17 @@
                                 class="w-2 h-2 rounded-full bg-blue-400"></span>Core</span>
                     </div>
 
-                    <button id="btn-radial-zoom-in"
+                    <button id="btn-radial-zoom-in" @click="radialZoom(1.3)"
                         class="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer active:scale-95"
                         title="Zoom In">
                         <span class="material-symbols-outlined text-[16px]">add</span>
                     </button>
-                    <button id="btn-radial-zoom-out"
+                    <button id="btn-radial-zoom-out" @click="radialZoom(0.7)"
                         class="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer active:scale-95"
                         title="Zoom Out">
                         <span class="material-symbols-outlined text-[16px]">remove</span>
                     </button>
-                    <button id="btn-radial-reset"
+                    <button id="btn-radial-reset" @click="radialReset()"
                         class="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer active:scale-95"
                         title="Reset View">
                         <span class="material-symbols-outlined text-[16px]">restart_alt</span>
@@ -397,7 +524,7 @@
                 <svg id="db-radial-tree-svg" class="w-full h-full cursor-grab active:cursor-grabbing select-none"></svg>
 
                 <!-- Loading State -->
-                <div id="db-radial-loading"
+                <div id="db-radial-loading" x-show="radialLoading" x-cloak
                     class="absolute inset-0 flex flex-col items-center justify-center bg-white/70 dark:bg-slate-900/70 backdrop-blur-xs">
                     <span
                         class="animate-spin rounded-full h-5 w-5 border-2 border-primary border-t-transparent mb-1.5"></span>
@@ -406,15 +533,37 @@
                 </div>
 
                 <!-- Floating Tooltip Card -->
-                <div id="db-radial-tooltip"
-                    class="absolute hidden min-w-[200px] max-w-[260px] p-3 rounded-xl bg-gray-900/95 dark:bg-slate-800/95 text-white text-xs shadow-2xl backdrop-blur-md pointer-events-none z-30 border border-white/15 transition-all duration-150">
-                    <!-- Dynamic Tooltip content -->
+                <div id="db-radial-tooltip" x-show="radialTooltip.visible" x-cloak
+                    class="absolute min-w-[200px] max-w-[260px] p-3 rounded-xl bg-gray-900/95 dark:bg-slate-800/95 text-white text-xs shadow-2xl backdrop-blur-md pointer-events-none z-30 border border-white/15 transition-all duration-75">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <span class="material-symbols-outlined text-[16px]"
+                            :style="`color: ${radialTooltip.iconColor};`"
+                            x-text="radialTooltip.icon"></span>
+                        <span class="font-bold text-white text-xs truncate flex-1"
+                            x-text="radialTooltip.title"></span>
+                        <span class="px-1.5 py-0.2 rounded text-[9px] font-mono uppercase border border-white/10"
+                            :class="radialTooltip.badgeClass"
+                            x-text="radialTooltip.scope"></span>
+                    </div>
+                    <div class="text-[10px] text-gray-300 font-mono truncate mb-2"
+                        :title="radialTooltip.type"
+                        x-text="radialTooltip.type"></div>
+                    <div class="grid grid-cols-2 gap-1.5 text-[10px] pt-1.5 border-t border-white/10 text-gray-300">
+                        <div><span class="text-gray-400">Depth:</span> <strong class="text-white font-mono"
+                                x-text="radialTooltip.depth"></strong></div>
+                        <div><span class="text-gray-400">Direct Deps:</span> <strong class="text-blue-300 font-mono"
+                                x-text="radialTooltip.directDeps"></strong></div>
+                        <div><span class="text-gray-400">Subtree:</span> <strong class="text-amber-300 font-mono"
+                                x-text="radialTooltip.subtree"></strong></div>
+                        <div class="truncate" :title="radialTooltip.parent"><span class="text-gray-400">Parent:</span>
+                            <strong class="text-white font-mono" x-text="radialTooltip.parent"></strong></div>
+                    </div>
                 </div>
             </div>
 
             <div
                 class="pt-3 mt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                <span class="text-gray-500 dark:text-gray-400" id="db-radial-stats">Interactive Force Tree • Drag nodes
+                <span class="text-gray-500 dark:text-gray-400" id="db-radial-stats" x-text="radialStats">Interactive Force Tree • Drag nodes
                     to explore</span>
                 <a href="#/graph"
                     class="font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5">
@@ -444,19 +593,61 @@
             <!-- Slowest Beans List -->
             <div class="flex-1 space-y-2.5 overflow-y-auto custom-scrollbar max-h-[240px] pr-1"
                 id="db-slowest-beans-list">
-                <!-- Skeleton rows -->
-                <div class="p-3 bg-gray-50 dark:bg-slate-800/50 rounded-xl animate-pulse space-y-2">
-                    <div class="h-3 bg-gray-200 dark:bg-slate-700 rounded w-1/2"></div>
-                    <div class="h-2 bg-gray-200 dark:bg-slate-700 rounded w-3/4"></div>
-                </div>
+                <!-- Skeleton rows while loading -->
+                <template x-if="slowestBeansLoading">
+                    <div class="p-3 bg-gray-50 dark:bg-slate-800/50 rounded-xl animate-pulse space-y-2">
+                        <div class="h-3 bg-gray-200 dark:bg-slate-700 rounded w-1/2"></div>
+                        <div class="h-2 bg-gray-200 dark:bg-slate-700 rounded w-3/4"></div>
+                    </div>
+                </template>
+
+                <!-- Empty state -->
+                <template x-if="!slowestBeansLoading && slowestBeans.length === 0">
+                    <div class="text-center py-6 text-xs text-gray-400 dark:text-gray-500">
+                        No instance initialization records found.
+                    </div>
+                </template>
+
+                <!-- Slowest bean rows -->
+                <template x-for="(bean, index) in slowestBeans" :key="bean.name + '_' + index">
+
+                    <div @click="goTo('instances', bean.name, bean.contextId)"
+                        class="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-slate-800/40 hover:bg-gray-100/80 dark:hover:bg-slate-800 rounded-xl transition-all gap-3 cursor-pointer group slowest-bean-item">
+                        <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                            <span
+                                class="w-5 h-5 rounded-md bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 text-[11px] font-bold flex items-center justify-center flex-shrink-0"
+                                x-text="bean.rank">1</span>
+                            <span class="material-symbols-outlined text-[18px] flex-shrink-0"
+                                :style="{ color: bean.iconColor }" x-text="bean.icon"></span>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate group-hover:text-primary transition-colors"
+                                    x-text="bean.name">--</div>
+                                <div class="text-[10px] font-mono text-gray-400 dark:text-gray-500 truncate"
+                                    x-text="bean.type">--</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2.5 flex-shrink-0">
+                            <div
+                                class="w-16 sm:w-24 bg-gray-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden hidden sm:block">
+                                <div class="h-full rounded-full transition-all duration-300" :class="bean.barClass"
+                                    :style="{ width: bean.latencyPercent + '%' }">
+                                </div>
+                            </div>
+                            <span
+                                class="px-2 py-0.5 rounded text-[11px] font-bold font-mono inline-block border text-right min-w-[62px]"
+                                :class="bean.badgeClass" x-text="bean.formattedDuration">--</span>
+                        </div>
+                    </div>
+                </template>
             </div>
 
             <div
                 class="pt-3 mt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                 <span id="db-slowest-total-cost">Total Init Cost: <strong
-                        class="text-gray-700 dark:text-gray-300 font-mono" id="db-slowest-cost-val">--</strong></span>
+                        class="text-gray-700 dark:text-gray-300 font-mono" id="db-slowest-cost-val"
+                        x-text="slowestTotalCost">--</strong></span>
                 <span class="text-amber-600 dark:text-amber-400 font-semibold" id="db-slowest-max-latency">Max:
-                    <strong class="font-mono" id="db-slowest-max-val">--</strong></span>
+                    <strong class="font-mono" id="db-slowest-max-val" x-text="slowestMaxLatency">--</strong></span>
             </div>
         </div>
 
@@ -483,18 +674,19 @@
                 <div class="flex items-center justify-between text-xs font-medium">
                     <span class="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
                         <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                        Matched: <span id="db-cond-matched-label">0 (0%)</span>
+                        Matched: <span id="db-cond-matched-label" x-text="condMatchedLabel">0 (0%)</span>
                     </span>
                     <span class="text-slate-500 dark:text-slate-400 font-bold flex items-center gap-1">
                         <span class="w-2 h-2 rounded-full bg-slate-400"></span>
-                        Not Matched: <span id="db-cond-unmatched-label">0 (0%)</span>
+                        Not Matched: <span id="db-cond-unmatched-label" x-text="condUnmatchedLabel">0 (0%)</span>
                     </span>
                 </div>
                 <div class="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex">
                     <div id="db-cond-matched-bar" class="h-full bg-emerald-500 transition-all duration-500"
-                        style="width: 0%"></div>
+                        :style="{ width: condMatchedPct + '%' }"></div>
                     <div id="db-cond-unmatched-bar"
-                        class="h-full bg-slate-400 dark:bg-slate-600 transition-all duration-500" style="width: 0%">
+                        class="h-full bg-slate-400 dark:bg-slate-600 transition-all duration-500"
+                        :style="{ width: condUnmatchedPct + '%' }">
                     </div>
                 </div>
             </div>
@@ -502,13 +694,35 @@
             <!-- Recent Evaluated Auto-Configurations -->
             <div class="flex-1 space-y-2 overflow-y-auto custom-scrollbar max-h-[170px] pr-1"
                 id="db-conditions-sample-list">
-                <!-- Dynamically populated -->
+                <!-- Empty state -->
+                <template x-if="conditionsSamples.length === 0">
+                    <div class="text-center py-6 text-xs text-gray-400 dark:text-gray-500">
+                        No condition reports available.
+                    </div>
+                </template>
+
+
+                <!-- Condition sample rows -->
+                <template x-for="(condition, index) in conditionsSamples" :key="condition.id">
+                    <div
+                        class="flex items-center justify-between p-2 bg-gray-50 dark:bg-slate-800/40 hover:bg-gray-100/60 dark:hover:bg-slate-800 rounded-lg transition-colors gap-3">
+                        <div class="flex items-center gap-2 min-w-0 flex-1">
+                            <span class="w-2 h-2 rounded-full flex-shrink-0" :class="condition.dotClass"></span>
+                            <span class="text-xs font-mono font-medium text-gray-800 dark:text-gray-200 truncate"
+                                :title="condition.fullSource" x-text="condition.source">--</span>
+                        </div>
+                        <span
+                            class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border flex-shrink-0"
+                            :class="condition.outcomeClass" x-text="condition.outcome">--</span>
+                    </div>
+                </template>
             </div>
 
             <div
                 class="pt-3 mt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                 <span id="db-conditions-summary-footer">Evaluating auto-configurations</span>
-                <span class="font-semibold text-gray-700 dark:text-gray-300" id="db-conditions-eval-count">--</span>
+                <span class="font-semibold text-gray-700 dark:text-gray-300" id="db-conditions-eval-count"
+                    x-text="conditionsEvalCount">--</span>
             </div>
         </div>
 
@@ -533,12 +747,42 @@
             <!-- Top Hub Beans List -->
             <div class="flex-1 space-y-2 overflow-y-auto custom-scrollbar max-h-[220px] pr-1"
                 id="db-dependency-hubs-list">
-                <!-- Dynamically populated -->
+                <!-- Empty state -->
+                <template x-if="dependencyHubs.length === 0">
+                    <div class="text-center py-6 text-xs text-gray-400 dark:text-gray-500">
+                        No dependency connections detected.
+                    </div>
+                </template>
+
+                <!-- Hub bean rows -->
+                <template x-for="(hub, index) in dependencyHubs" :key="hub.name + '_' + index">
+                    <div @click="goTo('definitions', hub.name)"
+                        class="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-slate-800/40 hover:bg-gray-100/80 dark:hover:bg-slate-800 rounded-xl transition-all gap-3 cursor-pointer group hub-bean-item">
+                        <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                            <span
+                                class="w-5 h-5 rounded-md bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-[11px] font-bold flex items-center justify-center flex-shrink-0"
+                                x-text="hub.rank">1</span>
+                            <span class="material-symbols-outlined text-[18px]" :style="{ color: hub.iconColor }"
+                                x-text="hub.icon"></span>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"
+                                    x-text="hub.name">--</div>
+                                <div class="text-[10px] font-mono text-gray-400 dark:text-gray-500 truncate"
+                                    x-text="hub.type">--</div>
+                            </div>
+                        </div>
+                        <div class="text-right flex-shrink-0">
+                            <span
+                                class="px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
+                                x-text="hub.dependentsCount + ' dependents'">--</span>
+                        </div>
+                    </div>
+                </template>
             </div>
 
             <div
                 class="pt-3 mt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <span id="db-graph-footer-stats">Graph topology telemetry</span>
+                <span id="db-graph-footer-stats" x-text="dependencyGraphFooter">Graph topology telemetry</span>
                 <a href="#/graph"
                     class="font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-0.5">
                     Explore Graph Tree <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
@@ -547,170 +791,4 @@
         </div>
     </div>
 </div>
-
-<template id="tpl-dashboard-empty-state">
-    <div class="text-center py-6 text-xs text-gray-400 dark:text-gray-500" data-field="message">
-        No records found.
-    </div>
-</template>
-
-<template id="tpl-dashboard-slowest-row">
-    <div class="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-slate-800/40 hover:bg-gray-100/80 dark:hover:bg-slate-800 rounded-xl transition-all gap-3 cursor-pointer group slowest-bean-item"
-        data-bean-name="">
-        <div class="flex items-center gap-2.5 min-w-0 flex-1">
-            <span
-                class="w-5 h-5 rounded-md bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 text-[11px] font-bold flex items-center justify-center flex-shrink-0"
-                data-field="rank">1</span>
-            <span class="material-symbols-outlined text-[18px] flex-shrink-0" data-field="icon"></span>
-            <div class="min-w-0 flex-1">
-                <div class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate group-hover:text-primary transition-colors"
-                    data-field="name">--</div>
-                <div class="text-[10px] font-mono text-gray-400 dark:text-gray-500 truncate" data-field="type">--</div>
-            </div>
-        </div>
-        <div class="flex items-center gap-2.5 flex-shrink-0">
-            <div class="w-16 sm:w-24 bg-gray-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden hidden sm:block">
-                <div class="h-full rounded-full transition-all duration-300" data-field="latency-bar" style="width: 0%">
-                </div>
-            </div>
-            <span
-                class="px-2 py-0.5 rounded text-[11px] font-bold font-mono inline-block border text-right min-w-[62px]"
-                data-field="latency-badge">--</span>
-        </div>
-    </div>
-</template>
-
-<template id="tpl-dashboard-condition-row">
-    <div
-        class="flex items-center justify-between p-2 bg-gray-50 dark:bg-slate-800/40 hover:bg-gray-100/60 dark:hover:bg-slate-800 rounded-lg transition-colors gap-3">
-        <div class="flex items-center gap-2 min-w-0 flex-1">
-            <span class="w-2 h-2 rounded-full flex-shrink-0" data-field="dot"></span>
-            <span class="text-xs font-mono font-medium text-gray-800 dark:text-gray-200 truncate"
-                data-field="source">--</span>
-        </div>
-        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border flex-shrink-0"
-            data-field="outcome-badge">--</span>
-    </div>
-</template>
-
-<template id="tpl-dashboard-hub-row">
-    <div
-        class="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-slate-800/40 hover:bg-gray-100/80 dark:hover:bg-slate-800 rounded-xl transition-all gap-3 cursor-pointer group hub-bean-item">
-        <div class="flex items-center gap-2.5 min-w-0 flex-1">
-            <span
-                class="w-5 h-5 rounded-md bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 text-[11px] font-bold flex items-center justify-center flex-shrink-0"
-                data-field="rank">1</span>
-            <span class="material-symbols-outlined text-[18px]" data-field="icon"></span>
-            <div class="min-w-0 flex-1">
-                <div class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors"
-                    data-field="name">--</div>
-                <div class="text-[10px] font-mono text-gray-400 dark:text-gray-500 truncate" data-field="type">--</div>
-            </div>
-        </div>
-        <div class="text-right flex-shrink-0">
-            <span
-                class="px-2.5 py-0.5 rounded-full text-[10px] font-bold font-mono bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
-                data-field="dependents-count">--</span>
-        </div>
-    </div>
-</template>
-
-<template id="tpl-dashboard-profile-badge">
-    <span
-        class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-primary/40 text-purple-200 border border-purple-400/30"
-        data-field="name"></span>
-</template>
-
-<template id="tpl-dashboard-profile-empty">
-    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-white/10 text-slate-300">default</span>
-</template>
-
-<template id="tpl-dashboard-chart-legend-item">
-    <div
-        class="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors text-xs">
-        <div class="flex items-center gap-2 min-w-0">
-            <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" data-field="dot"></span>
-            <span class="font-medium text-gray-700 dark:text-gray-300 truncate" data-field="label"></span>
-        </div>
-        <div class="flex items-center gap-2 flex-shrink-0">
-            <span class="font-bold text-gray-800 dark:text-white font-mono" data-field="val"></span>
-            <span class="text-[11px] text-gray-400 dark:text-gray-500 font-mono w-9 text-right" data-field="pct"></span>
-        </div>
-    </div>
-</template>
-
-<template id="tpl-dashboard-search-chip">
-    <div
-        class="flex items-center justify-between p-2 rounded-xl bg-gray-50 dark:bg-slate-800 hover:bg-purple-50 dark:hover:bg-purple-950/30 border border-gray-200 dark:border-slate-700 hover:border-primary/40 transition-all cursor-pointer group search-chip-item">
-        <div class="flex items-center gap-2 min-w-0 flex-1 btn-goto-def" title="View Definition & Details">
-            <span class="material-symbols-outlined text-[16px]" data-field="icon"></span>
-            <span
-                class="text-xs font-bold text-gray-800 dark:text-gray-200 group-hover:text-primary transition-colors truncate"
-                data-field="name"></span>
-        </div>
-        <div class="flex items-center gap-1.5 flex-shrink-0">
-            <button type="button"
-                class="btn-goto-def px-1.5 py-0.5 rounded text-[10px] font-semibold text-primary dark:text-purple-300 hover:bg-primary/10 transition-colors"
-                title="View Definition & Details">Def</button>
-            <button type="button"
-                class="btn-goto-graph px-1.5 py-0.5 rounded text-[10px] font-semibold text-blue-500 dark:text-blue-400 hover:bg-blue-500/10 transition-colors"
-                title="Inspect in Dependency Graph">Graph</button>
-            <button type="button"
-                class="btn-goto-inst px-1.5 py-0.5 rounded text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
-                title="View Bean Instances">Inst</button>
-        </div>
-    </div>
-</template>
-
-<template id="tpl-dashboard-radial-tooltip">
-    <div>
-        <div class="flex items-center gap-2 mb-1.5">
-            <span class="material-symbols-outlined text-[16px]" data-field="icon"></span>
-            <span class="font-bold text-white text-xs truncate flex-1" data-field="title"></span>
-            <span class="px-1.5 py-0.2 rounded text-[9px] font-mono uppercase border border-white/10"
-                data-field="scope-badge"></span>
-        </div>
-        <div class="text-[10px] text-gray-300 font-mono truncate mb-2" data-field="type"></div>
-        <div class="grid grid-cols-2 gap-1.5 text-[10px] pt-1.5 border-t border-white/10 text-gray-300">
-            <div><span class="text-gray-400">Depth:</span> <strong class="text-white font-mono"
-                    data-field="depth"></strong></div>
-            <div><span class="text-gray-400">Direct Deps:</span> <strong class="text-blue-300 font-mono"
-                    data-field="direct-deps"></strong></div>
-            <div><span class="text-gray-400">Subtree:</span> <strong class="text-amber-300 font-mono"
-                    data-field="subtree"></strong></div>
-            <div class="truncate" data-field="parent-container"><span class="text-gray-400">Parent:</span> <strong
-                    class="text-white font-mono" data-field="parent"></strong></div>
-        </div>
-        <div class="mt-2 pt-1.5 border-t border-white/10 flex items-center justify-between text-[10px] text-blue-400 font-semibold hidden"
-            data-field="inspect-hint">
-            <span>Inspect in Full Graph</span>
-            <span class="material-symbols-outlined text-[12px]">open_in_new</span>
-        </div>
-    </div>
-</template>
-
-<template id="tpl-dashboard-uptime-active">
-    <div
-        class="bg-white/10 backdrop-blur-md border border-white/15 rounded-xl px-4 py-2.5 flex items-center gap-3 shadow-inner">
-        <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center">
-            <span class="material-symbols-outlined text-[20px]">history_toggle_off</span>
-        </div>
-        <div>
-            <span class="text-[10px] uppercase font-bold text-slate-300 tracking-wider block">Uptime</span>
-            <span class="text-sm font-bold text-white font-mono" data-field="uptime" id="hero-app-uptime">--</span>
-        </div>
-    </div>
-</template>
-
-<template id="tpl-dashboard-uptime-down">
-    <div
-        class="bg-rose-500/15 backdrop-blur-md border border-rose-400/30 rounded-xl px-4 py-2.5 flex items-center gap-3 shadow-inner">
-        <div class="w-8 h-8 rounded-lg bg-rose-500/20 text-rose-300 flex items-center justify-center">
-            <span class="material-symbols-outlined text-[20px]">cloud_off</span>
-        </div>
-        <div>
-            <span class="text-[10px] uppercase font-bold text-rose-200 tracking-wider block">Status</span>
-            <span class="text-sm font-bold text-white font-mono">Service Down</span>
-        </div>
-    </div>
-</template>
+</div>

@@ -123,7 +123,7 @@ export class InstanceSidebarWidget {
         const titles = {
             name: beanName,
             type: type || 'N/A',
-            scope: capitalize(scope || 'singleton'),
+            scope: Formatter.capitalize(scope || 'singleton'),
             duration: (initDurationNanos || 0).toLocaleString() + ' ns',
             context: contextId || 'root',
             created: createdAt || 'N/A',

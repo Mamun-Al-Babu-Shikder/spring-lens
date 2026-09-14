@@ -1,5 +1,5 @@
+import BaseController from '../base-controller.js';
 import {
-    BaseController,
     beanDataStore,
     AsyncUtils,
     Formatter,

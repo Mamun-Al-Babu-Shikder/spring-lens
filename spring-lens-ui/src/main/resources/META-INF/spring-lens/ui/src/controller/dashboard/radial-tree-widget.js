@@ -1,11 +1,6 @@
-import { GraphTreeBuilder, BeanMetadataRules, TemplateEngine } from '../../helper/index.js';
+import { GraphTreeBuilder, BeanMetadataRules } from '../../helper/index.js';
 
-/**
- * Widget responsible for the Interactive D3 Force-Directed Tree visualization,
- * node physics simulation, zoom mechanics, drag interaction, path tracing,
- * and glassmorphism hover tooltips.
- */
-export default class RadialTreeWidget {
+class RadialTreeWidget {
 
     constructor() {
         this.radialZoom = null;
@@ -13,25 +8,88 @@ export default class RadialTreeWidget {
         this.radialInitialTransform = null;
         this.forceSimulation = null;
         this.dependenciesData = null;
+        this.stateUpdater = null;
+    }
+
+    /**
+     * Resolves node visual theme color based on bean type keywords.
+     * @param {Object} d - D3 hierarchy node.
+     * @returns {string} Hex color string.
+     */
+    getNodeColor(d) {
+        if (d.depth === 0) return '#10b981';
+        const text = `${d.data?.name || ''} ${d.data?.meta?.type || d.data?.type || ''}`.toLowerCase();
+        if (/service/.test(text)) return '#34d399';
+        if (/repo|data|entity|repository/.test(text)) return '#fbbf24';
+        if (/controller|web|rest|endpoint/.test(text)) return '#f472b6';
+        if (/config|security|filter|properties/.test(text)) return '#c084fc';
+        return '#60a5fa';
+    }
+
+    /**
+     * Computes reactive presentation data for node hover tooltips.
+     * @param {Object} d - Hovered D3 hierarchy node.
+     * @param {Set} descendants - Set of descendant nodes.
+     * @returns {Object}
+     */
+    computeTooltipData(d, descendants) {
+        const isRootNode = d.depth === 0;
+        const meta = BeanMetadataRules.resolveBeanMetadata(d.data);
+        const titleName = isRootNode ? (d.data?.name || 'Application Context') : d.data.name;
+        const type = isRootNode ? 'Root Context' : (d.data?.meta?.type || d.data?.type || 'Spring Bean');
+        const scope = isRootNode ? 'CONTEXT' : (d.data?.meta?.scope || 'singleton');
+        const directChildren = d.children ? d.children.length : 0;
+        const totalSubtree = descendants.size - 1;
+        const parentName = d.parent ? (d.parent.data?.name || d.parent.data?.fullName || 'Root') : 'None';
+
+        let badgeClass = 'bg-blue-400/20 text-blue-300';
+        let iconColor = '#60a5fa';
+        if (isRootNode) {
+            badgeClass = 'bg-emerald-500/20 text-emerald-300';
+            iconColor = '#10b981';
+        } else {
+            const color = this.getNodeColor(d);
+            if (color === '#34d399') { badgeClass = 'bg-emerald-400/20 text-emerald-300'; iconColor = '#34d399'; }
+            else if (color === '#fbbf24') { badgeClass = 'bg-amber-400/20 text-amber-300'; iconColor = '#fbbf24'; }
+            else if (color === '#f472b6') { badgeClass = 'bg-pink-400/20 text-pink-300'; iconColor = '#f472b6'; }
+            else if (color === '#c084fc') { badgeClass = 'bg-purple-400/20 text-purple-300'; iconColor = '#c084fc'; }
+        }
+
+        return {
+            icon: isRootNode ? 'account_tree' : meta.icon,
+            iconColor,
+            title: titleName,
+            scope,
+            badgeClass,
+            type,
+            depth: `L${d.depth}`,
+            directDeps: directChildren,
+            subtree: totalSubtree,
+            parent: parentName
+        };
     }
 
     /**
      * Renders or refreshes the Interactive D3 Force-Directed Tree.
      * @param {Object} [dependenciesResponse]
+     * @param {Function} [stateUpdater] - Callback to update Alpine reactive state.
      */
-    render(dependenciesResponse = this.dependenciesData) {
+    render(dependenciesResponse = this.dependenciesData, stateUpdater = null) {
         if (!dependenciesResponse) return;
         this.dependenciesData = dependenciesResponse;
+        if (stateUpdater) {
+            this.stateUpdater = stateUpdater;
+        }
 
-        const $dbRadialLoading = $('#db-radial-loading');
         const items = dependenciesResponse?.content ?? [];
-        const $svg = $('#db-radial-tree-svg');
-        const svgNode = $svg[0];
+        const svgNode = document.getElementById('db-radial-tree-svg');
         if (!svgNode) return;
 
         if (items.length === 0) {
-            $dbRadialLoading.addClass('hidden');
-            $('#db-radial-stats').text('No dependencies found');
+            this.stateUpdater?.({
+                radialLoading: false,
+                radialStats: 'No dependencies found'
+            });
             return;
         }
 
@@ -43,7 +101,7 @@ export default class RadialTreeWidget {
 
             const treeData = GraphTreeBuilder.buildByContext(items);
             if (!treeData) {
-                $dbRadialLoading.addClass('hidden');
+                this.stateUpdater?.({ radialLoading: false });
                 return;
             }
 
@@ -59,20 +117,16 @@ export default class RadialTreeWidget {
             const links = hierarchy.links();
             const totalNodes = nodes.length;
             const treeDepth = hierarchy.height;
-            $('#db-radial-stats').text(`${totalNodes} Beans • ${treeDepth} Levels • Hover or drag nodes`);
+
+            this.stateUpdater?.({
+                radialLoading: false,
+                radialStats: `${totalNodes} Beans • ${treeDepth} Levels • Hover or drag nodes`
+            });
 
             const svg = d3.select(svgNode);
             svg.selectAll('*').remove();
 
-            const getNodeColor = (d) => {
-                if (d.depth === 0) return '#10b981';
-                const text = `${d.data?.name || ''} ${d.data?.meta?.type || d.data?.type || ''}`.toLowerCase();
-                if (/service/.test(text)) return '#34d399';
-                if (/repo|data|entity|repository/.test(text)) return '#fbbf24';
-                if (/controller|web|rest|endpoint/.test(text)) return '#f472b6';
-                if (/config|security|filter|properties/.test(text)) return '#c084fc';
-                return '#60a5fa';
-            };
+            const getNodeColor = (d) => this.getNodeColor(d);
 
             // Main Zoomable SVG Group
             const g = svg.append('g');
@@ -181,7 +235,6 @@ export default class RadialTreeWidget {
             nodeGroups.call(drag);
 
             // 5. Interactive Hover & Path Tracing
-            const $tooltip = $('#db-radial-tooltip');
 
             const getAncestors = (node) => {
                 const ancestors = [];
@@ -242,54 +295,36 @@ export default class RadialTreeWidget {
                     .attr('stroke-width', 1.5);
 
                 // Render Glassmorphism Tooltip Card
-                const isRootNode = d.depth === 0;
-                const meta = BeanMetadataRules.resolveBeanMetadata(d.data);
-                const titleName = isRootNode ? (d.data?.name || 'Application Context') : d.data.name;
-                const type = isRootNode ? 'Root Context' : (d.data?.meta?.type || d.data?.type || 'Spring Bean');
-                const scope = isRootNode ? 'CONTEXT' : (d.data?.meta?.scope || 'singleton');
-                const directChildren = d.children ? d.children.length : 0;
-                const totalSubtree = descendants.size - 1;
-                const parentName = d.parent ? (d.parent.data?.name || d.parent.data?.fullName || 'Root') : 'None';
+                // Update Tooltip Position & Alpine Reactive State
+                const containerRect = svgNode.getBoundingClientRect();
+                const x = event.clientX - containerRect.left + 14;
+                const y = event.clientY - containerRect.top - 20;
 
-                const clone = TemplateEngine.clone('tpl-dashboard-radial-tooltip');
-                if (clone) {
-                    const $t = $(clone.firstElementChild);
-
-                    let badgeClass = 'bg-blue-400/20 text-blue-300';
-                    let iconColor = '#60a5fa';
-                    if (isRootNode) {
-                        badgeClass = 'bg-emerald-500/20 text-emerald-300';
-                        iconColor = '#10b981';
-                    } else {
-                        const color = getNodeColor(d);
-                        if (color === '#34d399') { badgeClass = 'bg-emerald-400/20 text-emerald-300'; iconColor = '#34d399'; }
-                        else if (color === '#fbbf24') { badgeClass = 'bg-amber-400/20 text-amber-300'; iconColor = '#fbbf24'; }
-                        else if (color === '#f472b6') { badgeClass = 'bg-pink-400/20 text-pink-300'; iconColor = '#f472b6'; }
-                        else if (color === '#c084fc') { badgeClass = 'bg-purple-400/20 text-purple-300'; iconColor = '#c084fc'; }
-                    }
-
-                    $t.find('[data-field="icon"]')
-                        .css('color', iconColor)
-                        .text(isRootNode ? 'account_tree' : meta.icon);
-                    $t.find('[data-field="title"]').text(titleName);
-                    $t.find('[data-field="scope-badge"]').addClass(badgeClass).text(scope);
-                    $t.find('[data-field="type"]').text(type).attr('title', type);
-                    $t.find('[data-field="depth"]').text(`L${d.depth}`);
-                    $t.find('[data-field="direct-deps"]').text(directChildren);
-                    $t.find('[data-field="subtree"]').text(totalSubtree);
-                    $t.find('[data-field="parent"]').text(parentName);
-                    $t.find('[data-field="parent-container"]').attr('title', parentName);
-
-                    $tooltip.empty().append($t).removeClass('hidden');
+                const tooltipEl = document.getElementById('db-radial-tooltip');
+                if (tooltipEl) {
+                    tooltipEl.style.left = `${Math.min(x, containerRect.width - 240)}px`;
+                    tooltipEl.style.top = `${Math.max(10, y)}px`;
                 }
+
+                const tooltipData = this.computeTooltipData(d, descendants);
+                this.stateUpdater?.({
+                    radialTooltip: {
+                        ...tooltipData,
+                        visible: true
+                    }
+                });
             })
                 .on('mousemove', (event) => {
                     const containerRect = svgNode.getBoundingClientRect();
                     const x = event.clientX - containerRect.left + 14;
                     const y = event.clientY - containerRect.top - 20;
-                    $tooltip.css({ left: `${Math.min(x, containerRect.width - 240)}px`, top: `${Math.max(10, y)}px` });
+                    const tooltipEl = document.getElementById('db-radial-tooltip');
+                    if (tooltipEl) {
+                        tooltipEl.style.left = `${Math.min(x, containerRect.width - 240)}px`;
+                        tooltipEl.style.top = `${Math.max(10, y)}px`;
+                    }
                 })
-                .on('mouseleave', (event, d) => {
+                .on('mouseleave', (event) => {
                     linkSelection
                         .transition().duration(200)
                         .attr('stroke', d => d.source.depth === 0 ? rootLinkStroke : defaultLinkStroke)
@@ -306,13 +341,15 @@ export default class RadialTreeWidget {
                         .attr('stroke', isDark ? '#0f172a' : '#ffffff')
                         .attr('stroke-width', 1.0);
 
-                    $tooltip.addClass('hidden');
+                    this.stateUpdater?.({
+                        radialTooltip: { visible: false }
+                    });
                 });
 
-            $dbRadialLoading.addClass('hidden');
+            this.stateUpdater?.({ radialLoading: false });
         } catch (err) {
             console.error('Error rendering Force-Directed Tree:', err);
-            $dbRadialLoading.addClass('hidden');
+            this.stateUpdater?.({ radialLoading: false });
         }
     }
 
@@ -361,6 +398,11 @@ export default class RadialTreeWidget {
         this.radialInitialTransform = null;
         this.dependenciesData = null;
 
-        $('#db-radial-tooltip').addClass('hidden').empty();
+        this.stateUpdater?.({
+            radialTooltip: { visible: false }
+        });
     }
 }
+
+const radialTreeWidget = new RadialTreeWidget();
+export default radialTreeWidget;

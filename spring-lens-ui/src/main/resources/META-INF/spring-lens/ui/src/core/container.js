@@ -1,18 +1,13 @@
 import ENDPOINTS from '../helper/api-endpoints.js';
-import { ApplicationStateController } from '../controller/index.js';
-import ThemeManager from './theme-manager.js';
 import PageHeader from '../helper/page-header.js';
+import ThemeManager from './theme-manager.js';
 import { InstanceService } from '../controller/instance/index.js';
 import { DashboardService } from '../controller/dashboard/index.js';
 import { DefinitionService } from '../controller/definition/index.js';
 import { DependencyGraphService } from '../controller/dependency-graph/index.js';
 import { ConditionReportService } from '../controller/conditional-report/index.js';
+import { ApplicationStateController } from '../controller/index.js';
 
-/**
- * Enterprise IoC Service Container.
- * Manages service singletons, dependency resolution, and auto-wiring for controllers.
- * Inspired by Laravel's Illuminate\Container\Container.
- */
 export class Container {
     constructor() {
         this._bindings = new Map();

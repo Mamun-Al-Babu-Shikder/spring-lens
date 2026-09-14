@@ -3,21 +3,6 @@
  * Defines title, badge, icon, breadcrumbs, and action button metadata for views.
  */
 export const PAGE_HEADERS = {
-    'dashboard': {
-        icon: 'dashboard',
-        title: 'Platform Overview',
-        badge: 'Dashboard',
-        breadcrumbs: ['Dashboard'],
-        actions: [
-            {
-                id: 'btn-refresh-dashboard',
-                action: 'refresh-data',
-                icon: 'refresh',
-                label: 'Refresh',
-                title: 'Refresh dashboard metrics'
-            }
-        ]
-    },
     'definitions': {
         icon: 'widgets',
         title: 'Bean Definitions',

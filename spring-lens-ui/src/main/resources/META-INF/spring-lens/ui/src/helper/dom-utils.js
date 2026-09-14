@@ -1,7 +1,7 @@
 /**
  * DOM and Browser Utility Class for CSS custom properties and file downloads.
  */
-export class DomUtils {
+class DomUtils {
 
     /**
      * Reads a computed CSS variable value from the document root.

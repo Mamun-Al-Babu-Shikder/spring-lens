@@ -9,8 +9,25 @@ export default class BaseController {
      */
     constructor(namespace = 'baseController') {
         this.namespace = namespace;
+        this.alpine = null;
         this._disposables = [];
         this._boundTargets = new Set();
+
+        // Automatically register Alpine component if subclass defines createAlpineState()
+        if (typeof window !== 'undefined' && typeof this.createAlpineState === 'function') {
+            window.Alpine?.data(this.namespace, () => this.createAlpineState());
+        }
+    }
+
+    /**
+     * Called by the router to bind the active Alpine reactive component to this controller.
+     * @param {Object} alpine - The Alpine $data reactive proxy.
+     */
+    bindAlpine(alpine) {
+        this.alpine = alpine;
+        if (this.alpine && this.state) {
+            Object.assign(this.alpine, this.state);
+        }
     }
 
     /**
@@ -20,7 +37,7 @@ export default class BaseController {
      * @param {Object|string} [params] - Route parameters
      * @param {Object|string} [context] - Route parameters
      */
-    async enter(params, context) {
+    async enter(params = null, context = null) {
         // Subclass implementation
     }
 
@@ -40,6 +57,7 @@ export default class BaseController {
      * Automatically unbinds all registered namespaced event listeners and disposes resources.
      */
     leave() {
+        this.alpine = null;
         this.unbindEvents();
         this.disposeAll();
     }

@@ -1,5 +1,5 @@
+import BaseController from '../base-controller.js';
 import {
-    BaseController,
     DefinitionService,
     DefinitionChartsWidget,
     DefinitionTableWidget,
@@ -25,9 +25,6 @@ export class DefinitionController extends BaseController {
     constructor(endpoints = {}) {
         super('beanDefs');
         this.service = new DefinitionService(endpoints);
-        this.beanDefinitionEndpoint = endpoints.BEAN_DEFINITION;
-        this.beanDefinitionSummaryEndpoint = endpoints.SUMMARY_BEAN_DEFINITION;
-        this.beanDefinitionSearchEndpoint = endpoints.FIND_BEAN_DEFINITION;
 
         // Sub-widgets
         this.chartsWidget = new DefinitionChartsWidget();
@@ -88,18 +85,6 @@ export class DefinitionController extends BaseController {
 
         this._hasFetchedTableData = false;
         this._debouncedFetchTableData = null;
-    }
-
-    get activeCharts() {
-        return this.chartsWidget.activeCharts;
-    }
-
-    get activeSidebarTab() {
-        return this.sidebarWidget.activeTab;
-    }
-
-    set activeSidebarTab(val) {
-        this.sidebarWidget.activeTab = val;
     }
 
     /**
@@ -218,19 +203,19 @@ export class DefinitionController extends BaseController {
      * @param {string} [contextId]
      * @returns {Promise<boolean>}
      */
-    async selectBean(beanName, contextId = null) {
-        if (!beanName) return false;
+    async selectBean(beanName, contextId) {
+        if (!beanName || !contextId) return false;
 
         this.selectedBeanName = beanName;
         this.selectedContextId = contextId;
 
         const localMatch = this.currentPageBeans.find(b =>
-            b.beanName === beanName && (!contextId || b.contextId === contextId)
+            b.beanName === beanName && (b.contextId === contextId)
         ) || beanDataStore.findBeanByName(beanName, contextId);
 
         if (localMatch) {
-            this.selectedBeanId = localMatch.id || `${localMatch.contextId || ''}:${localMatch.beanName}`;
-            this.tableWidget.highlightSelectedRow(this.selectedBeanId, this.selectedBeanName);
+            this.selectedBeanId = `${localMatch.contextId}:${localMatch.beanName}`;
+            this.tableWidget.highlightSelectedRow(this.selectedBeanId, this.selectedBeanName, this.selectedContextId);
             this.openSidebar(localMatch);
         }
 
@@ -238,7 +223,7 @@ export class DefinitionController extends BaseController {
             const freshDetails = await this.service.findBeanDefinition(beanName, contextId);
 
             if (freshDetails) {
-                this.selectedBeanId = freshDetails.id || `${freshDetails.contextId || ''}:${freshDetails.beanName}`;
+                this.selectedBeanId = `${freshDetails.contextId}:${freshDetails.beanName}`;
                 this.selectedBeanName = freshDetails.beanName;
                 this.selectedContextId = freshDetails.contextId;
 
@@ -490,9 +475,9 @@ export class DefinitionController extends BaseController {
     }
 
     async _handleSelectBean($target) {
-        const $row = $target.closest('tr');
-        const beanName = $row.attr('data-bean-name') || $target.data('bean-name') || $target.attr('data-bean-name');
-        const contextId = $row.attr('data-context-id') || $target.data('context-id') || $target.attr('data-context-id');
+
+        const beanName = $target.data('bean-name');
+        const contextId = $target.data('context-id');
         if (beanName) {
             const success = await this.selectBean(beanName, contextId);
             if (!success) {
@@ -524,7 +509,7 @@ export class DefinitionController extends BaseController {
 
     _handleChangePage($target) {
         const targetPage = parseInt($target.data('page'), 10);
-        if (!isNaN(targetPage) && targetPage !== this.currentPage) {
+        if (!Number.isNaN(targetPage) && targetPage !== this.currentPage) {
             this.currentPage = targetPage;
             this.fetchTableData();
         }
@@ -567,55 +552,5 @@ export class DefinitionController extends BaseController {
         };
 
         DomUtils.downloadJson(`spring-lens-definitions-${Date.now()}.json`, reportData);
-    }
-
-    // --- Backward Compatibility Delegate Methods ---
-
-    renderTable() {
-        this.tableWidget.render(this.currentPageBeans, {
-            selectedBeanId: this.selectedBeanId,
-            selectedBeanName: this.selectedBeanName,
-            selectedContextId: this.selectedContextId
-        });
-    }
-
-    renderPagination() {
-        this.tableWidget.renderPagination(this.paginationState);
-    }
-
-    updateSortHeaderIcons() {
-        this.tableWidget.updateSortHeaderIcons(this.sortColumn, this.sortDirection);
-    }
-
-    destroyCharts() {
-        this.chartsWidget.destroyCharts();
-    }
-
-    refreshBeanSummaryStatistics(summary) {
-        this.chartsWidget.render(summary);
-    }
-
-    initializeScopeAndRoleDistributionCharts(summary) {
-        this.chartsWidget.renderDistributionCharts(summary);
-    }
-
-    renderActiveTab() {
-        this.sidebarWidget.switchTab(this.sidebarWidget.activeTab);
-    }
-
-    renderModalGraph(targetBean) {
-        this.modalWidget.render(targetBean);
-    }
-
-    setGraphMode(mode) {
-        this.modalWidget.setMode(mode);
-    }
-
-    zoomModal(factor) {
-        this.modalWidget.zoom(factor);
-    }
-
-    fitModalView() {
-        this.modalWidget.fitView();
     }
 }

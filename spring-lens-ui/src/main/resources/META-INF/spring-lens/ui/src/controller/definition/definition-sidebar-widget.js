@@ -24,30 +24,47 @@ export default class DefinitionSidebarWidget {
             $sidebar.empty();
             const clone = TemplateEngine.clone('tpl-bean-details-sidebar');
             if (clone) {
+                $sidebar.append(clone);
                 const footerClone = TemplateEngine.clone('tpl-bean-details-sidebar-footer');
                 if (footerClone) {
-                    $(clone).find('#sidebar-footer-container').replaceWith(footerClone);
+                    $sidebar.find('#sidebar-footer-container').replaceWith(footerClone);
                 }
-                $sidebar.append(clone);
             }
         }
     }
 
     /**
-     * Opens details sidebar with slide-over animation.
+     * Indicates whether the sidebar is currently open/expanded.
+     * @returns {boolean}
      */
-    open() {
+    get isOpen() {
+        const $sidebar = $(this.container);
+        return $sidebar.length > 0 && $sidebar.hasClass('w-[380px]');
+    }
+
+    /**
+     * Opens details sidebar with slide-over animation and populates bean details.
+     * @param {Object} [beanDetails=null]
+     */
+    open(beanDetails = null) {
         const $sidebar = $(this.container);
         if (!$sidebar.length) return;
         this.initTemplate();
         $sidebar.removeClass('w-0 max-w-0 opacity-0 pointer-events-none -mr-6 border-0')
             .addClass('w-[380px] max-w-[380px] opacity-100 mr-0 border');
+
+        if (beanDetails) {
+            this.populateDetails(beanDetails);
+            this.populateLists(beanDetails);
+            this.switchTab('properties');
+        }
     }
 
     /**
      * Closes details sidebar with slide-out animation.
+     * @param {boolean} [immediate=false]
      */
-    close() {
+    close(immediate = false) {
         const $sidebar = $(this.container);
         if (!$sidebar.length) return;
         $sidebar.removeClass('w-[380px] max-w-[380px] opacity-100 mr-0 border')
@@ -59,6 +76,8 @@ export default class DefinitionSidebarWidget {
      * @param {Object} beanInformation
      */
     populateDetails(beanInformation) {
+        if (!beanInformation) return;
+        this.initTemplate();
         Sidebar.populateDetails(beanInformation);
         Sidebar.updateSidebarIcon(beanInformation);
     }
@@ -68,6 +87,8 @@ export default class DefinitionSidebarWidget {
      * @param {Object} bean
      */
     populateLists(bean) {
+        if (!bean) return;
+        this.initTemplate();
         const { dependencies = [], dependents = [], contextId = '' } = bean;
 
         $('#detail-deps-count').text(dependencies.length);
@@ -75,11 +96,15 @@ export default class DefinitionSidebarWidget {
 
         Sidebar.renderDependencyList($('#detail-deps-list'), dependencies, {
             contextId,
-            action: 'select-dependency'
+            action: 'select-dependency',
+            templateId: 'tpl-dep-list-item',
+            emptyText: 'No dependencies'
         });
         Sidebar.renderDependencyList($('#detail-dependents-list'), dependents, {
             contextId,
-            action: 'select-dependency'
+            action: 'select-dependency',
+            templateId: 'tpl-dep-list-item',
+            emptyText: 'No dependents'
         });
     }
 

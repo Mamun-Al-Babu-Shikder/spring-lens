@@ -2,8 +2,7 @@ import {
     Formatter,
     SCOPE_COLORS,
     ROLE_COLORS,
-    LOADING_MODE_COLORS,
-    TemplateEngine
+    LOADING_MODE_COLORS
 } from '../../helper/index.js';
 
 /**
@@ -32,9 +31,9 @@ const CHART_CONFIGS = {
 
 /**
  * Widget responsible for the Bean Definitions KPI, Chart.js Doughnut breakdown,
- * mode toggles (scope/role/loading), and custom legend rendering.
+ * mode toggles (scope/role/loading), and custom legend calculations.
  */
-export default class DefinitionChartWidget {
+class DefinitionChartWidget {
 
     constructor() {
         this.chartInstance = null;
@@ -43,95 +42,125 @@ export default class DefinitionChartWidget {
     }
 
     /**
-     * Renders definition KPIs and the doughnut chart.
-     * @param {Object} summary - Definitions summary data.
+     * Computes definition KPI numbers.
+     * @param {Object} beanDefinitionSummary
+     * @returns {Object}
      */
-    render(summary) {
-        if (!summary) return;
-        this.summaryData = summary;
-        this.renderKpi(summary);
-        this.renderChart(summary);
-    }
-
-    /**
-     * Renders Definition KPI summary numbers.
-     * @param {Object} summary
-     */
-    renderKpi(summary) {
-        if (!summary) return;
-
-        const total = summary.totalBeanDefinitions || 0;
-        $('#kpi-definitions-count').text(total.toLocaleString());
-
-        const scopes = summary.scopeDistribution || {};
-        const singletons = scopes.singleton || 0;
-        const prototypes = scopes.prototype || 0;
-
-        $('#kpi-def-singletons').text(singletons.toLocaleString());
-        $('#kpi-def-prototypes').text(prototypes.toLocaleString());
-    }
-
-    /**
-     * Renders or refreshes Chart.js doughnut chart and custom HTML legend.
-     * @param {Object} [summary]
-     */
-    renderChart(summary = this.summaryData) {
-        if (!summary) return;
-
-        const total = summary.totalBeanDefinitions || 0;
-        $('#db-chart-total').text(total.toLocaleString());
-
-        let labels = [];
-        let data = [];
-        let colors = [];
-        let footerText = '';
-
-        const isDark = document.documentElement.classList.contains('dark');
-        const config = CHART_CONFIGS[this.activeMode];
-        if (config) {
-            const rawMap = config.getDistribution(summary) || {};
-            const entries = Object.entries(rawMap);
-
-            labels = entries.map(([key]) => config.formatLabel(key));
-            data = entries.map(([, val]) => val);
-            colors = labels.map((label) => config.getColor(label));
-            footerText = config.getFooter(labels.length);
+    computeKpi(beanDefinitionSummary) {
+        if (!beanDefinitionSummary) {
+            return {
+                total: '--',
+                singletons: '0',
+                prototypes: '0'
+            };
         }
 
-        $('#db-chart-footer-info').text(footerText);
+        const {totalBeanDefinitions, scopeDistribution} = beanDefinitionSummary;
 
-        // Render Custom Legend
-        this._renderLegend(labels, data, colors, total);
-
-        // Render Chart.js Canvas
-        this._renderCanvasChart(labels, data, colors, total, isDark);
+        return {
+            total: totalBeanDefinitions.toLocaleString(),
+            singletons: (scopeDistribution.singleton || 0).toLocaleString(),
+            prototypes: (scopeDistribution.prototype || 0).toLocaleString()
+        };
     }
 
     /**
-     * Switches the active chart mode (scope | role | loading).
-     * @param {string} mode
+     * Computes legend items, percentages, and footer for the active mode.
+     * @param {Object} [beanDefinitionSummary]
+     * @param {string} [mode]
+     * @returns {Object}
      */
-    setMode(mode) {
-        if (!CHART_CONFIGS[mode]) return;
-        if (this.activeMode === mode && this.chartInstance) return;
+    computeLegend(beanDefinitionSummary = this.summaryData, mode = this.activeMode) {
+        if (!beanDefinitionSummary) {
+            return {
+                total: '--',
+                footerText: 'Showing scope breakdown',
+                legendItems: [],
+                labels: [],
+                data: [],
+                colors: []
+            };
+        }
 
-        this.activeMode = mode;
+        const total = beanDefinitionSummary.totalBeanDefinitions || 0;
+        const config = CHART_CONFIGS[mode] || CHART_CONFIGS.scope;
+        const rawMap = config.getDistribution(beanDefinitionSummary) || {};
+        const entries = Object.entries(rawMap);
 
-        const activeCls = 'bg-white dark:bg-slate-700 text-gray-800 dark:text-white shadow-sm';
-        const inactiveCls = 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white';
+        const labels = entries.map(([key]) => config.formatLabel(key));
+        const data = entries.map(([, val]) => val);
+        const colors = labels.map((label) => config.getColor(label));
+        const footerText = config.getFooter(labels.length);
 
-        $('#chart-mode-toggle [data-chart-mode]').each(function () {
-            const btnMode = $(this).data('chart-mode') || $(this).attr('data-chart-mode');
-            const isCurrent = btnMode === mode;
-            $(this)
-                .toggleClass(activeCls, isCurrent)
-                .toggleClass(inactiveCls, !isCurrent)
-                .attr('aria-pressed', String(isCurrent));
+        const legendItems = labels.map((label, idx) => {
+            const val = data[idx] || 0;
+            const pct = Formatter.formatPercentage(val, total);
+            const color = colors[idx] || '#6366f1';
+            return {
+                label,
+                value: val,
+                percentage: pct,
+                color
+            };
         });
 
+        return {
+            total: total.toLocaleString(),
+            footerText,
+            labels,
+            data,
+            colors,
+            legendItems
+        };
+    }
+
+    /**
+     * Renders definition KPIs and the doughnut chart canvas.
+     * @param {Object} summary - Definitions summary data.
+     * @returns {Object} Computed legend and KPI metrics
+     */
+    render(summary) {
+        if (!summary) return null;
+        this.summaryData = summary;
+        this.renderChart(summary);
+        return {
+            kpi: this.computeKpi(summary),
+            legend: this.computeLegend(summary, this.activeMode)
+        };
+    }
+
+    /**
+     * Renders or refreshes Chart.js doughnut chart on canvas.
+     * @param {Object} [summary]
+     * @param {string} [mode]
+     */
+    renderChart(summary = this.summaryData, mode = this.activeMode) {
+        if (!summary) return;
+        this.summaryData = summary;
+        this.activeMode = mode;
+
+        const { labels, data, colors, total } = this.computeLegend(summary, mode);
+        const isDark = document.documentElement.classList.contains('dark');
+        const rawTotal = summary.totalBeanDefinitions || 0;
+
+        // Render Chart.js Canvas
+        this._renderCanvasChart(labels, data, colors, rawTotal, isDark);
+    }
+
+    /**
+     * Switches the active chart mode (scope | role | loading) and redraws canvas.
+     * @param {string} mode
+     * @returns {Object} Updated legend data
+     */
+    setMode(mode) {
+        if (!CHART_CONFIGS[mode]) return null;
+        this.activeMode = mode;
+
         if (this.summaryData) {
-            this.renderChart(this.summaryData);
+            this.renderChart(this.summaryData, mode);
+            return this.computeLegend(this.summaryData, mode);
         }
+        return null;
     }
 
     /**
@@ -139,7 +168,7 @@ export default class DefinitionChartWidget {
      */
     onThemeChanged() {
         if (this.summaryData) {
-            this.renderChart(this.summaryData);
+            this.renderChart(this.summaryData, this.activeMode);
         }
     }
 
@@ -152,33 +181,6 @@ export default class DefinitionChartWidget {
             this.chartInstance = null;
         }
         this.summaryData = null;
-    }
-
-    /**
-     * @private
-     */
-    _renderLegend(labels, data, colors, total) {
-        const $legend = $('#db-definition-legend').empty();
-        const fragment = document.createDocumentFragment();
-
-        labels.forEach((label, idx) => {
-            const val = data[idx] || 0;
-            const pct = Formatter.formatPercentage(val, total);
-            const col = colors[idx] || '#6366f1';
-
-            const clone = TemplateEngine.clone('tpl-dashboard-chart-legend-item');
-            if (!clone) return;
-
-            const $item = $(clone.firstElementChild);
-            $item.find('[data-field="dot"]').css('background-color', col);
-            $item.find('[data-field="label"]').text(label).attr('title', label);
-            $item.find('[data-field="val"]').text(val);
-            $item.find('[data-field="pct"]').text(pct);
-
-            fragment.appendChild(clone);
-        });
-
-        $legend.append(fragment);
     }
 
     /**
@@ -246,3 +248,6 @@ export default class DefinitionChartWidget {
         });
     }
 }
+
+const chartWidget = new DefinitionChartWidget();
+export default chartWidget;

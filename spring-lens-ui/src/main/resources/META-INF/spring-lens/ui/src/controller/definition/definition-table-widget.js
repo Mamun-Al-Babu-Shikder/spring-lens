@@ -132,7 +132,7 @@ export default class DefinitionTableWidget {
      * @param {string|null} selectedBeanName
      * @param {string|null} [selectedContextId]
      */
-    highlightSelectedRow(activeBeanId, selectedBeanName, selectedContextId = null) {
+    highlightSelectedRow(activeBeanId, selectedBeanName, selectedContextId) {
         this.updateRowSelectionStyles(activeBeanId, selectedBeanName, selectedContextId);
     }
 
