@@ -20,11 +20,16 @@ export default class DefinitionService {
 
     /**
      * Fetches bean definition summary metrics and distributions.
-     * @returns {Promise<Object>}
+     * @returns {Promise<Object|null>}
      */
     async fetchSummary() {
         if (!this.beanDefinitionSummaryEndpoint) return null;
-        return httpClient.get(this.beanDefinitionSummaryEndpoint);
+        try {
+            return await httpClient.get(this.beanDefinitionSummaryEndpoint);
+        } catch (err) {
+            console.error('Failed to fetch bean definitions summary:', err);
+            throw err;
+        }
     }
 
     /**
@@ -35,18 +40,37 @@ export default class DefinitionService {
     async fetchTableData(criteria = {}) {
         if (!this.beanDefinitionEndpoint) return { content: [] };
 
+        const pageNumber = criteria.pageNumber !== undefined
+            ? criteria.pageNumber
+            : Math.max(0, (criteria.currentPage || 1) - 1);
+        const pageSize = criteria.pageSize || criteria.itemsPerPage || 20;
+        const search = criteria.search || criteria.searchQuery || undefined;
+
+        const filters = criteria.filterCriteria || {};
+        const contextId = criteria.contextId || filters.contextId || undefined;
+        const beanName = criteria.beanName || filters.beanName || undefined;
+        const scope = criteria.scope || filters.scope || undefined;
+        const role = criteria.role || filters.role || undefined;
+        const primary = criteria.primary !== undefined ? criteria.primary : (filters.primary || undefined);
+        const lazyInit = criteria.lazyInit !== undefined ? criteria.lazyInit : (filters.lazyInit || undefined);
+
+        const sortBy = criteria.sortBy || criteria.sortColumn || undefined;
+        const sortDir = sortBy
+            ? (criteria.sortDir || criteria.sortDirection || 'asc').toUpperCase()
+            : undefined;
+
         const queryParams = QueryParam.build({
-            pageNumber: Math.max(0, (criteria.currentPage || 1) - 1),
-            pageSize: criteria.itemsPerPage || 20,
-            search: criteria.searchQuery || undefined,
-            contextId: criteria.filterCriteria?.contextId || undefined,
-            beanName: criteria.filterCriteria?.beanName || undefined,
-            scope: criteria.filterCriteria?.scope || undefined,
-            role: criteria.filterCriteria?.role || undefined,
-            primary: criteria.filterCriteria?.primary || undefined,
-            lazyInit: criteria.filterCriteria?.lazyInit || undefined,
-            sortBy: criteria.sortColumn || undefined,
-            sortDir: criteria.sortColumn ? (criteria.sortDirection || 'asc').toUpperCase() : undefined
+            pageNumber,
+            pageSize,
+            search,
+            contextId,
+            beanName,
+            scope,
+            role,
+            primary,
+            lazyInit,
+            sortBy,
+            sortDir
         });
 
         return httpClient.getWithQuery(this.beanDefinitionEndpoint, queryParams.toString());
@@ -70,3 +94,4 @@ export default class DefinitionService {
         }
     }
 }
+

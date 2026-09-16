@@ -3,7 +3,7 @@ import {
     beanDataStore,
     httpClient,
     NH, RX, ICON, ZOOM_SCALE_EXTENT,
-    GRAPH_NODE_THEMES_BADGE, TemplateEngine, QueryParam, ToastNotification
+    GRAPH_NODE_THEMES_BADGE, QueryParam, ENDPOINTS
 } from '../../helper/index.js';
 
 /**
@@ -14,13 +14,14 @@ import {
 export default class DefinitionGraphModalWidget {
 
     /**
-     * @param {Object} options
+     * @param {Object} [options]
      * @param {string} [options.findBeanEndpoint]
-     * @param {Function} options.onSelectBean - Callback when a node is clicked in graph.
+     * @param {Function} [options.onSelectBean] - Callback when a node is clicked in graph.
      */
     constructor(options = {}) {
-        this.findBeanEndpoint = options.findBeanEndpoint;
+        this.findBeanEndpoint = options.findBeanEndpoint || ENDPOINTS?.FIND_BEAN_DEFINITION;
         this.onSelectBean = options.onSelectBean;
+        this.onTooltipChange = options.onTooltipChange;
 
         this.modalGraphMode = 'lr';
         this.modalZoom = null;
@@ -29,52 +30,15 @@ export default class DefinitionGraphModalWidget {
         this.modalGraphNodes = [];
     }
 
-    /**
-     * Opens graph modal and renders dependency tree for target bean.
-     * @param {Object} targetBean
-     */
     async open(targetBean) {
         if (!targetBean) return;
 
-        const $modal = $('#bean-dependency-graph-modal');
-        const $beanName = $('#modal-graph-bean-name');
-        const $card = $('#modal-graph-card');
-
-        $beanName.text(targetBean.beanName).attr('title', targetBean.beanName);
-        $modal.removeClass('hidden');
-
-        this.updateModeButtons(this.modalGraphMode);
-
-        requestAnimationFrame(() => {
-            $modal.removeClass('opacity-0 pointer-events-none').addClass('opacity-100');
-            $card.removeClass('scale-95 opacity-0').addClass('scale-100 opacity-100');
-        });
-
-        this._bindDismissEvents($modal);
-
-        // Pre-fetch any missing child bean definitions into beanDataStore
         await this._prefetchRelatedBeans(targetBean);
-
         this.render(targetBean);
     }
 
-    /**
-     * Closes graph modal and cleans up active tooltip.
-     */
     close() {
-        const $modal = $('#bean-dependency-graph-modal');
-        const $card = $('#modal-graph-card');
-
-        $modal.removeClass('opacity-100').addClass('opacity-0 pointer-events-none');
-        $card.removeClass('scale-100 opacity-100').addClass('scale-95 opacity-0');
-
-        $(document).off('keydown.graphModal');
-        const $tip = $('#tip');
-        if ($tip.length > 0) $tip.removeClass('show');
-
-        setTimeout(() => {
-            $modal.addClass('hidden');
-        }, 250);
+        this.onTooltipChange?.({ visible: false });
     }
 
     /**
@@ -82,6 +46,9 @@ export default class DefinitionGraphModalWidget {
      * @param {Object} targetBean
      */
     render(targetBean) {
+        if (!targetBean) return;
+        if (typeof d3 === 'undefined') return;
+
         const svg = d3.select('#modal-tree-svg');
         if (!svg.node()) return;
 
@@ -154,7 +121,6 @@ export default class DefinitionGraphModalWidget {
     setMode(mode) {
         if (this.modalGraphMode === mode) return;
         this.modalGraphMode = mode;
-        this.updateModeButtons(mode);
 
         if (this.modalGraphData && this.modalSvg) {
             this._drawModalTree(
@@ -169,24 +135,6 @@ export default class DefinitionGraphModalWidget {
     }
 
     /**
-     * Updates button visual states for layout modes.
-     * @param {'tb'|'lr'} mode
-     */
-    updateModeButtons(mode) {
-        const isTb = mode === 'tb';
-        const activeClasses = 'bg-white dark:bg-slate-800 text-gray-800 dark:text-white shadow-xs font-bold';
-        const inactiveClasses = 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white font-medium';
-
-        $('#modal-btn-tb')
-            .toggleClass(activeClasses, isTb)
-            .toggleClass(inactiveClasses, !isTb);
-
-        $('#modal-btn-lr')
-            .toggleClass(activeClasses, !isTb)
-            .toggleClass(inactiveClasses, isTb);
-    }
-
-    /**
      * Fits modal view to bounding box of rendered nodes.
      */
     fitView() {
@@ -194,9 +142,9 @@ export default class DefinitionGraphModalWidget {
         const svgNode = this.modalSvg.node();
         if (!svgNode || !svgNode.isConnected) return;
 
-        const container = $('#modal-graph-container');
-        const width = container.width() || 800;
-        const height = container.height() || 500;
+        const container = document.getElementById('modal-graph-container');
+        const width = container?.clientWidth || 800;
+        const height = container?.clientHeight || 500;
 
         const nodes = this.modalGraphNodes;
         if (!nodes || nodes.length === 0) return;
@@ -232,30 +180,14 @@ export default class DefinitionGraphModalWidget {
     }
 
     /**
-     * Binds modal control buttons.
-     */
-    bindControls() {
-        $('#modal-btn-tb').off('click.modalControls').on('click.modalControls', () => this.setMode('tb'));
-        $('#modal-btn-lr').off('click.modalControls').on('click.modalControls', () => this.setMode('lr'));
-        $('#modal-btn-zoom-in').off('click.modalControls').on('click.modalControls', () => this.zoom(1.25));
-        $('#modal-btn-zoom-out').off('click.modalControls').on('click.modalControls', () => this.zoom(0.8));
-        $('#modal-btn-reset, #modal-btn-fit').off('click.modalControls').on('click.modalControls', () => this.fitView());
-    }
-
-    /**
-     * Alias for bindControls for uniform widget lifecycle.
-     */
-    bindEvents() {
-        this.bindControls();
-    }
-
-    /**
      * Teardown and resource cleanup.
      */
     destroy() {
         this.close();
-        $(document).off('keydown.graphModal');
-        $('#modal-btn-tb, #modal-btn-lr, #modal-btn-zoom-in, #modal-btn-zoom-out, #modal-btn-reset, #modal-btn-fit').off('.modalControls');
+        this.modalGraphData = null;
+        this.modalGraphNodes = [];
+        this.modalSvg = null;
+        this.modalZoom = null;
     }
 
     /**
@@ -287,21 +219,6 @@ export default class DefinitionGraphModalWidget {
                 console.warn('Failed to pre-fetch related bean details:', error);
             }
         }
-    }
-
-    /**
-     * @private
-     */
-    _bindDismissEvents($container) {
-        $(document).off('keydown.graphModal').on('keydown.graphModal', (e) => {
-            if (e.key === 'Escape') this.close();
-        });
-
-        $container.off('click.graphModal').on('click.graphModal', (e) => {
-            if (e.target.id === 'bean-dependency-graph-modal' || e.target.id === 'def-graph-modal') {
-                this.close();
-            }
-        });
     }
 
     /**
@@ -399,7 +316,7 @@ export default class DefinitionGraphModalWidget {
             if (dependentNodes.length > 0) {
                 const maxDependentWidth = d3.max(dependentNodes, d => d.width) || 180;
                 const dependentColCenterX = (target.width / 2) + hGap + (maxDependentWidth / 2);
-                const dependentTotalH = (dependentNodes.length - 1) * rowHeight;
+                const dependentTotalH = (dependents.length - 1) * rowHeight;
                 dependentNodes.forEach((node, i) => {
                     node.x = dependentColCenterX;
                     node.y = -dependentTotalH / 2 + i * rowHeight;
@@ -545,11 +462,19 @@ export default class DefinitionGraphModalWidget {
             .attr('fill', d => getModalNodeStyle(d).text)
             .text(d => d.name);
 
-        const $tip = $('#tip');
-        if (!$tip.length) {
-            const clone = TemplateEngine.clone('tpl-tooltip');
-            if (clone) $('body').append(clone);
-        }
+        const container = document.getElementById('modal-graph-container');
+        const tipEl = document.getElementById('modal-graph-tooltip');
+
+        const getCoords = (event) => {
+            if (container) {
+                const rect = container.getBoundingClientRect();
+                return {
+                    x: Math.round(event.clientX - rect.left + 14),
+                    y: Math.round(event.clientY - rect.top + 16)
+                };
+            }
+            return { x: 0, y: 0 };
+        };
 
         nodes
             .on('click', async (event, node) => {
@@ -572,14 +497,32 @@ export default class DefinitionGraphModalWidget {
                 const scopeLabel = `Scope: ${displayScope}${cleanRole ? ` · ${cleanRole}` : ''}`;
                 const kindLabel = kind ? `Role in view: ${kind.toUpperCase()}` : '';
 
-                $('#tip-name').text(fullName || name);
-                $('#tip-type').text(typeLabel);
-                $('#tip-scope').text(scopeLabel);
-                $('#tip-meta').text(kindLabel);
-                $tip.addClass('show').css({ left: event.pageX + 14, top: event.pageY + 16 });
+                const { x, y } = getCoords(event);
+                if (tipEl) {
+                    tipEl.style.left = `${x}px`;
+                    tipEl.style.top = `${y}px`;
+                }
+
+                this.onTooltipChange?.({
+                    visible: true,
+                    x,
+                    y,
+                    name: fullName || name,
+                    type: typeLabel,
+                    scope: scopeLabel,
+                    meta: kindLabel
+                });
             })
-            .on('mousemove', (event) => $tip.css({ left: event.pageX + 14, top: event.pageY + 16 }))
-            .on('mouseleave', () => $tip.removeClass('show'));
+            .on('mousemove', (event) => {
+                const { x, y } = getCoords(event);
+                if (tipEl) {
+                    tipEl.style.left = `${x}px`;
+                    tipEl.style.top = `${y}px`;
+                }
+            })
+            .on('mouseleave', () => {
+                this.onTooltipChange?.({ visible: false });
+            });
 
         setTimeout(() => this.fitView(), 50);
     }

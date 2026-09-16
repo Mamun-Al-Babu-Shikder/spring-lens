@@ -1,33 +1,82 @@
-<div class="flex flex-col h-full w-full max-w-full overflow-hidden p-4 sm:p-6 gap-4">
-    <!-- Top Toolbar Header -->
+<div x-data="dependencyGraph" class="flex flex-col h-full w-full max-w-full p-4 sm:p-6 gap-4">
     <header
-        class="bg-white dark:bg-slate-900 border border-gray-200/80 dark:border-slate-800 rounded-2xl p-2.5 sm:p-3.5 px-4 sm:px-5 flex items-center justify-between gap-3 shadow-sm transition-colors duration-300 relative z-30 flex-shrink-0 min-w-0">
+        class="bg-white dark:bg-slate-900 border border-gray-200/80 dark:border-slate-800 rounded-2xl p-2.5 sm:p-3.5 px-4 sm:px-5 flex items-center justify-between gap-3 shadow-sm transition-colors duration-300 relative z-[100] flex-shrink-0 min-w-0 overflow-visible">
         <!-- Zone 1 & 2 Container: Search, Context & Graph Controls -->
-        <div class="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1 flex-wrap lg:flex-nowrap">
+        <div class="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1 flex-wrap lg:flex-nowrap overflow-visible">
             <!-- Zone 1: Search Box & Context Filter -->
-            <div class="flex items-center gap-2 flex-shrink-0">
+            <div class="flex items-center gap-2 flex-shrink-0 overflow-visible">
                 <!-- Search Box with Suggestions -->
-                <div class="relative flex items-center">
+                <div class="relative flex items-center overflow-visible" @click.outside="closeSuggestions()">
                     <span
                         class="material-symbols-outlined absolute left-3 text-gray-400 dark:text-gray-500 text-[18px] pointer-events-none">search</span>
-                    <input type="text" id="search-input" placeholder="Search bean in graph..."
-                        class="pl-9 pr-7 sm:pr-8 py-1.5 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors w-45 sm:w-52 shadow-xs" />
+                    <input type="text" id="search-input" x-model="searchQuery" @input="onSearchInput($event)"
+                        @keydown.escape="clearSearch()" @keydown.enter.prevent="onSearchEnter()"
+                        placeholder="Search bean in graph..."
+                        class="pl-9 pr-7 sm:pr-8 py-1.5 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors w-48 sm:w-56 shadow-xs" />
                     <kbd
                         class="hidden sm:inline-flex items-center absolute right-2.5 px-1.5 py-0.5 text-[9px] font-mono text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-slate-900 border border-gray-200/80 dark:border-slate-800 rounded pointer-events-none">/</kbd>
-                    <div id="search-suggestions"
-                        class="absolute left-0 top-full mt-1.5 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl shadow-xl max-h-72 w-80 overflow-y-auto custom-scrollbar z-50 text-xs hidden">
+
+                    <!-- Suggestions Dropdown -->
+                    <div id="search-suggestions" x-show="showSuggestions" x-cloak
+                        class="absolute left-0 top-full mt-1.5 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl shadow-xl max-h-72 w-80 overflow-y-auto custom-scrollbar z-[200] text-xs">
+
+                        <!-- Loading Indicator -->
+                        <div x-show="isSearching"
+                            class="p-2.5 text-gray-400 dark:text-gray-500 text-xs flex items-center gap-2">
+                            <span
+                                class="material-symbols-outlined text-[16px] animate-spin text-primary">progress_activity</span>
+                            <span>Searching beans...</span>
+                        </div>
+
+                        <!-- Empty State -->
+                        <div x-show="!isSearching && searchSuggestions.length === 0"
+                            class="p-2.5 text-gray-400 dark:text-gray-500 text-xs italic">
+                            No matching beans found
+                        </div>
+
+                        <!-- Suggestions List -->
+                        <template x-for="item in searchSuggestions" :key="(item.contextId || '') + '::' + item.fullName">
+                            <div @click="selectSuggestion(item)"
+                                class="suggestion-item px-3 py-2 text-xs hover:bg-purple-50/60 dark:hover:bg-purple-950/40 cursor-pointer flex items-center justify-between gap-2 border-b border-gray-100 dark:border-slate-800/60 last:border-b-0 transition-colors">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="material-symbols-outlined text-[16px] flex-shrink-0"
+                                        :style="{ color: item.meta?.color || '#8b5cf6' }"
+                                        x-text="item.meta?.icon || 'schema'"></span>
+                                    <div class="min-w-0">
+                                        <div class="font-semibold text-gray-800 dark:text-gray-200 truncate"
+                                            x-html="item.highlightedName || item.beanName"></div>
+                                        <div x-show="item.shortType"
+                                            class="text-[10px] text-gray-400 dark:text-gray-500 font-mono truncate"
+                                            x-text="item.shortType"></div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-1.5 flex-shrink-0">
+                                    <span x-show="item.contextId"
+                                        class="px-1.5 py-0.5 text-[9px] font-medium rounded bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 border border-purple-200/60 dark:border-purple-800/50 truncate max-w-[120px]"
+                                        :title="item.contextId" x-text="item.contextId"></span>
+                                    <span x-show="item.scope"
+                                        class="px-1.5 py-0.5 text-[9px] font-bold rounded bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 uppercase"
+                                        x-text="item.scope"></span>
+                                </div>
+                            </div>
+                        </template>
                     </div>
                 </div>
 
                 <!-- Context Filter Dropdown (hidden if single context) -->
-                <div id="context-filter-container" class="relative items-center hidden group">
+                <div id="context-filter-container" x-show="availableContexts.length > 1"
+                    class="relative items-center flex group">
                     <div
                         class="absolute left-2.5 flex items-center pointer-events-none text-primary dark:text-purple-400">
                         <span class="material-symbols-outlined text-[16px]">domain</span>
                     </div>
-                    <select id="context-filter"
-                        class="pl-8 pr-8 py-1.5 bg-white dark:bg-slate-950 border border-gray-200/90 dark:border-slate-800 text-gray-700 dark:text-gray-200 rounded-xl text-xs font-semibold hover:border-primary/50 dark:hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer shadow-xs appearance-none max-w-[140px] truncate">
-                        <option value="">All Contexts</option>
+                    <select id="context-filter" x-model="selectedContextId" @change="onContextFilterChange()"
+                        class="pl-8 pr-8 py-1.5 bg-white dark:bg-slate-950 border border-gray-200/90 dark:border-slate-800 text-gray-700 dark:text-gray-200 rounded-xl text-xs font-semibold hover:border-primary/50 dark:hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer shadow-xs appearance-none max-w-[150px] truncate">
+                        <option value="">All Contexts (<span x-text="availableContexts.length"></span>)</option>
+                        <template x-for="ctx in availableContexts" :key="ctx">
+                            <option :value="ctx" x-text="ctx"
+                                class="bg-white dark:bg-slate-900 text-gray-800 dark:text-gray-200"></option>
+                        </template>
                     </select>
                     <div
                         class="absolute right-2.5 flex items-center pointer-events-none text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
@@ -44,14 +93,16 @@
                 <!-- Layout Toggle group -->
                 <div class="flex items-center border border-gray-200 dark:border-slate-800 rounded-xl bg-gray-50/80 dark:bg-slate-950 p-1 whitespace-nowrap shadow-xs"
                     title="Layout Direction">
-                    <button
-                        class="px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 bg-white dark:bg-slate-800 text-gray-800 dark:text-white shadow-xs"
+                    <button @click="setMode('tb')"
+                        :class="mode === 'tb' ? 'bg-white dark:bg-slate-800 text-gray-800 dark:text-white shadow-xs font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white font-medium'"
+                        class="px-2.5 py-1 text-xs rounded-lg transition-all cursor-pointer flex items-center gap-1.5"
                         id="btn-tb" title="Top → Bottom Layout">
                         <span class="material-symbols-outlined text-[15px]">south</span>
                         <span class="hidden xl:inline">Top-Down</span>
                     </button>
-                    <button
-                        class="px-2.5 py-1 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white"
+                    <button @click="setMode('lr')"
+                        :class="mode === 'lr' ? 'bg-white dark:bg-slate-800 text-gray-800 dark:text-white shadow-xs font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white font-medium'"
+                        class="px-2.5 py-1 text-xs rounded-lg transition-all cursor-pointer flex items-center gap-1.5"
                         id="btn-lr" title="Left → Right Layout">
                         <span class="material-symbols-outlined text-[15px]">east</span>
                         <span class="hidden xl:inline">Left-Right</span>
@@ -59,7 +110,7 @@
                 </div>
 
                 <!-- Collapse Button -->
-                <button
+                <button @click="collapseAllNodes()"
                     class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/80 hover:border-gray-300 dark:hover:border-slate-600 shadow-xs transition-all cursor-pointer whitespace-nowrap"
                     id="btn-collapse" title="Collapse All Tree Nodes">
                     <span
@@ -68,11 +119,12 @@
                 </button>
 
                 <!-- Highlight Path Button -->
-                <button
-                    class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/80 hover:border-gray-300 dark:hover:border-slate-600 shadow-xs transition-all cursor-pointer whitespace-nowrap"
+                <button @click="toggleHighlightPath()"
+                    :class="isHighlightPathActive ? 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-700 font-bold' : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/80'"
+                    class="flex items-center gap-1.5 px-3 py-1.5 border rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer whitespace-nowrap"
                     id="btn-highlight-path" title="Toggle Path Highlighting">
-                    <span
-                        class="material-symbols-outlined text-[16px] text-purple-500 dark:text-purple-400">insights</span>
+                    <span class="material-symbols-outlined text-[16px]"
+                        :class="isHighlightPathActive ? 'text-primary dark:text-purple-300' : 'text-purple-500 dark:text-purple-400'">insights</span>
                     <span class="hidden lg:inline">Highlight Path</span>
                 </button>
             </div>
@@ -82,17 +134,28 @@
         <div
             class="flex items-center gap-3 sm:gap-2.5 text-xs font-medium text-gray-600 dark:text-gray-300 flex-shrink-0 whitespace-nowrap ml-auto">
             <!-- Chunk Loading Progress Badge -->
-            <div id="chunk-progress-badge"
-                class="flex items-center gap-1.5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 px-2.5 sm:px-3 py-1.5 rounded-xl border border-amber-200/80 dark:border-amber-900/40 transition-all shadow-xs">
-                <span id="chunk-progress-dot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                <span><strong id="chunk-progress-text" class="font-bold font-mono">0 / 0</strong></span>
+            <div id="chunk-progress-badge" x-show="chunkProgress.visible"
+                class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border transition-all shadow-xs"
+                :class="{
+                    'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border-amber-200/80 dark:border-amber-900/40': chunkProgress.state === 'loading',
+                    'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-900/40': chunkProgress.state === 'complete',
+                    'bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 border-rose-200/80 dark:border-rose-900/40': chunkProgress.state === 'error'
+                }">
+                <span id="chunk-progress-dot" class="w-2 h-2 rounded-full" :class="{
+                        'bg-amber-500 animate-pulse': chunkProgress.state === 'loading',
+                        'bg-emerald-500': chunkProgress.state === 'complete',
+                        'bg-rose-500': chunkProgress.state === 'error'
+                    }"></span>
+                <span><strong id="chunk-progress-text" class="font-bold font-mono text-xs"
+                        x-html="chunkProgress.text"></strong></span>
             </div>
 
             <!-- Manual Reload / Retry Button -->
-            <button id="btn-reload-graph"
-                class="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-slate-700 rounded-xl shadow-xs hover:bg-gray-50 dark:hover:bg-slate-700/80 transition-all cursor-pointer font-semibold"
+            <button id="btn-reload-graph" @click="reloadGraphData()" :disabled="refreshing"
+                class="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-slate-700 rounded-xl shadow-xs hover:bg-gray-50 dark:hover:bg-slate-700/80 transition-all cursor-pointer font-semibold text-xs disabled:opacity-50"
                 title="Reload Graph Data">
-                <span class="material-symbols-outlined text-[16px] text-gray-500 dark:text-gray-400">refresh</span>
+                <span class="material-symbols-outlined text-[16px] text-gray-500 dark:text-gray-400"
+                    :class="{ 'animate-spin': refreshing }">refresh</span>
                 <span class="hidden sm:inline">Reload</span>
             </button>
 
@@ -106,7 +169,8 @@
                 </span>
                 <span class="text-xs text-gray-600 dark:text-gray-300">Beans</span>
                 <span class="h-3 w-px bg-primary/20 dark:bg-purple-700/40"></span>
-                <strong id="beans-count" class="font-bold font-mono text-primary dark:text-purple-200">0</strong>
+                <strong id="beans-count" class="font-bold font-mono text-primary dark:text-purple-200 text-xs"
+                    x-text="beansCount">0</strong>
             </div>
         </div>
     </header>
@@ -116,6 +180,13 @@
         <!-- Left: Main Graph Area (Canvas Box) -->
         <main
             class="relative flex-1 bg-white dark:bg-slate-900 border border-gray-200/80 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm h-full min-h-[500px]">
+
+            <!-- Error banner if initial loading fails -->
+            <div x-show="errorMessage" class="p-5 text-red-500 font-semibold flex items-center gap-2" x-cloak>
+                <span>Failed to load bean definitions:</span>
+                <span x-text="errorMessage"></span>
+            </div>
+
             <div id="beanGraph" class="w-full h-full min-h-[500px] relative">
                 <canvas id="tree-canvas" class="w-full h-full min-h-[500px] block"></canvas>
             </div>
@@ -123,22 +194,22 @@
             <!-- Navigation Controls floating in bottom-left -->
             <div
                 class="absolute bottom-5 left-5 flex flex-col gap-1 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm border border-gray-200 dark:border-slate-800 rounded-2xl p-1.5 shadow-lg z-10">
-                <button
+                <button @click="fitView()"
                     class="w-8 h-8 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
                     id="btn-pan-mode" title="Fit View">
                     <span class="material-symbols-outlined text-[18px]">fit_screen</span>
                 </button>
-                <button
+                <button @click="zoomBy(1.25)"
                     class="w-8 h-8 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
                     id="btn-control-zoom-in" title="Zoom In">
                     <span class="material-symbols-outlined text-[18px]">add</span>
                 </button>
-                <button
+                <button @click="zoomBy(0.8)"
                     class="w-8 h-8 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
                     id="btn-control-zoom-out" title="Zoom Out">
                     <span class="material-symbols-outlined text-[18px]">remove</span>
                 </button>
-                <button
+                <button @click="fitView()"
                     class="w-8 h-8 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
                     id="btn-control-fit" title="Toggle Scale">
                     <span class="material-symbols-outlined text-[18px]">aspect_ratio</span>
@@ -168,35 +239,273 @@
         </main>
 
         <!-- Right: Details Sidebar (Smooth Width Transition Drawer) -->
-        <aside
-            class="transition-all duration-300 ease-in-out w-0 max-w-0 opacity-0 pointer-events-none -mr-4 border-0 bg-white dark:bg-slate-900 border-gray-200/80 dark:border-slate-800 rounded-2xl shadow-lg flex flex-col flex-shrink-0 sticky top-0 overflow-hidden h-full"
-            id="details-sidebar">
+        <aside id="details-sidebar"
+            :class="sidebarOpen ? 'w-[360px] max-w-[360px] opacity-100 mr-0 border' : 'w-0 max-w-0 opacity-0 pointer-events-none -mr-4 !border-0'"
+            class="transition-all duration-300 ease-in-out border-0 bg-white dark:bg-slate-900 border-gray-200/80 dark:border-slate-800 rounded-2xl shadow-lg flex flex-col flex-shrink-0 sticky top-0 overflow-hidden h-full">
+
+            <!-- Sidebar Top Action Header -->
+            <div
+                class="p-4 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between flex-shrink-0">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary text-[18px]">info</span>
+                    <span class="font-bold text-xs text-gray-900 dark:text-white uppercase tracking-wider">Bean
+                        Details</span>
+                </div>
+                <button type="button" @click="closeSidebar()"
+                    class="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition-all cursor-pointer group flex-shrink-0"
+                    id="btn-close-sidebar" title="Close sidebar">
+                    <span
+                        class="material-symbols-outlined text-[18px] group-hover:rotate-90 transition-transform duration-200">close</span>
+                </button>
+            </div>
+
+            <!-- Hero Identity Card: Dynamic Icon Box, Name, Type, Metagrid -->
+            <div
+                class="p-4 border-b border-gray-100 dark:border-slate-800 bg-gray-50/40 dark:bg-slate-900/40 space-y-3 flex-shrink-0">
+                <!-- Identity Header -->
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center border shadow-2xs flex-shrink-0"
+                        :style="{ backgroundColor: (selectedBeanMeta.color || '#8b5cf6') + '15', color: selectedBeanMeta.color || '#8b5cf6', borderColor: (selectedBeanMeta.color || '#8b5cf6') + '33' }"
+                        id="sidebar-icon-container">
+                        <span class="material-symbols-outlined text-[20px]" x-text="selectedBeanMeta.icon || 'schema'"
+                            id="sidebar-icon">schema</span>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="font-mono font-bold text-[13px] text-gray-900 dark:text-white truncate leading-tight hover:text-primary transition-colors cursor-pointer select-all"
+                            x-text="selectedBean?.beanName || '-'" :title="selectedBean?.beanName || ''"
+                            id="detail-bean-name">-</div>
+                        <div class="text-[11px] text-gray-400 dark:text-gray-500 font-mono truncate mt-0.5"
+                            x-text="selectedBean?.type || '-'" :title="selectedBean?.type || ''" id="detail-bean-type">-
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Structured Meta grid: 2 Columns for Scope/Role + Full Width for Context -->
+                <div class="space-y-2">
+                    <div class="grid grid-cols-2 gap-2">
+                        <!-- Scope -->
+                        <div
+                            class="bg-white dark:bg-slate-950 p-2.5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-2xs">
+                            <div class="flex items-center gap-1 text-gray-400 dark:text-gray-500 mb-0.5">
+                                <span class="material-symbols-outlined text-[13px]">pie_chart</span>
+                                <span class="text-[9.5px] font-bold uppercase tracking-wider">Scope</span>
+                            </div>
+                            <div class="text-[11.5px] font-mono font-bold text-purple-600 dark:text-purple-300 truncate"
+                                x-text="selectedBeanFormatted?.scope || '-'" id="detail-bean-scope">-</div>
+                        </div>
+                        <!-- Role -->
+                        <div
+                            class="bg-white dark:bg-slate-950 p-2.5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-2xs">
+                            <div class="flex items-center gap-1 text-gray-400 dark:text-gray-500 mb-0.5">
+                                <span class="material-symbols-outlined text-[13px]">shield</span>
+                                <span class="text-[9.5px] font-bold uppercase tracking-wider">Role</span>
+                            </div>
+                            <div class="text-[11.5px] font-mono font-bold text-blue-600 dark:text-blue-300 truncate"
+                                x-text="selectedBeanFormatted?.role || '-'" id="detail-bean-role">Application</div>
+                        </div>
+                    </div>
+
+                    <!-- Context ID (Full Width) -->
+                    <div
+                        class="bg-white dark:bg-slate-950 px-3 py-2 rounded-xl border border-gray-100 dark:border-slate-800 shadow-2xs flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-1 text-gray-400 dark:text-gray-500 flex-shrink-0">
+                            <span class="material-symbols-outlined text-[13px]">hub</span>
+                            <span class="text-[9.5px] font-bold uppercase tracking-wider">Context</span>
+                        </div>
+                        <div class="text-[11.5px] font-mono font-bold text-emerald-600 dark:text-emerald-300 truncate text-right"
+                            x-text="selectedBeanFormatted?.contextId || selectedBean?.contextId || '-'"
+                            id="detail-prop-context">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Segmented Modern Tabs -->
+            <div class="px-4 py-2.5 border-b border-gray-100 dark:border-slate-800 flex-shrink-0">
+                <div class="flex items-center bg-gray-100/90 dark:bg-slate-950/80 p-1 rounded-xl border border-gray-200/60 dark:border-slate-800"
+                    id="sidebar-tabs">
+                    <button type="button" @click="setSidebarTab('properties')"
+                        :class="sidebarTab === 'properties' ? 'bg-white dark:bg-slate-800 text-primary dark:text-purple-300 shadow-xs font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium'"
+                        class="flex-1 py-1.5 px-2 text-[11px] rounded-lg transition-all tab-btn cursor-pointer flex items-center justify-center gap-1">
+                        <span class="material-symbols-outlined text-[14px]">tune</span> Properties
+                    </button>
+                    <button type="button" @click="setSidebarTab('dependencies')"
+                        :class="sidebarTab === 'dependencies' ? 'bg-white dark:bg-slate-800 text-primary dark:text-purple-300 shadow-xs font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium'"
+                        class="flex-1 py-1.5 px-2 text-[11px] rounded-lg transition-all tab-btn cursor-pointer flex items-center justify-center gap-1">
+                        <span>Deps</span>
+                        <span
+                            class="px-1.5 py-0.2 rounded-full text-[9px] font-bold font-mono bg-purple-100 text-primary dark:bg-purple-950 dark:text-purple-300"
+                            x-text="sidebarDeps?.length || 0" id="detail-deps-count">0</span>
+                    </button>
+                    <button type="button" @click="setSidebarTab('dependents')"
+                        :class="sidebarTab === 'dependents' ? 'bg-white dark:bg-slate-800 text-primary dark:text-purple-300 shadow-xs font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium'"
+                        class="flex-1 py-1.5 px-2 text-[11px] rounded-lg transition-all tab-btn cursor-pointer flex items-center justify-center gap-1">
+                        <span>Dependent</span>
+                        <span
+                            class="px-1.5 py-0.2 rounded-full text-[9px] font-bold font-mono bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                            x-text="sidebarDependents?.length || 0" id="detail-dependents-count">0</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scrollable Content Area -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3.5" id="sidebar-content">
+                <!-- Tab Pane: Properties -->
+                <div x-show="sidebarTab === 'properties'" class="tab-pane space-y-3.5">
+                    <!-- Traits & Flags Grid -->
+                    <div
+                        class="p-3.5 rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h4
+                                class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[13px] text-amber-500">toggle_on</span>
+                                Flags & Traits
+                            </h4>
+                            <span class="text-[10px] font-mono text-gray-400">Spring DI</span>
+                        </div>
+                        <div class="space-y-2 text-xs">
+                            <div
+                                class="flex justify-between items-center py-1.5 px-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
+                                <span
+                                    class="text-gray-600 dark:text-gray-300 font-medium text-[11px] flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-[15px] text-amber-500">star</span>
+                                    Primary Bean
+                                </span>
+                                <span class="font-bold text-[10px] font-mono px-2 py-0.5 rounded-md"
+                                    :class="selectedBeanFormatted?.primary ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/50' : 'bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-gray-400 border border-transparent'"
+                                    x-text="selectedBeanFormatted?.primaryLabel || 'FALSE'"
+                                    id="detail-prop-primary">FALSE</span>
+                            </div>
+                            <div
+                                class="flex justify-between items-center py-1.5 px-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
+                                <span
+                                    class="text-gray-600 dark:text-gray-300 font-medium text-[11px] flex items-center gap-1.5">
+                                    <span class="material-symbols-outlined text-[15px] text-purple-500">bedtime</span>
+                                    Lazy Initialized
+                                </span>
+                                <span class="font-bold text-[10px] font-mono px-2 py-0.5 rounded-md"
+                                    :class="selectedBeanFormatted?.lazyInit ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/50' : 'bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-gray-400 border border-transparent'"
+                                    x-text="selectedBeanFormatted?.lazyInitLabel || 'FALSE'"
+                                    id="detail-prop-lazy">FALSE</span>
+                            </div>
+                            <div
+                                class="flex justify-between items-center py-1.5 px-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
+                                <span
+                                    class="text-gray-600 dark:text-gray-300 font-medium text-[11px] flex items-center gap-1.5">
+                                    <span
+                                        class="material-symbols-outlined text-[15px] text-emerald-500">check_circle</span>
+                                    Autowired Candidate
+                                </span>
+                                <span class="font-bold text-[10px] font-mono px-2 py-0.5 rounded-md"
+                                    :class="selectedBeanFormatted?.autowired ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/50' : 'bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-gray-400 border border-transparent'"
+                                    x-text="selectedBeanFormatted?.autowiredLabel || 'TRUE'"
+                                    id="detail-prop-autowired">TRUE</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Factory Details Section -->
+                    <div
+                        class="p-3.5 rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-2.5">
+                        <h4
+                            class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                            <span class="material-symbols-outlined text-[13px] text-blue-500">factory</span>
+                            Factory Provider
+                        </h4>
+                        <div class="space-y-2 text-xs">
+                            <div
+                                class="p-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
+                                <span
+                                    class="text-[9.5px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider block mb-0.5">Factory
+                                    Bean</span>
+                                <span
+                                    class="text-[11px] font-mono font-medium text-gray-800 dark:text-gray-200 break-all leading-normal block"
+                                    x-text="selectedBeanFormatted?.factoryBean || '-'" id="detail-factory-bean">-</span>
+                            </div>
+                            <div
+                                class="p-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
+                                <span
+                                    class="text-[9.5px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider block mb-0.5">Factory
+                                    Method</span>
+                                <span
+                                    class="text-[11px] font-mono font-medium text-gray-800 dark:text-gray-200 break-all leading-normal block"
+                                    x-text="selectedBeanFormatted?.factoryMethod || '-'"
+                                    id="detail-factory-method">-</span>
+                            </div>
+                            <div
+                                class="p-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
+                                <span
+                                    class="text-[9.5px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider block mb-0.5">Init
+                                    Method</span>
+                                <span
+                                    class="text-[11px] font-mono font-medium text-gray-800 dark:text-gray-200 break-all leading-normal block"
+                                    x-text="selectedBeanFormatted?.initMethod || '-'" id="detail-init-method">-</span>
+                            </div>
+                            <div
+                                class="p-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
+                                <span
+                                    class="text-[9.5px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider block mb-0.5">Destroy
+                                    Method</span>
+                                <span
+                                    class="text-[11px] font-mono font-medium text-gray-800 dark:text-gray-200 break-all leading-normal block"
+                                    x-text="selectedBeanFormatted?.destroyMethod || '-'"
+                                    id="detail-destroy-method">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab Pane: Dependencies -->
+                <div x-show="sidebarTab === 'dependencies'" class="tab-pane space-y-2">
+                    <div
+                        class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 px-1">
+                        Beans This Definition Depends On
+                    </div>
+
+                    <!-- Empty state -->
+                    <div x-show="sidebarDeps.length === 0"
+                        class="text-gray-400 dark:text-gray-500 text-xs p-4 italic text-center">
+                        No dependencies registered
+                    </div>
+
+                    <!-- Dependency items -->
+                    <div class="space-y-1.5" id="detail-deps-list">
+                        <template x-for="dep in sidebarDeps" :key="dep.fullName">
+                            <div class="flex items-center gap-2.5 p-2.5 bg-white dark:bg-slate-950 rounded-xl border border-gray-100 dark:border-slate-800 shadow-2xs min-w-0">
+                                <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-2xs"
+                                    :class="'bg-' + dep.categoryColor + '-500'"></span>
+                                <span class="font-bold text-gray-700 dark:text-gray-200 font-mono text-[11px] truncate"
+                                    x-text="dep.name" :title="dep.fullName"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Tab Pane: Dependents -->
+                <div x-show="sidebarTab === 'dependents'" class="tab-pane space-y-2">
+                    <div
+                        class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 px-1">
+                        Beans That Depend On This Definition
+                    </div>
+
+                    <!-- Empty state -->
+                    <div x-show="sidebarDependents.length === 0"
+                        class="text-gray-400 dark:text-gray-500 text-xs p-4 italic text-center">
+                        No dependents registered
+                    </div>
+
+                    <!-- Dependent items -->
+                    <div class="space-y-1.5" id="detail-dependents-list">
+                        <template x-for="dep in sidebarDependents" :key="dep.fullName">
+                            <div class="flex items-center gap-2.5 p-2.5 bg-white dark:bg-slate-950 rounded-xl border border-gray-100 dark:border-slate-800 shadow-2xs min-w-0">
+                                <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-2xs"
+                                    :class="'bg-' + dep.categoryColor + '-500'"></span>
+                                <span class="font-bold text-gray-700 dark:text-gray-200 font-mono text-[11px] truncate"
+                                    x-text="dep.name" :title="dep.fullName"></span>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
         </aside>
     </div>
 </div>
-
-<template id="tpl-graph-dep-empty">
-    <div class="text-gray-400 text-xs py-2 px-1" data-field="message"></div>
-</template>
-
-<template id="tpl-graph-dep-item">
-    <div
-        class="flex items-center gap-2 py-2 px-2 text-xs border-b border-gray-50 dark:border-slate-800/60 last:border-b-0">
-        <span class="w-2 h-2 rounded-full flex-shrink-0" data-field="dot"></span>
-        <span class="font-mono text-[11px] text-gray-700 dark:text-gray-300 break-all" data-field="name"></span>
-    </div>
-</template>
-
-<template id="tpl-suggestion-item">
-    <div
-        class="suggestion-item p-2.5 hover:bg-purple-50/60 dark:hover:bg-purple-950/30 cursor-pointer transition-colors border-b border-gray-50 dark:border-slate-800/50 last:border-b-0">
-        <strong class="text-xs font-semibold text-gray-700 dark:text-gray-300 block" data-field="name"></strong>
-    </div>
-</template>
-
-<template id="tpl-bean-graph-error">
-    <div class="p-5 text-red-500 font-semibold flex items-center gap-2">
-        <span>❌ Failed to load bean definitions:</span>
-        <span data-field="errorMessage"></span>
-    </div>
-</template>

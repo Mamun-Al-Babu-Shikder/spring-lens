@@ -57,7 +57,6 @@ export default class Router {
         });
 
         this._bindNavEvents();
-        this._bindHeaderActionEvents();
         this.resolve().catch((error) => console.error('Initial route resolution failed:', error));
     }
 
@@ -560,58 +559,7 @@ export default class Router {
         });
     }
 
-    /**
-     * Centralized PageHeader action button delegation (refresh, export, etc.).
-     * Dispatches action events directly to the active controller or active Alpine component.
-     * @private
-     */
-    _bindHeaderActionEvents() {
-        $(document)
-            .off('click.springLensHeaderActions', '[data-header-field="actions"] [data-action], header [data-action]')
-            .on('click.springLensHeaderActions', '[data-header-field="actions"] [data-action], header [data-action]', async (event) => {
-                const $target = $(event.currentTarget);
-                const action = $target.data('action') || $target.attr('data-action');
-                if (!action) return;
 
-                event.preventDefault();
-
-                const $icon = $target.find('.material-symbols-outlined');
-                if ($icon.length) $icon.addClass('animate-spin');
-
-                try {
-                    const ctrl = this.activeController;
-                    const alpine = ctrl?.alpine || (this.container?.[0] && typeof window !== 'undefined' && window.Alpine?.$data
-                        ? window.Alpine.$data(this.container[0].querySelector('[x-data]'))
-                        : null);
-
-                    if (action === 'refresh-data') {
-                        if (typeof ctrl?.refreshData === 'function') {
-                            await ctrl.refreshData($target);
-                        } else if (typeof alpine?.refreshData === 'function') {
-                            await alpine.refreshData();
-                        } else if (typeof ctrl?.enter === 'function') {
-                            await ctrl.enter();
-                        } else if (typeof ctrl?.index === 'function') {
-                            await ctrl.index();
-                        }
-                    } else if (action === 'export-data' || action === 'download-report') {
-                        if (typeof ctrl?.downloadReport === 'function') {
-                            ctrl.downloadReport();
-                        } else if (typeof ctrl?.exportData === 'function') {
-                            ctrl.exportData();
-                        } else if (typeof alpine?.exportData === 'function') {
-                            alpine.exportData();
-                        }
-                    }
-                } catch (err) {
-                    console.error(`Error executing header action "${action}":`, err);
-                } finally {
-                    if ($icon.length) {
-                        setTimeout(() => $icon.removeClass('animate-spin'), 500);
-                    }
-                }
-            });
-    }
 
     _normalizePath(path) {
         if (!path || path === '/') return '';

@@ -1,13 +1,3 @@
-/**
- * Utility functions for parsing Java class/package references and condition evaluation metadata.
- */
-
-/**
- * Splits a full Java qualified source string into className, packageName, and optional memberName.
- * Example: 'org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration#dataSource'
- * @param {string} sourceStr
- * @returns {{ className: string, packageName: string, memberName: string }}
- */
 export function extractClassAndPackage(sourceStr) {
     if (!sourceStr || typeof sourceStr !== 'string') {
         return { className: 'Unknown', packageName: '', memberName: '' };

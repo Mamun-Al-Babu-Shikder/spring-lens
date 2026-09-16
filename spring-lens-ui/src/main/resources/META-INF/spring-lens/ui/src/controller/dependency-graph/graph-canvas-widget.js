@@ -244,6 +244,7 @@ export class GraphCanvasWidget {
         this.mode = layoutMode;
         localStorage.setItem('sl-layout', layoutMode);
         this._updateModeButtons();
+        this.options.onModeChange?.(layoutMode);
 
         if (!root || typeof onUpdateLayout !== 'function') return;
 
@@ -358,7 +359,9 @@ export class GraphCanvasWidget {
      * @param {number} k - Current scale factor
      */
     updateZoomPercent(k) {
-        $('#zoom-percent').text(`${Math.round(k * 100)}%`);
+        const percentStr = `${Math.round(k * 100)}%`;
+        $('#zoom-percent').text(percentStr);
+        this.options.onZoomChange?.(percentStr);
     }
 
     /**

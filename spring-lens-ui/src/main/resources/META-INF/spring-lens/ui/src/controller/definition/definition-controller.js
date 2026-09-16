@@ -1,556 +1,624 @@
 import BaseController from '../base-controller.js';
 import {
-    DefinitionService,
-    DefinitionChartsWidget,
-    DefinitionTableWidget,
-    DefinitionSidebarWidget,
-    DefinitionGraphModalWidget,
+    definitionChartsWidget,
+    definitionTableWidget,
+    definitionSidebarWidget,
+    definitionGraphModalWidget,
     beanDataStore,
     DomUtils,
+    Pagination,
     QueryParam,
     ToastNotification,
-    AsyncUtils
+    container
 } from './index.js';
 
-/**
- * Controller Facade for Bean Definitions registry.
- * Orchestrates summary metrics, interactive Chart.js doughnut charts,
- * server-paginated data table, slide-over details panel, and D3 graph modal.
- */
 export class DefinitionController extends BaseController {
-
-    /**
-     * @param {Object} [endpoints] - API endpoint mappings.
-     */
-    constructor(endpoints = {}) {
-        super('beanDefs');
-        this.service = new DefinitionService(endpoints);
-
-        // Sub-widgets
-        this.chartsWidget = new DefinitionChartsWidget();
-        this.tableWidget = new DefinitionTableWidget();
-        this.sidebarWidget = new DefinitionSidebarWidget();
-        this.modalWidget = new DefinitionGraphModalWidget({
-            findBeanEndpoint: this.beanDefinitionSearchEndpoint,
-            onSelectBean: async (beanName) => {
-                const success = await this.selectBean(beanName);
-                if (success) {
-                    await this.openGraphModal();
-                } else {
-                    ToastNotification.show({
-                        title: 'Bean Definition Not Found',
-                        message: `Bean definition for <strong class="font-mono text-purple-600 dark:text-purple-400 font-bold">${beanName}</strong> is unavailable or not registered.`,
-                        type: 'warning',
-                        duration: 4000
-                    });
-                }
-            }
-        });
+    constructor() {
+        super('definitions');
+        this.service = container.make('definitionService');
+        this.applicationState = container.make('applicationState');
+        this.chartsWidget = definitionChartsWidget;
+        this.tableWidget = definitionTableWidget;
+        this.sidebarWidget = definitionSidebarWidget;
+        this.modalWidget = definitionGraphModalWidget;
+        this.modalWidget.onSelectBean = (beanName) => this.selectGraphNode(beanName);
+        this.modalWidget.onTooltipChange = (tooltip) => {
+            this.setState({
+                graphTooltip: { ...(this.state.graphTooltip || {}), ...tooltip }
+            });
+        };
 
         this.addDisposable(this.chartsWidget);
         this.addDisposable(this.modalWidget);
 
-        this.allBeans = [];
-        this.beanDefinitionSummary = null;
-        this.currentPageBeans = [];
-        this.searchQuery = '';
+        this.state = {
+            appName: this.applicationState?.getAppName?.() || 'SpringLens',
+            totalDefinitions: '--',
+            contextDistributionList: [],
+            scopeLegend: [],
+            roleLegend: [],
+            loadingModeLegend: [],
+            contextOptions: [],
+            scopeOptions: [],
+            summaryLoading: true,
 
-        // API Pagination Metadata state
-        this.paginationState = {
-            totalElements: 0,
-            totalPages: 1,
-            pageNumber: 0,
-            pageSize: 20,
-            isFirstPage: true,
-            isLastPage: true
+            searchQuery: '',
+            filterCriteria: {
+                contextId: '',
+                scope: '',
+                role: '',
+                primary: '',
+                lazyInit: ''
+            },
+            itemsPerPage: 20,
+            currentPage: 1,
+            sortColumn: '',
+            sortDirection: 'asc',
+
+            beans: [],
+            tableLoading: true,
+            tableError: null,
+            pagination: Pagination.defaultState(20),
+            paginationInfo: Pagination.formatInfoText(0, 0, 20, 'beans'),
+            pageButtons: [],
+
+            selectedBeanId: null,
+            selectedBeanName: null,
+            selectedContextId: null,
+            selectedBean: null,
+            selectedBeanMeta: { icon: 'schema', color: '#8b5cf6' },
+            selectedBeanFormatted: {
+                scope: 'Singleton',
+                role: 'Application',
+                contextId: '-'
+            },
+            sidebarDeps: [],
+            sidebarDependents: [],
+            sidebarOpen: false,
+            sidebarTab: 'properties',
+            sidebarLoading: false,
+
+            graphModalOpen: false,
+            graphMode: 'lr',
+            graphTargetBean: null,
+            graphTooltip: {
+                visible: false,
+                x: 0,
+                y: 0,
+                name: '',
+                type: '',
+                scope: '',
+                meta: ''
+            },
+            refreshing: false
         };
 
-        this.filterCriteria = {
-            contextId: '',
-            beanName: '',
-            scope: '',
-            role: '',
-            primary: '',
-            lazyInit: ''
-        };
+        this.rawBeans = [];
+        this.summaryData = null;
+        this._tableFetchSeq = 0;
 
-        this.currentPage = 1;
-        this.itemsPerPage = 20;
-        this.sortColumn = '';
-        this.sortDirection = 'asc';
-
-        this.selectedBeanId = null;
-        this.selectedBeanName = null;
-        this.selectedContextId = null;
-
-        this._hasFetchedTableData = false;
-        this._debouncedFetchTableData = null;
+        for (const key of Object.keys(this.state)) {
+            Object.defineProperty(this, key, {
+                get: () => (this.alpine ? this.alpine[key] : this.state[key]),
+                set: (value) => this.setState({ [key]: value }),
+                configurable: true,
+                enumerable: true,
+            });
+        }
     }
 
-    /**
-     * Initializes the view and fetches initial datasets.
-     */
+    setState(patch) {
+        if (!patch) return;
+        Object.assign(this.state, patch);
+        if (this.alpine) {
+            Object.assign(this.alpine, patch);
+        }
+    }
+
+    createAlpineState() {
+        return {
+            ...this.state,
+            onSearchInput: (event) => this.onSearchInput(event),
+            clearSearch: () => this.clearSearch(),
+            onFilterChange: () => this.onFilterChange(),
+            onPageSizeChange: (event) => this.onPageSizeChange(event),
+            resetFilters: () => this.resetFilters(),
+            sort: (column) => this.sort(column),
+            getSortIcon: (column) => this.getSortIcon(column),
+
+            prevPage: () => this.prevPage(),
+            nextPage: () => this.nextPage(),
+            goToPage: (page) => this.goToPage(page),
+
+            selectBean: (bean) => this.selectBean(bean),
+            isSelected: (bean) => this.isSelected(bean),
+            closeSidebar: () => this.closeSidebar(),
+            setSidebarTab: (tab) => this.setSidebarTab(tab),
+            selectDependency: (depName) => this.selectDependency(depName),
+
+            openGraphModal: () => this.openGraphModal(),
+            closeGraphModal: () => this.closeGraphModal(),
+            setGraphMode: (mode) => this.setGraphMode(mode),
+            graphZoomIn: () => this.graphZoomIn(),
+            graphZoomOut: () => this.graphZoomOut(),
+            graphFitView: () => this.graphFitView(),
+
+            refreshData: () => this.refreshData(),
+            exportData: () => this.exportData()
+        };
+    }
+
+    _parseQueryParams(params) {
+        const queryParams = QueryParam.parse(params);
+        const targetBean = QueryParam.get(queryParams, 'search', 'bean', 'beanName') || '';
+        const targetContextId = QueryParam.get(queryParams, 'contextId', 'context') || '';
+
+        const patch = {};
+        if (targetBean) patch.searchQuery = targetBean;
+        if (targetContextId) {
+            patch.filterCriteria = { ...this.state.filterCriteria, contextId: targetContextId };
+        }
+        if (Object.keys(patch).length > 0) {
+            this.setState(patch);
+        }
+
+        return { targetBean, targetContextId };
+    }
+
+    async _handleDeepLink(targetBean, targetContextId) {
+        if (!targetBean) return;
+
+        const success = await this.selectBeanByNameAndContextId(targetBean, targetContextId);
+        if (!success) {
+            ToastNotification.show({
+                title: 'Bean Definition',
+                message: `Bean <strong class="font-mono text-purple-600 dark:text-purple-400 font-bold">${targetBean}</strong> definition details could not be found.`,
+                type: 'warning',
+                duration: 4000
+            });
+        }
+    }
+
     async enter(params) {
         await super.enter(params);
+
         try {
-            this.initEvents();
+            this._bindEventListeners();
+            const { targetBean, targetContextId } = this._parseQueryParams(params);
 
-            const queryParams = QueryParam.parse(params);
-            const targetBean = QueryParam.get(queryParams, 'search', 'bean', 'beanName');
-            const targetContextId = QueryParam.get(queryParams, 'contextId', 'context');
-
-            if (targetBean) {
-                this.searchQuery = targetBean;
-                this.filterCriteria.beanName = targetBean;
-                $('#bean-definition-search-input').val(targetBean);
+            if (this.applicationState?.onAppInfoChange) {
+                const unsub = this.applicationState.onAppInfoChange((info) => {
+                    if (info?.name) {
+                        this.setState({ appName: info.name });
+                    }
+                });
+                if (unsub) this.addDisposable(unsub);
             }
 
-            if (targetContextId) {
-                this.filterCriteria.contextId = targetContextId;
-            }
-
-            this.tableWidget.renderLoading();
-
-            await Promise.all([
+            await Promise.allSettled([
                 this.fetchSummaryStatistics(),
                 this.fetchTableData()
             ]);
 
             if (targetBean) {
-                setTimeout(async () => {
-                    const success = await this.selectBean(targetBean, targetContextId);
-                    if (!success) {
-                        ToastNotification.show({
-                            title: 'Bean Definition',
-                            message: `Bean <strong class="font-mono text-purple-600 dark:text-purple-400 font-bold">${targetBean}</strong> definition details could not be found.`,
-                            type: 'warning',
-                            duration: 4000
-                        });
-                    }
-                }, 150);
+                await this._handleDeepLink(targetBean, targetContextId);
             }
         } catch (error) {
             console.error('Error during Definitions enter:', error);
-            this.tableWidget.renderError(error.message || 'Failed to initialize view');
-        }
-    }
-
-    /**
-     * Fetches top-level summary metrics and doughnut chart data.
-     */
-    async fetchSummaryStatistics() {
-        try {
-            const summary = await this.service.fetchSummary();
-            this.beanDefinitionSummary = summary;
-            this.chartsWidget.render(summary);
-            this.chartsWidget.renderDistributionCharts(summary);
-        } catch (error) {
-            console.error('Error fetching summary statistics:', error);
-            this.chartsWidget.renderSummaryError();
-        }
-    }
-
-    /**
-     * Fetches paginated table rows based on active filters and sorting criteria.
-     */
-    async fetchTableData() {
-        this.tableWidget.renderLoading();
-
-        try {
-            const pageNumber = this.currentPage - 1;
-            const pageSize = this.itemsPerPage;
-
-            const response = await this.service.fetchTableData({
-                pageNumber,
-                pageSize,
-                sortColumn: this.sortColumn,
-                sortDirection: this.sortDirection,
-                filterCriteria: this.filterCriteria
+            this.setState({
+                tableLoading: false,
+                tableError: error.message || 'Failed to initialize view'
             });
-
-            this.currentPageBeans = response?.content ?? (Array.isArray(response) ? response : []);
-            beanDataStore.addBeans(this.currentPageBeans);
-
-            this.paginationState = {
-                totalElements: response?.totalElements ?? this.currentPageBeans.length,
-                totalPages: response?.totalPages ?? 1,
-                pageNumber: response?.pageNumber ?? pageNumber,
-                pageSize: response?.pageSize ?? pageSize,
-                isFirstPage: response?.first ?? (pageNumber === 0),
-                isLastPage: response?.last ?? ((pageNumber + 1) >= (response?.totalPages ?? 1))
-            };
-
-            this._hasFetchedTableData = true;
-
-            this.tableWidget.render(this.currentPageBeans, {
-                selectedBeanId: this.selectedBeanId,
-                selectedBeanName: this.selectedBeanName,
-                selectedContextId: this.selectedContextId
-            });
-
-            this.tableWidget.renderPagination(this.paginationState);
-            this.tableWidget.updateSortHeaderIcons(this.sortColumn, this.sortDirection);
-        } catch (error) {
-            console.error('Error fetching bean definitions table data:', error);
-            this.tableWidget.renderError(error.message || 'Error loading bean definitions');
         }
     }
 
-    /**
-     * Selects a bean, loads its complete definition details, and opens the sidebar.
-     *
-     * @param {string} beanName
-     * @param {string} [contextId]
-     * @returns {Promise<boolean>}
-     */
-    async selectBean(beanName, contextId) {
-        if (!beanName || !contextId) return false;
-
-        this.selectedBeanName = beanName;
-        this.selectedContextId = contextId;
-
-        const localMatch = this.currentPageBeans.find(b =>
-            b.beanName === beanName && (b.contextId === contextId)
-        ) || beanDataStore.findBeanByName(beanName, contextId);
-
-        if (localMatch) {
-            this.selectedBeanId = `${localMatch.contextId}:${localMatch.beanName}`;
-            this.tableWidget.highlightSelectedRow(this.selectedBeanId, this.selectedBeanName, this.selectedContextId);
-            this.openSidebar(localMatch);
-        }
-
-        try {
-            const freshDetails = await this.service.findBeanDefinition(beanName, contextId);
-
-            if (freshDetails) {
-                this.selectedBeanId = `${freshDetails.contextId}:${freshDetails.beanName}`;
-                this.selectedBeanName = freshDetails.beanName;
-                this.selectedContextId = freshDetails.contextId;
-
-                beanDataStore.addBeans([freshDetails]);
-
-                this.tableWidget.highlightSelectedRow(this.selectedBeanId, this.selectedBeanName);
-                this.openSidebar(freshDetails);
-                return true;
-            }
-            return Boolean(localMatch);
-        } catch (error) {
-            console.warn(`Could not load fresh definition details for ${beanName}:`, error);
-            return Boolean(localMatch);
-        }
-    }
-
-    /**
-     * Opens the slide-over details drawer and populates it with bean data.
-     * @param {Object} beanDetails
-     */
-    openSidebar(beanDetails) {
-        this.sidebarWidget.open(beanDetails);
-    }
-
-    /**
-     * Closes the slide-over details drawer.
-     * @param {boolean} [immediate=false]
-     */
-    closeSidebar(immediate = false) {
-        this.sidebarWidget.close(immediate);
-        this.selectedBeanId = null;
-        this.selectedBeanName = null;
-        this.selectedContextId = null;
-        this.tableWidget.clearSelection();
-    }
-
-    /**
-     * Opens the D3 dependency tree modal for the currently selected bean.
-     */
-    async openGraphModal() {
-        if (!this.selectedBeanName) return;
-
-        let beanData = this.currentPageBeans.find(b =>
-            b.beanName === this.selectedBeanName && (!this.selectedContextId || b.contextId === this.selectedContextId)
-        ) || beanDataStore.findBeanByName(this.selectedBeanName, this.selectedContextId);
-
-        if (!beanData) {
-            beanData = await this.service.findBeanDefinition(this.selectedBeanName, this.selectedContextId);
-        }
-
-        if (beanData) {
-            this.modalWidget.open(beanData);
-        }
-    }
-
-    /**
-     * Closes the dependency graph modal.
-     */
-    closeGraphModal() {
-        this.modalWidget.close();
-    }
-
-    /**
-     * Cleans up resources when navigating away from the view.
-     */
     leave() {
-        this.chartsWidget.destroyCharts();
+        this.chartsWidget?.destroyCharts();
         this.closeGraphModal();
-        this.closeSidebar(true);
-        this._resetFilterState();
+        this.closeSidebar();
+        this.summaryData = null;
+        this.rawBeans = [];
+
         super.leave();
     }
 
-    /**
-     * @private
-     */
-    _resetFilterState() {
-        this.searchQuery = '';
-        this.filterCriteria = {
-            contextId: '',
-            scope: '',
-            role: '',
-            primary: '',
-            lazyInit: '',
-            beanName: ''
-        };
-        this.itemsPerPage = 20;
-        this.currentPage = 1;
-        this.sortColumn = '';
-        this.sortDirection = 'asc';
-
-        $('#bean-definition-search-input').val('');
-        $('#bean-definition-filter-context').val('');
-        $('#bean-definition-filter-scope').val('');
-        $('#bean-definition-filter-role').val('');
-        $('#bean-definition-filter-primary').val('');
-        $('#bean-definition-filter-lazy').val('');
-        $('#bean-definition-filter-size').val('20');
-    }
-
-    /**
-     * Initializes all event listeners and UI observers.
-     */
-    initEvents() {
-        this._bindSearchInput();
-        this._bindFilterDropdowns();
-        this._bindClickActionDelegation();
-        this._bindGlobalKeydown();
-        if (typeof this.modalWidget.bindEvents === 'function') {
-            this.modalWidget.bindEvents();
-        } else if (typeof this.modalWidget.bindControls === 'function') {
-            this.modalWidget.bindControls();
-        }
-    }
-
-    /**
-     * @private
-     */
-    _bindSearchInput() {
-        this._debouncedFetchTableData = AsyncUtils.debounce(() => {
-            this.currentPage = 1;
-            this.fetchTableData();
-        }, 220);
-
-        this.addDisposable(this._debouncedFetchTableData);
-
-        this.on('#bean-definition-search-input', 'input', (e) => {
-            const val = e.target.value.trim();
-            this.searchQuery = val;
-            this.filterCriteria.beanName = val;
-            this._debouncedFetchTableData();
-        });
-
-        this.on('#bean-definition-search-input', 'keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                this._debouncedFetchTableData.flush();
-            } else if (e.key === 'Escape') {
-                this._debouncedFetchTableData.cancel();
-                e.target.value = '';
-                this.searchQuery = '';
-                this.filterCriteria.beanName = '';
-                this.currentPage = 1;
-                this.fetchTableData();
-            }
-        });
-    }
-
-    /**
-     * @private
-     */
-    _bindFilterDropdowns() {
-        this.on('#bean-definition-filter-size', 'change', (e) => {
-            this.itemsPerPage = parseInt(e.target.value, 10) || 20;
-            this.currentPage = 1;
-            this.fetchTableData();
-        });
-
-        const filterMappings = {
-            '#bean-definition-filter-context': 'contextId',
-            '#bean-definition-filter-scope': 'scope',
-            '#bean-definition-filter-role': 'role',
-            '#bean-definition-filter-primary': 'primary',
-            '#bean-definition-filter-lazy': 'lazyInit'
-        };
-
-        Object.entries(filterMappings).forEach(([selector, prop]) => {
-            this.on(selector, 'change', (e) => {
-                this.filterCriteria[prop] = e.target.value;
-                this.currentPage = 1;
-                this.fetchTableData();
-            });
-        });
-    }
-
-    /**
-     * @private
-     */
-    _bindGlobalKeydown() {
-        this.on(document, 'keydown', (e) => {
-            if (e.key === 'Escape') {
-                if (this.modalWidget.isOpen) {
-                    this.closeGraphModal();
-                } else if (this.sidebarWidget.isOpen) {
-                    this.closeSidebar();
-                }
-            }
-        });
-    }
-
-    /**
-     * @private
-     */
-    _bindClickActionDelegation() {
-        this._actionHandlers = {
-            'prev-page': () => this._handlePrevPage(),
-            'next-page': () => this._handleNextPage(),
-            'view-graph': () => this._handleViewGraph(),
-            'switch-tab': ($target) => this._handleSwitchTab($target),
-            'select-bean': ($target) => this._handleSelectBean($target),
-            'sort-column': ($target) => this._handleSortColumn($target),
-            'export-data': () => this._downloadReport(),
-            'change-page': ($target) => this._handleChangePage($target),
-            'refresh-data': ($target) => this._handleRefreshData($target),
-            'close-sidebar': () => this.closeSidebar(),
-            'reset-filters': () => this._handleResetFilters(),
-            'close-graph-modal': () => this.closeGraphModal(),
-            'select-dependency': ($target) => this._handleSelectDependency($target),
-        };
-
-        this.on(document, 'click', '[data-action]', (e) => {
-            const $target = $(e.currentTarget);
-            const action = $target.data('action');
-            const handler = this._actionHandlers[action];
-
-            if (handler) {
-                e.preventDefault();
-                handler($target);
-            }
-        });
-    }
-
-    async _handleRefreshData($target) {
-        const $icon = $target.find('.material-symbols-outlined').addClass('animate-spin');
+    async fetchSummaryStatistics() {
+        this.setState({ summaryLoading: true });
         try {
-            await this.enter();
-        } catch (err) {
-            console.error('Error refreshing bean definitions:', err);
-        } finally {
-            setTimeout(() => $icon.removeClass('animate-spin'), 500);
+            const summary = await this.service.fetchSummary();
+            this.summaryData = summary;
+
+            if (summary) {
+                const metrics = this.chartsWidget.computeMetrics(summary);
+                this.setState({
+                    totalDefinitions: metrics.totalDefinitions,
+                    contextDistributionList: metrics.contextDistributionList,
+                    scopeLegend: metrics.scopeLegend,
+                    roleLegend: metrics.roleLegend,
+                    loadingModeLegend: metrics.loadingModeLegend,
+                    contextOptions: metrics.contextOptions,
+                    scopeOptions: metrics.scopeOptions,
+                    summaryLoading: false
+                });
+
+                this.chartsWidget.renderCharts(summary);
+            } else {
+                this.setState({ summaryLoading: false });
+            }
+        } catch (error) {
+            console.error('Error fetching summary statistics:', error);
+            this.setState({
+                summaryLoading: false,
+                totalDefinitions: '-'
+            });
         }
     }
 
-    _handleResetFilters() {
-        this._resetFilterState();
-        this.sortColumn = '';
-        this.sortDirection = 'asc';
-        this.fetchTableData();
+    _buildTableQuery() {
+        const pageNumber = Math.max(0, (this.currentPage || 1) - 1);
+        const pageSize = Number(this.itemsPerPage) || 20;
+
+        return {
+            pageNumber,
+            pageSize,
+            sortColumn: this.sortColumn || '',
+            sortDirection: this.sortDirection || 'asc',
+            filterCriteria: this.filterCriteria || {},
+            searchQuery: this.searchQuery || ''
+        };
     }
 
-    _handleSortColumn($target) {
-        const columnKey = $target.data('sort') || $target.attr('data-sort');
-        if (!columnKey) return;
+    _applyTableResponse(response, pageNumber, pageSize) {
+        const { content, pagination, pageButtons, paginationInfo } = Pagination.compute(response, pageNumber, pageSize, 'beans');
+        this.rawBeans = content;
+        beanDataStore.addBeans(content);
 
-        this.sortDirection = (this.sortColumn === columnKey && this.sortDirection === 'asc') ? 'desc' : 'asc';
-        this.sortColumn = columnKey;
-        this.currentPage = 1;
-        this.fetchTableData();
+        this.setState({
+            beans: this.tableWidget.formatBeanRows(content),
+            currentPage: pagination.pageNumber + 1,
+            itemsPerPage: pagination.pageSize,
+            pagination,
+            pageButtons,
+            paginationInfo,
+            tableLoading: false
+        });
     }
 
-    async _handleSelectBean($target) {
+    async fetchTableData() {
+        this.setState({ tableLoading: true, tableError: null });
+        const seq = ++this._tableFetchSeq;
 
-        const beanName = $target.data('bean-name');
-        const contextId = $target.data('context-id');
-        if (beanName) {
-            const success = await this.selectBean(beanName, contextId);
-            if (!success) {
-                ToastNotification.show({
-                    title: 'Bean Not Found',
-                    message: `Bean definition for <strong class="font-mono text-purple-600 dark:text-purple-400 font-bold">${beanName}</strong> could not be loaded or is not registered in the application context.`,
-                    type: 'warning',
-                    duration: 4000
+        try {
+            const query = this._buildTableQuery();
+            const response = await this.service.fetchTableData(query);
+
+            if (seq === this._tableFetchSeq) {
+                this._applyTableResponse(response, query.pageNumber, query.pageSize);
+            }
+        } catch (error) {
+            if (seq === this._tableFetchSeq) {
+                console.error('Error fetching bean definitions table data:', error);
+                this.setState({
+                    tableLoading: false,
+                    tableError: error.message || 'Error loading bean definitions'
                 });
             }
         }
     }
 
-    async _handleSelectDependency($target) {
-        const dependencyName = $target.data('fullname') || $target.find('[data-field="name"]').text().trim();
-        const contextId = $target.data('context-id') || this.selectedContextId;
-        if (!dependencyName) return;
+    async selectBean(beanOrName, contextId = null, preloadedBean = null) {
+        if (!beanOrName) return false;
 
-        const success = await this.selectBean(dependencyName, contextId);
+        let beanName;
+        let ctxId;
+        let preloaded;
+
+        if (typeof beanOrName === 'object') {
+            beanName = beanOrName.beanName || beanOrName.raw?.beanName;
+            ctxId = beanOrName.contextId !== undefined ? beanOrName.contextId : (beanOrName.raw?.contextId || '');
+            preloaded = beanOrName.raw || beanOrName;
+        } else {
+            beanName = beanOrName;
+            ctxId = contextId;
+            preloaded = preloadedBean;
+        }
+
+        return this.selectBeanByNameAndContextId(beanName, ctxId, preloaded);
+    }
+
+    async selectBeanByNameAndContextId(beanName, contextId = null, preloadedBean = null) {
+        if (!beanName) return false;
+
+        const resolvedContextId = (contextId !== null && contextId !== undefined)
+            ? contextId
+            : (this.selectedContextId || '');
+
+        const bean = await this._resolveBean(beanName, resolvedContextId, preloadedBean);
+        if (!bean) return false;
+
+        this._applySelectedBean(bean, resolvedContextId);
+        this.setState({ sidebarTab: 'properties' });
+
+        if (!Array.isArray(bean.dependencies) || !Array.isArray(bean.dependents)) {
+            this._refreshBeanDetails(bean.beanName, resolvedContextId);
+        }
+
+        return true;
+    }
+
+    async _resolveBean(beanName, contextId, preloadedBean = null) {
+        if (preloadedBean) return preloadedBean;
+
+        const targetId = this.tableWidget.generateBeanUniqueId(contextId, beanName);
+        const local = this.rawBeans.find(b => this.tableWidget.generateBeanUniqueId(b) === targetId || (b.beanName === beanName && (!contextId || b.contextId === contextId)))
+            || beanDataStore.findBeanByName(beanName, contextId);
+        if (local) return local;
+
+        try {
+            const remote = await this.service.findBeanDefinition(beanName, contextId);
+            if (remote) beanDataStore.addBeans([remote]);
+            return remote;
+        } catch (err) {
+            console.warn(`Could not load definition details for ${beanName}:`, err);
+            return null;
+        }
+    }
+
+    _applySelectedBean(bean, contextId) {
+        const details = this.sidebarWidget.formatDetails(bean);
+        const resolvedContextId = contextId ?? bean.contextId ?? '';
+        this.setState({
+            selectedBeanId: this.tableWidget.generateBeanUniqueId(resolvedContextId, bean.beanName),
+            selectedBeanName: bean.beanName,
+            selectedContextId: resolvedContextId,
+            selectedBean: bean,
+            selectedBeanMeta: details?.meta || { icon: 'schema', color: '#8b5cf6' },
+            selectedBeanFormatted: details,
+            sidebarDeps: this.sidebarWidget.formatDependencyItems(bean.dependencies || [], resolvedContextId),
+            sidebarDependents: this.sidebarWidget.formatDependencyItems(bean.dependents || [], resolvedContextId),
+            sidebarOpen: true
+        });
+    }
+
+    async _refreshBeanDetails(beanName, contextId) {
+        try {
+            const fresh = await this.service.findBeanDefinition(beanName, contextId);
+            const targetId = this.tableWidget.generateBeanUniqueId(contextId, beanName);
+            if (fresh && this.selectedBeanId === targetId) {
+                beanDataStore.addBeans([fresh]);
+                this._applySelectedBean(fresh, contextId);
+            }
+        } catch {
+        }
+    }
+
+    isSelected(bean) {
+        if (!bean || !this.selectedBeanId) return false;
+        if (typeof bean === 'string') {
+            return bean === this.selectedBeanId || bean === this.selectedBeanName;
+        }
+        const id = bean.uniqueId || this.tableWidget.generateBeanUniqueId(bean);
+        return id === this.selectedBeanId;
+    }
+
+    closeSidebar() {
+        this.setState({
+            sidebarOpen: false,
+            selectedBeanId: null,
+            selectedBeanName: null,
+            selectedContextId: null,
+            selectedBean: null
+        });
+    }
+
+    setSidebarTab(tab) {
+        this.setState({ sidebarTab: tab });
+    }
+
+    async selectDependency(dependencyOrDependentName) {
+        if (!dependencyOrDependentName) return;
+        const success = await this.selectBeanByNameAndContextId(dependencyOrDependentName, this.state.selectedContextId);
         if (!success) {
             ToastNotification.show({
                 title: 'Dependency Not Found',
-                message: `The bean <strong class="font-mono text-purple-600 dark:text-purple-400 font-bold">${dependencyName}</strong> is referenced as a dependency, but its definition is not registered or not found in the application context.`,
+                message: `The bean <strong class="font-mono text-purple-600 dark:text-purple-400 font-bold">${dependencyOrDependentName}</strong> is referenced, but its definition could not be located in the application context.`,
                 type: 'warning',
                 duration: 4500
             });
         }
     }
 
-    _handleChangePage($target) {
-        const targetPage = parseInt($target.data('page'), 10);
-        if (!Number.isNaN(targetPage) && targetPage !== this.currentPage) {
-            this.currentPage = targetPage;
-            this.fetchTableData();
+    onSearchInput(event) {
+        const query = (event?.target?.value ?? this.alpine?.searchQuery ?? this.state?.searchQuery ?? '').trim();
+        this.setState({
+            searchQuery: query,
+            currentPage: 1
+        });
+        this.fetchTableData();
+    }
+
+    clearSearch() {
+        this.setState({
+            searchQuery: '',
+            currentPage: 1
+        });
+        this.fetchTableData();
+    }
+
+    onFilterChange() {
+        this.setState({ currentPage: 1 });
+        this.fetchTableData();
+    }
+
+    onPageSizeChange(event) {
+        const newSize = Number(event?.target?.value ?? this.alpine?.itemsPerPage ?? this.state?.itemsPerPage ?? 20);
+        this.setState({
+            itemsPerPage: newSize,
+            currentPage: 1
+        });
+        this.fetchTableData();
+    }
+
+    resetFilters() {
+        this.setState({
+            searchQuery: '',
+            filterCriteria: {
+                contextId: '',
+                scope: '',
+                role: '',
+                primary: '',
+                lazyInit: ''
+            },
+            itemsPerPage: 20,
+            currentPage: 1,
+            sortColumn: '',
+            sortDirection: 'asc'
+        });
+        this.fetchTableData();
+    }
+
+    sort(column) {
+        if (!column) return;
+        let direction = 'asc';
+        if (this.state.sortColumn === column) {
+            direction = this.state.sortDirection === 'asc' ? 'desc' : 'asc';
+        }
+        this.setState({
+            sortColumn: column,
+            sortDirection: direction,
+            currentPage: 1
+        });
+        this.fetchTableData();
+    }
+
+    getSortIcon(column) {
+        return this.tableWidget.getSortIcon(column, this.state.sortColumn, this.state.sortDirection);
+    }
+
+    prevPage() {
+        if (!this.pagination.isFirstPage) {
+            this.goToPage(this.currentPage - 1);
         }
     }
 
-    _handlePrevPage() {
-        if (!this.paginationState.isFirstPage && this.paginationState.pageNumber > 0) {
-            this.currentPage = this.paginationState.pageNumber;
-            this.fetchTableData();
+    nextPage() {
+        if (!this.pagination.isLastPage) {
+            this.goToPage(this.currentPage + 1);
         }
     }
 
-    _handleNextPage() {
-        if (!this.paginationState.isLastPage && this.paginationState.pageNumber < (this.paginationState.totalPages - 1)) {
-            this.currentPage = this.paginationState.pageNumber + 2;
-            this.fetchTableData();
+    goToPage(page) {
+        const targetPage = Number(page);
+        if (!targetPage || targetPage === this.state.currentPage) return;
+        this.setState({ currentPage: targetPage });
+        this.fetchTableData();
+    }
+
+    async openGraphModal() {
+        if (!this.state.selectedBeanName) return;
+
+        let beanData = this.state.selectedBean;
+        if (!beanData || !beanData.dependencies) {
+            beanData = await this.service.findBeanDefinition(this.state.selectedBeanName, this.state.selectedContextId);
+        }
+
+        if (beanData) {
+            this.setState({
+                graphModalOpen: true,
+                graphTargetBean: beanData,
+                graphMode: 'lr'
+            });
+            await this.modalWidget.open(beanData);
         }
     }
 
-    _handleSwitchTab($target) {
-        const tab = $target.data('tab');
-        if (tab) {
-            this.sidebarWidget.switchTab(tab);
+    closeGraphModal() {
+        this.setState({
+            graphModalOpen: false,
+            graphTooltip: { ...(this.state.graphTooltip || {}), visible: false }
+        });
+        this.modalWidget.close();
+    }
+
+    setGraphMode(mode) {
+        this.setState({ graphMode: mode });
+        this.modalWidget.setMode(mode);
+    }
+
+    graphZoomIn() {
+        this.modalWidget.zoom(1.25);
+    }
+
+    graphZoomOut() {
+        this.modalWidget.zoom(0.8);
+    }
+
+    graphFitView() {
+        this.modalWidget.fitView();
+    }
+
+    async selectGraphNode(beanName) {
+        if (!beanName) return;
+
+        const success = await this.selectBeanByNameAndContextId(beanName, this.selectedContextId);
+        if (success && this.selectedBean) {
+            this.setState({ graphTargetBean: this.selectedBean });
+            this.modalWidget.render(this.selectedBean);
+        } else if (!success) {
+            ToastNotification.show({
+                title: 'Bean Definition Not Found',
+                message: `Bean definition for <strong class="font-mono text-purple-600 dark:text-purple-400 font-bold">${beanName}</strong> is unavailable or not registered.`,
+                type: 'warning',
+                duration: 4000
+            });
         }
     }
 
-    _handleViewGraph() {
-        if (this.selectedBeanName) {
-            this.openGraphModal();
+    async refreshData() {
+        this.setState({ refreshing: true });
+        try {
+            await Promise.allSettled([
+                this.fetchSummaryStatistics(),
+                this.fetchTableData()
+            ]);
+        } finally {
+            setTimeout(() => this.setState({ refreshing: false }), 500);
         }
     }
 
-    _downloadReport() {
+    exportData() {
         const reportData = {
             title: 'SpringLens Bean Definitions Report',
             timestamp: new Date().toISOString(),
-            totalElements: this.paginationState.totalElements || this.currentPageBeans.length,
-            summary: this.beanDefinitionSummary,
-            definitions: this.currentPageBeans
+            totalElements: this.state.pagination.totalElements || this.rawBeans.length,
+            summary: this.summaryData,
+            definitions: this.rawBeans
         };
 
         DomUtils.downloadJson(`spring-lens-definitions-${Date.now()}.json`, reportData);
+    }
+
+    _bindEventListeners() {
+        const themeHandler = (event) => {
+            const isDark = event.detail?.theme === 'dark';
+            this.chartsWidget?.onThemeChanged(isDark);
+            if (this.state.graphModalOpen && this.state.graphTargetBean) {
+                this.modalWidget?.render(this.state.graphTargetBean);
+            }
+        };
+        document.addEventListener('themechanged', themeHandler);
+        this.addDisposable(() => document.removeEventListener('themechanged', themeHandler));
+
+        const keydownHandler = (e) => {
+            if (e.key === 'Escape') {
+                if (this.state.graphModalOpen) {
+                    this.closeGraphModal();
+                } else if (this.state.sidebarOpen) {
+                    this.closeSidebar();
+                }
+            }
+        };
+        document.addEventListener('keydown', keydownHandler);
+        this.addDisposable(() => document.removeEventListener('keydown', keydownHandler));
     }
 }

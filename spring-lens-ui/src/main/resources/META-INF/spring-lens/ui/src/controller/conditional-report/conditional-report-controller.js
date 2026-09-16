@@ -1,102 +1,139 @@
 import BaseController from '../base-controller.js';
 import {
-    ConditionReportService,
-    ConditionKpiWidget,
-    ConditionTabsWidget,
-    ConditionTableWidget,
-    ConditionDetailWidget,
+    conditionKpiWidget,
+    conditionTabsWidget,
+    conditionTableWidget,
+    conditionDetailWidget,
+    Pagination,
     QueryParam,
-    AsyncUtils
+    AsyncUtils,
+    container
 } from './index.js';
 
-/**
- * Facade Controller for Spring Boot Conditional Evaluation Reports.
- * Coordinates data fetching, KPI summary cards, outcome filtering tabs,
- * tabular presentation, and detailed evaluation inspection.
- */
 export class ConditionalReportController extends BaseController {
-
-    /**
-     * @param {Object} [endpoints={}] - API endpoints mapping
-     */
-    constructor(endpoints = {}) {
+    constructor() {
         super('conditionReports');
 
-        // Sub-modules
-        this.service = new ConditionReportService(endpoints);
-        this.kpiWidget = new ConditionKpiWidget();
-        this.tabsWidget = new ConditionTabsWidget();
-        this.tableWidget = new ConditionTableWidget();
-        this.detailWidget = new ConditionDetailWidget();
+        this.service = container.make('conditionService');
+        this.applicationState = container.make('applicationState');
+        this.kpiWidget = conditionKpiWidget;
+        this.tabsWidget = conditionTabsWidget;
+        this.tableWidget = conditionTableWidget;
+        this.detailWidget = conditionDetailWidget;
 
-        // Active data state
-        this.conditions = [];
-        this.selectedCondition = null;
+        this.state = {
+            appName: this.applicationState?.getAppName?.() || 'SpringLens',
+            kpiTotal: '--',
+            kpiMatchedCount: '0',
+            kpiMatchedPct: '0',
+            kpiUnmatchedCount: '0',
+            kpiUnmatchedPct: '0',
+            kpiConditionsTotal: '--',
+            summaryLoading: true,
 
-        // View and filter criteria
-        this.currentPage = 1;
-        this.pageSize = 10;
-        this.searchQuery = '';
-        this.outcomeFilter = '';
-        this.groupBy = 'none';
-        this.sortBy = 'source';
-        this.sortDir = 'ASC';
-        this.detailViewStyle = localStorage.getItem('condition_detail_view_style') || 'side-sheet';
+            countAll: '0',
+            countMatched: '0',
+            countUnmatched: '0',
 
-        // Pagination metadata
-        this.paginationState = {
-            totalElements: 0,
-            totalPages: 1,
-            pageNumber: 0,
+            searchQuery: '',
+            searchTotalCount: null,
+            outcomeFilter: '',
+            groupBy: 'none',
             pageSize: 10,
-            isFirstPage: true,
-            isLastPage: true
+            currentPage: 1,
+            sortBy: 'source',
+            sortDir: 'ASC',
+            detailViewStyle: localStorage.getItem('condition_detail_view_style') || 'side-sheet',
+
+            rows: [],
+            tableLoading: true,
+            tableError: null,
+            pagination: Pagination.defaultState(10),
+            paginationInfo: Pagination.formatInfoText(0, 0, 10, 'auto-configurations'),
+            pageButtons: [],
+
+            selectedCondition: null,
+            selectedConditionDetails: null,
+            refreshing: false
         };
 
-        // KPI metrics cache
-        this.kpiMetrics = {
-            total: 0,
-            matched: 0,
-            unmatched: 0,
-            totalConditions: 0
-        };
+        this.rawConditions = [];
+        this.conditionReportMetrics = null;
+        this._tableFetchSeq = 0;
 
-        this.searchTotalCount = null;
+        for (const key of Object.keys(this.state)) {
+            Object.defineProperty(this, key, {
+                get: () => (this.alpine ? this.alpine[key] : this.state[key]),
+                set: (value) => this.setState({ [key]: value }),
+                configurable: true,
+                enumerable: true,
+            });
+        }
 
         this._debouncedSearch = AsyncUtils.debounce(() => {
             this.currentPage = 1;
-            this.fetchConditionEvaluationData();
+            this.fetchConditionEvaluationData().then(r => {});
         }, 200);
 
         this.addDisposable(this._debouncedSearch);
     }
 
-    /**
-     * Resets internal filter state and DOM input elements.
-     * @private
-     */
-    _resetFilterState() {
-        this.currentPage = 1;
-        this.pageSize = 10;
-        this.searchQuery = '';
-        this.searchTotalCount = null;
-        this.outcomeFilter = '';
-        this.groupBy = 'none';
-        this.sortBy = 'source';
-        this.sortDir = 'ASC';
-        this.selectedCondition = null;
-
-        $('#condition-search-input').val('');
-        $('#condition-group-by').val('none');
-        $('#condition-page-size').val('10');
-        this.tabsWidget.reset();
+    setState(patch) {
+        if (!patch) return;
+        Object.assign(this.state, patch);
+        if (this.alpine) {
+            Object.assign(this.alpine, patch);
+        }
     }
 
-    /**
-     * Lifecycle hook invoked when navigating to the condition report route.
-     * @param {string|Object} params - Route query parameters
-     */
+    createAlpineState() {
+        return {
+            ...this.state,
+            onSearchInput: (event) => this.onSearchInput(event),
+            onSearchEnter: () => this.onSearchEnter(),
+            clearSearch: () => this.clearSearch(),
+            filterOutcome: (outcome) => this.filterOutcome(outcome),
+            onGroupByChange: (event) => this.onGroupByChange(event),
+            onPageSizeChange: (event) => this.onPageSizeChange(event),
+            switchDetailViewStyle: (style) => this.switchDetailViewStyle(style),
+            sort: (column) => this.sort(column),
+            getSortIcon: (column) => this.getSortIcon(column),
+
+            prevPage: () => this.prevPage(),
+            nextPage: () => this.nextPage(),
+            goToPage: (page) => this.goToPage(page),
+
+            selectCondition: (row) => this.selectCondition(row),
+            isSelected: (row) => this.isSelected(row),
+            closeDetail: () => this.closeDetail(),
+
+            refreshData: () => this.refreshData()
+        };
+    }
+
+    _resetFilterState() {
+        this.setState({
+            currentPage: 1,
+            pageSize: 10,
+            searchQuery: '',
+            searchTotalCount: null,
+            outcomeFilter: '',
+            groupBy: 'none',
+            sortBy: 'source',
+            sortDir: 'ASC',
+            selectedCondition: null,
+            selectedConditionDetails: null
+        });
+
+        const $searchInput = document.getElementById('condition-search-input');
+        if ($searchInput) {
+            $searchInput.value = '';
+        }
+    }
+
     async enter(params) {
+        await super.enter(params);
+
         try {
             this.closeDetail();
             this._resetFilterState();
@@ -108,389 +145,339 @@ export class ConditionalReportController extends BaseController {
 
             if (targetCondition) {
                 this.searchQuery = targetCondition;
-                $('#condition-search-input').val(targetCondition);
+                const $searchInput = document.getElementById('condition-search-input');
+                if ($searchInput) {
+                    $searchInput.value = targetCondition;
+                }
             }
             if (outcome) {
                 this.outcomeFilter = outcome;
             }
 
-            this.initEvents();
+            this._bindEventListeners();
 
-            await Promise.all([
+            if (this.applicationState?.onAppInfoChange) {
+                const unsub = this.applicationState.onAppInfoChange((info) => {
+                    if (info?.name) {
+                        this.setState({ appName: info.name });
+                    }
+                });
+                if (unsub) this.addDisposable(unsub);
+            }
+
+            await Promise.allSettled([
                 this.fetchSummaryMetrics(),
                 this.fetchConditionEvaluationData()
             ]);
 
-            if (targetCondition && this.conditions && this.conditions.length > 0) {
-                const match = this.conditions.find(c => c.source === targetCondition) || this.conditions[0];
+            if (targetCondition && this.rawConditions && this.rawConditions.length > 0) {
+                const match = this.rawConditions.find(c => c.source === targetCondition) || this.rawConditions[0];
                 if (match) {
-                    await this.selectCondition(targetContextId || match.contextId, match.source);
+                    await this.selectCondition(match);
                 }
             }
         } catch (error) {
-            console.error('Error in ConditionalReport enter:', error);
+            console.error('Error during ConditionalReport enter:', error);
         }
     }
 
-    /**
-     * Fetches top KPI metrics and updates the KPI cards and tab counts.
-     */
     async fetchSummaryMetrics() {
+        this.setState({ summaryLoading: true });
         try {
-            const summary = await this.service.fetchSummaryMetrics();
-            if (!summary) return;
+            const conditionReportSummary = await this.service.fetchConditionalSummary();
+            this.conditionReportMetrics = conditionReportSummary || {};
 
-            const {
-                totalEvaluationReports = 0,
-                totalPositiveMatches = 0,
-                totalNegativeMatches = 0,
-                totalEvaluatedConditions = 0
-            } = summary;
+            const kpi = this.kpiWidget.computeMetrics(this.conditionReportMetrics);
+            const tabCounts = this.tabsWidget.computeTabCounts(
+                this.conditionReportMetrics,
+                this.state.searchQuery,
+                this.state.searchTotalCount
+            );
 
-            this.kpiMetrics = {
-                total: totalEvaluationReports,
-                matched: totalPositiveMatches,
-                unmatched: totalNegativeMatches,
-                totalConditions: totalEvaluatedConditions
-            };
-
-            this.kpiWidget.render(this.kpiMetrics);
-            this.tabsWidget.renderTabCounts(this.kpiMetrics, this.searchQuery, this.searchTotalCount);
+            this.setState({
+                kpiTotal: kpi.total,
+                kpiMatchedCount: kpi.matchedCount,
+                kpiMatchedPct: kpi.matchedPct,
+                kpiUnmatchedCount: kpi.unmatchedCount,
+                kpiUnmatchedPct: kpi.unmatchedPct,
+                kpiConditionsTotal: kpi.conditionsTotal,
+                countAll: tabCounts.allCount,
+                countMatched: tabCounts.matchedCount,
+                countUnmatched: tabCounts.unmatchedCount,
+                summaryLoading: false
+            });
         } catch (error) {
             console.error('Error fetching condition summary metrics:', error);
+            this.setState({ summaryLoading: false });
         }
     }
 
-    /**
-     * Fetches paginated condition report rows from the server.
-     */
+    _updateFormattedRows() {
+        const rows = this.tableWidget.formatTableRows(this.rawConditions, {
+            groupBy: this.state.groupBy,
+            selectedCondition: this.state.selectedCondition,
+            detailViewStyle: this.state.detailViewStyle,
+            selectedConditionDetails: this.state.selectedConditionDetails
+        });
+        this.setState({ rows });
+    }
+
+    _applyEvaluationsResponse(response) {
+        const { content, pagination, pageButtons, paginationInfo } = Pagination.compute(
+            response,
+            this.state.currentPage - 1,
+            this.state.pageSize,
+            'auto-configurations'
+        );
+
+        this.rawConditions = content;
+
+        if (this.state.searchQuery) {
+            if (!this.state.outcomeFilter) {
+                const totalElements = pagination.totalElements;
+                const tabCounts = this.tabsWidget.computeTabCounts(
+                    this.rawMetrics,
+                    this.state.searchQuery,
+                    totalElements
+                );
+                this.setState({
+                    searchTotalCount: totalElements,
+                    countAll: tabCounts.allCount
+                });
+            } else if (this.state.searchTotalCount === null) {
+                this.service.fetchSearchTotalCount(this.state.searchQuery).then(count => {
+                    if (count !== null) {
+                        const tabCounts = this.tabsWidget.computeTabCounts(
+                            this.rawMetrics,
+                            this.state.searchQuery,
+                            count
+                        );
+                        this.setState({
+                            searchTotalCount: count,
+                            countAll: tabCounts.allCount
+                        });
+                    }
+                });
+            }
+        }
+
+        const rows = this.tableWidget.formatTableRows(content, {
+            groupBy: this.state.groupBy,
+            selectedCondition: this.state.selectedCondition,
+            detailViewStyle: this.state.detailViewStyle,
+            selectedConditionDetails: this.state.selectedConditionDetails
+        });
+
+        this.setState({
+            rows,
+            currentPage: pagination.pageNumber + 1,
+            pageSize: pagination.pageSize,
+            pagination,
+            pageButtons,
+            paginationInfo,
+            tableLoading: false
+        });
+    }
+
     async fetchConditionEvaluationData() {
-        this.tableWidget.renderLoading();
+        this.setState({ tableLoading: true, tableError: null });
+        const seq = ++this._tableFetchSeq;
 
         try {
             const response = await this.service.fetchConditionEvaluations({
-                pageNumber: this.currentPage - 1,
-                pageSize: this.pageSize,
-                search: this.searchQuery,
-                outcome: this.outcomeFilter,
-                sortBy: this.sortBy,
-                sortDir: this.sortDir
+                pageNumber: Math.max(0, (this.state.currentPage || 1) - 1),
+                pageSize: this.state.pageSize,
+                search: this.state.searchQuery,
+                outcome: this.state.outcomeFilter,
+                sortBy: this.state.sortBy,
+                sortDir: this.state.sortDir
             });
 
-            this._processPaginatedResponse(response);
-            this.tableWidget.render(this.conditions, {
-                groupBy: this.groupBy,
-                selectedCondition: this.selectedCondition,
-                detailViewStyle: this.detailViewStyle
-            });
-            this.tableWidget.renderPagination(this.paginationState);
+            if (seq === this._tableFetchSeq) {
+                this._applyEvaluationsResponse(response);
+            }
         } catch (error) {
-            console.error('Error fetching condition evaluations:', error);
-            this.tableWidget.renderError(error.message || 'Unknown network error');
-        }
-    }
-
-    /**
-     * Processes server response and updates internal pagination state.
-     * @private
-     */
-    _processPaginatedResponse(response) {
-        this.conditions = Array.isArray(response?.content) ? response.content : [];
-
-        const totalElements = response?.totalElements ?? this.conditions.length;
-        const totalPages = Math.max(1, response?.totalPages ?? 1);
-        const pageNumber = response?.pageNumber ?? 0;
-        const pageSize = response?.pageSize ?? this.pageSize;
-
-        this.paginationState = {
-            totalElements,
-            totalPages,
-            pageNumber,
-            pageSize,
-            isFirstPage: response?.first ?? (pageNumber === 0),
-            isLastPage: response?.last ?? (pageNumber >= totalPages - 1)
-        };
-
-        if (this.searchQuery) {
-            if (!this.outcomeFilter) {
-                this.searchTotalCount = totalElements;
-                this.tabsWidget.renderTabCounts(this.kpiMetrics, this.searchQuery, this.searchTotalCount);
-            } else if (this.searchTotalCount === null) {
-                this.service.fetchSearchTotalCount(this.searchQuery).then(count => {
-                    if (count !== null) {
-                        this.searchTotalCount = count;
-                        this.tabsWidget.renderTabCounts(this.kpiMetrics, this.searchQuery, this.searchTotalCount);
-                    }
+            if (seq === this._tableFetchSeq) {
+                console.error('Error fetching condition evaluations:', error);
+                this.setState({
+                    tableLoading: false,
+                    tableError: error.message || 'Failed to fetch condition evaluations'
                 });
             }
         }
     }
 
-    /**
-     * Selects a condition and displays its details in the active inspector style.
-     * @param {string} contextId
-     * @param {string} source
-     */
-    async selectCondition(contextId, source) {
-        if (!contextId || !source) return;
+    async selectCondition(rowOrItem) {
+        if (!rowOrItem) return;
+        if (rowOrItem.isGroupHeader || rowOrItem.isDetailRow) return;
 
-        this.selectedCondition = { contextId, source };
-        this.tableWidget.highlightSelectedRow(contextId, source);
+        const source = rowOrItem.source || rowOrItem.raw?.source;
+        const contextId = rowOrItem.contextId !== undefined ? rowOrItem.contextId : (rowOrItem.raw?.contextId || '');
+        if (!source) return;
 
-        const localMatch = this.conditions.find(c => c.contextId === contextId && c.source === source);
-        if (localMatch) {
-            this.renderDetailPanel(localMatch);
+        if (this.state.selectedCondition?.source === source && (this.state.selectedCondition?.contextId || '') === contextId) {
+            this.closeDetail();
+            return;
         }
 
+        const selectedCondition = { contextId, source };
+        const localMatch = this.rawConditions.find(c => c.source === source && (c.contextId || '') === contextId) || rowOrItem.raw || rowOrItem;
+        const localDetails = localMatch ? this.detailWidget.formatDetails(localMatch) : null;
+
+        this.setState({
+            selectedCondition,
+            selectedConditionDetails: localDetails
+        });
+        this._updateFormattedRows();
+
         try {
-            const detailedCondition = await this.service.findConditionEvaluation(contextId, source);
-            if (detailedCondition && this.selectedCondition?.contextId === contextId && this.selectedCondition?.source === source) {
-                this.selectedCondition = detailedCondition;
-                this.renderDetailPanel(detailedCondition);
+            const detailed = await this.service.findConditionEvaluation(contextId, source);
+            if (detailed && this.state.selectedCondition?.source === source && (this.state.selectedCondition?.contextId || '') === contextId) {
+                const formatted = this.detailWidget.formatDetails(detailed);
+                this.setState({
+                    selectedConditionDetails: formatted
+                });
+                this._updateFormattedRows();
             }
         } catch (error) {
             console.warn(`Failed to fetch full details for condition ${source}:`, error);
         }
     }
 
-    /**
-     * Renders detailed breakdown using the active view style.
-     * @param {Object} condition
-     */
-    renderDetailPanel(condition) {
-        this.detailWidget.render(condition, this.detailViewStyle);
-    }
-
-    /**
-     * Closes the active condition inspector.
-     */
     closeDetail() {
-        this.selectedCondition = null;
-        this.detailWidget.close();
-        this.tableWidget.clearSelection();
-    }
-
-    /**
-     * Switches the detail view style ('side-sheet' or 'inline').
-     * @param {'side-sheet'|'inline'} style
-     */
-    switchDetailViewStyle(style) {
-        if (this.detailViewStyle === style) return;
-        this.detailViewStyle = style;
-        localStorage.setItem('condition_detail_view_style', style);
-        this.tabsWidget.renderViewStyleButtons(style);
-
-        if (this.selectedCondition) {
-            const match = this.conditions.find(
-                c => c.contextId === this.selectedCondition.contextId && c.source === this.selectedCondition.source
-            ) || this.selectedCondition;
-            this.renderDetailPanel(match);
-        }
-    }
-
-    /**
-     * Initializes DOM event listeners.
-     */
-    initEvents() {
-        this._initClickActions();
-        this._bindSearchInput();
-        this._bindSelectFilters();
-        this._bindClickActionDelegation();
-        this._bindKeyboardEvents();
-        this.tabsWidget.renderViewStyleButtons(this.detailViewStyle);
-    }
-
-    /**
-     * @private
-     */
-    _initClickActions() {
-        this._clickActions = {
-            'refresh-data': ($target) => this._handleRefresh($target),
-            'filter-outcome': ($target) => this._handleFilterOutcome($target),
-            'select-condition': ($target) => this._handleSelectCondition($target),
-            'close-detail': () => this.closeDetail(),
-            'switch-view-style': ($target) => this.switchDetailViewStyle($target.data('style')),
-            'clear-search': () => this._handleClearSearch(),
-            'change-page': ($target) => this._handleChangePage($target),
-            'prev-page': () => this._handlePrevPage(),
-            'next-page': () => this._handleNextPage(),
-            'sort': ($target) => this._handleSort($target)
-        };
-    }
-
-    /**
-     * Binds real-time search input with debounce.
-     * @private
-     */
-    _bindSearchInput() {
-        this.on('#condition-search-input', 'input', (e) => {
-            const query = e.target.value.trim();
-            this.searchQuery = query;
-            this.searchTotalCount = null;
-
-            this.tabsWidget.renderTabs(this.outcomeFilter, Boolean(query));
-            this._debouncedSearch();
+        this.setState({
+            selectedCondition: null,
+            selectedConditionDetails: null
         });
-
-        this.on('#condition-search-input', 'keydown', (e) => {
-            if (e.key === 'Escape') {
-                this._handleClearSearch();
-            } else if (e.key === 'Enter') {
-                e.preventDefault();
-                this._debouncedSearch.flush?.();
-            }
-        });
+        this._updateFormattedRows();
     }
 
-    /**
-     * Clears search input and refreshes table.
-     * @private
-     */
-    _handleClearSearch() {
-        this._debouncedSearch.cancel?.();
-        this.searchQuery = '';
-        this.searchTotalCount = null;
-        $('#condition-search-input').val('');
-        this.tabsWidget.renderTabs(this.outcomeFilter, false);
-        this.currentPage = 1;
+    isSelected(row) {
+        if (!row || row.isGroupHeader || row.isDetailRow || !this.state.selectedCondition) return false;
+        const source = row.source || row.raw?.source;
+        const contextId = row.contextId !== undefined ? row.contextId : (row.raw?.contextId || '');
+        return this.state.selectedCondition.source === source && (this.state.selectedCondition.contextId || '') === contextId;
+    }
+
+    filterOutcome(outcome = '') {
+        if (this.state.outcomeFilter === outcome) return;
+        this.setState({
+            outcomeFilter: outcome,
+            currentPage: 1
+        });
         this.fetchConditionEvaluationData();
     }
 
-    /**
-     * Binds dropdown change events (group by, page size).
-     * @private
-     */
-    _bindSelectFilters() {
-        this.on('#condition-group-by', 'change', (e) => {
-            this.groupBy = e.target.value;
-            this.tableWidget.render(this.conditions, {
-                groupBy: this.groupBy,
-                selectedCondition: this.selectedCondition,
-                detailViewStyle: this.detailViewStyle
-            });
-        });
-
-        this.on('#condition-page-size', 'change', (e) => {
-            this.pageSize = parseInt(e.target.value, 10) || 10;
-            this.currentPage = 1;
-            this.fetchConditionEvaluationData();
-        });
+    onGroupByChange(event) {
+        const groupBy = event?.target?.value ?? this.state.groupBy ?? 'none';
+        this.setState({ groupBy });
+        this._updateFormattedRows();
     }
 
-    /**
-     * Centralized click delegation for [data-action] elements.
-     * @private
-     */
-    _bindClickActionDelegation() {
-        this.on(document, 'click', '[data-action]', (e) => {
-            const $target = $(e.currentTarget);
-            const action = $target.data('action');
-            const handler = this._clickActions[action];
-
-            if (handler) {
-                e.preventDefault();
-                handler($target, e);
-            }
+    onPageSizeChange(event) {
+        const pageSize = Number(event?.target?.value ?? this.state.pageSize ?? 10);
+        this.setState({
+            pageSize,
+            currentPage: 1
         });
+        this.fetchConditionEvaluationData();
     }
 
-    /**
-     * Global keyboard shortcuts (Escape to close side-sheet).
-     * @private
-     */
-    _bindKeyboardEvents() {
-        this.on(document, 'keydown', (e) => {
-            if (e.key === 'Escape' && this.selectedCondition) {
+    switchDetailViewStyle(style) {
+        if (this.state.detailViewStyle === style) return;
+        this.setState({ detailViewStyle: style });
+        localStorage.setItem('condition_detail_view_style', style);
+        this._updateFormattedRows();
+    }
+
+    sort(column) {
+        if (!column) return;
+        let direction = 'ASC';
+        if (this.state.sortBy === column) {
+            direction = this.state.sortDir === 'ASC' ? 'DESC' : 'ASC';
+        }
+        this.setState({
+            sortBy: column,
+            sortDir: direction,
+            currentPage: 1
+        });
+        this.fetchConditionEvaluationData();
+    }
+
+    getSortIcon(column) {
+        return this.tableWidget.getSortIcon(this.state.sortBy, this.state.sortDir, column);
+    }
+
+    prevPage() {
+        if (!this.state.pagination.isFirstPage) {
+            this.goToPage(this.state.currentPage - 1);
+        }
+    }
+
+    nextPage() {
+        if (!this.state.pagination.isLastPage) {
+            this.goToPage(this.state.currentPage + 1);
+        }
+    }
+
+    goToPage(page) {
+        const targetPage = Number(page);
+        if (!targetPage || targetPage === this.state.currentPage) return;
+        this.setState({ currentPage: targetPage });
+        this.fetchConditionEvaluationData();
+    }
+
+    onSearchInput(event) {
+        const query = (event?.target?.value ?? this.state.searchQuery ?? '').trim();
+        console.log(query);
+        this.searchQuery = query;
+        this.searchTotalCount = null;
+        this._debouncedSearch();
+    }
+
+    onSearchEnter() {
+        this._debouncedSearch?.flush?.();
+    }
+
+    clearSearch() {
+        this._debouncedSearch.cancel?.();
+        this.searchQuery = '';
+        this.searchTotalCount = null;
+        this.currentPage = 1;
+        const $searchInput = document.getElementById('condition-search-input');
+        if ($searchInput) {
+            $searchInput.value = '';
+        }
+        this.fetchConditionEvaluationData();
+    }
+
+    _bindEventListeners() {
+        const keydownHandler = (e) => {
+            if (e.key === 'Escape' && this.state.selectedCondition) {
                 this.closeDetail();
             }
-        });
+        };
+        document.addEventListener('keydown', keydownHandler);
+        this.addDisposable(() => document.removeEventListener('keydown', keydownHandler));
     }
 
-    // --- Action Handlers ---
-
-    async _handleRefresh($target) {
-        const $icon = $target.find('.material-symbols-outlined').addClass('animate-spin');
+    async refreshData() {
+        this.setState({ refreshing: true });
         try {
-            await Promise.all([
+            await Promise.allSettled([
                 this.fetchSummaryMetrics(),
                 this.fetchConditionEvaluationData()
             ]);
         } finally {
-            setTimeout(() => $icon.removeClass('animate-spin'), 500);
+            setTimeout(() => this.setState({ refreshing: false }), 500);
         }
     }
 
-    _handleFilterOutcome($target) {
-        const outcome = $target.data('outcome') || '';
-        if (this.outcomeFilter === outcome) return;
-
-        this.outcomeFilter = outcome;
-        this.currentPage = 1;
-        this.tabsWidget.renderTabs(this.outcomeFilter, Boolean(this.searchQuery));
-        this.fetchConditionEvaluationData();
-    }
-
-    async _handleSelectCondition($target) {
-        const $row = $target.closest('[data-source]');
-        const source = $row.data('source') || $row.attr('data-source');
-        const contextId = $row.data('context-id') || $row.attr('data-context-id') || '';
-
-        if (!source) return;
-
-        if (this.selectedCondition?.source === source && this.selectedCondition?.contextId === contextId) {
-            this.closeDetail();
-            return;
-        }
-
-        await this.selectCondition(contextId, source);
-    }
-
-    _handleChangePage($target) {
-        const targetPage = parseInt($target.data('page'), 10);
-        if (!Number.isNaN(targetPage) && targetPage !== this.currentPage) {
-            this.currentPage = targetPage;
-            this.fetchConditionEvaluationData();
-        }
-    }
-
-    _handlePrevPage() {
-        if (!this.paginationState.isFirstPage && this.currentPage > 1) {
-            this.currentPage--;
-            this.fetchConditionEvaluationData();
-        }
-    }
-
-    _handleNextPage() {
-        if (!this.paginationState.isLastPage && this.currentPage < this.paginationState.totalPages) {
-            this.currentPage++;
-            this.fetchConditionEvaluationData();
-        }
-    }
-
-    _handleSort($target) {
-        const sortBy = $target.data('sort');
-        if (!sortBy) return;
-
-        if (this.sortBy === sortBy) {
-            this.sortDir = this.sortDir === 'ASC' ? 'DESC' : 'ASC';
-        } else {
-            this.sortBy = sortBy;
-            this.sortDir = 'ASC';
-        }
-
-        this.tableWidget.updateSortIcons(this.sortBy, this.sortDir);
-        this.currentPage = 1;
-        this.fetchConditionEvaluationData();
-    }
-
-    /**
-     * Teardown hook invoked when navigating away from this route.
-     */
     leave() {
         this.closeDetail();
         this._resetFilterState();
+        this.rawConditions = [];
+        this.rawMetrics = null;
         super.leave();
     }
 }
-
-export default ConditionalReportController;

@@ -6,28 +6,52 @@ import {
     GraphCanvasWidget,
     GraphSearchWidget,
     GraphSidebarWidget,
-    PROGRESS_BADGE_STYLES,
-    ALL_PROGRESS_BADGE_CLASSES,
-    ALL_PROGRESS_DOT_CLASSES,
-    TemplateEngine,
     QueryParam,
     ToastNotification,
     AsyncUtils
 } from './index.js';
+import {container} from "../../helper/index.js";
 
-/**
- * Controller Facade for the Spring Bean Dependency Graph.
- * Coordinates data ingestion, tree hierarchy formation, interactive canvas rendering,
- * search exploration, path tracing, and the bean details slide-over panel.
- */
 export class DependencyGraphController extends BaseController {
 
-    /**
-     * @param {Object} [endpoints] - API endpoints mapping
-     */
-    constructor(endpoints = {}) {
+    constructor() {
         super('dependencyGraph');
-        this.service = new DependencyGraphService(endpoints);
+        this.service = container.make('dependencyGraphService');
+
+        this.state = {
+            appName: 'SpringLens',
+            searchQuery: '',
+            searchSuggestions: [],
+            showSuggestions: false,
+            isSearching: false,
+            availableContexts: [],
+            selectedContextId: '',
+            mode: localStorage.getItem('sl-layout') ?? 'tb',
+            isHighlightPathActive: false,
+            refreshing: false,
+            chunkProgress: { visible: false, state: 'loading', text: '', loaded: 0, total: 0 },
+            beansCount: 0,
+            depsCount: 0,
+            zoomPercent: '100%',
+            sidebarOpen: false,
+            sidebarTab: 'properties',
+            sidebarLoading: false,
+            selectedBean: null,
+            selectedBeanMeta: { icon: 'schema', color: '#8b5cf6' },
+            selectedBeanFormatted: null,
+            sidebarDeps: [],
+            sidebarDependents: [],
+            errorMessage: null
+        };
+
+        for (const key of Object.keys(this.state)) {
+            Object.defineProperty(this, key, {
+                get: () => (this.alpine ? this.alpine[key] : this.state[key]),
+                set: (value) => this.setState({ [key]: value }),
+                configurable: true,
+                enumerable: true,
+            });
+        }
 
         this.pathTracer = new GraphPathTracer({
             onStateChange: () => this._renderCanvas()
@@ -36,16 +60,14 @@ export class DependencyGraphController extends BaseController {
         this.canvasWidget = new GraphCanvasWidget({
             onNodeClick: (event, node) => this._handleNodeClick(event, node),
             onToggleClick: (event, node) => this._handleToggleClick(event, node),
-            onNodeHover: (event, node) => {
-                this.pathTracer.highlightPathForNode(node);
-            },
-            onNodeLeave: () => {
-                this.pathTracer.resetPathHighlight(this.selectedNodeRef);
-            },
+            onNodeHover: (event, node) => this.pathTracer.highlightPathForNode(node),
+            onNodeLeave: () => this.pathTracer.resetPathHighlight(this.selectedNodeRef),
+            onZoomChange: (percentStr) => this.setState({ zoomPercent: percentStr }),
+            onModeChange: (mode) => this.setState({ mode }),
             onBackgroundClick: () => {
                 this.closeSidebar();
                 this.clearFocusedNode();
-            }
+            },
         });
 
         this.sidebarWidget = new GraphSidebarWidget({
@@ -53,26 +75,53 @@ export class DependencyGraphController extends BaseController {
         });
 
         this.searchWidget = new GraphSearchWidget(this.service, {
-            onSelectBean: (fullName, contextId, isSuggestion) => {
-                if (isSuggestion) {
-                    this.focusOnBean(fullName, contextId, false);
-                } else {
-                    this.showBeanDetails(fullName, contextId);
-                }
-            },
             getRootNode: () => this.root,
             getSelectedContextId: () => this.selectedContextId
         });
 
         this.addDisposable(this.canvasWidget);
         this.addDisposable(this.searchWidget);
+        this.addDisposable(this.sidebarWidget);
 
         this.root = null;
-        this.selectedContextId = '';
         this.selectedNodeRef = null;
+
+        this._debouncedSearch = AsyncUtils.debounce(async (query) => {
+            const results = await this.searchWidget.search(query, 12);
+            if (this.searchQuery.trim() === query.trim()) {
+                this.setState({ searchSuggestions: results, isSearching: false });
+            }
+        }, 180);
     }
 
-    // --- Backward Compatibility Getters & Setters ---
+    setState(patch) {
+        if (!patch) return;
+        Object.assign(this.state, patch);
+        if (this.alpine) {
+            Object.assign(this.alpine, patch);
+        }
+    }
+
+    createAlpineState() {
+        return {
+            ...this.state,
+            onSearchInput: (event) => this.onSearchInput(event),
+            clearSearch: () => this.clearSearch(),
+            onSearchEnter: () => this.onSearchEnter(),
+            selectSuggestion: (item) => this.selectSuggestion(item),
+            closeSuggestions: () => this.closeSuggestions(),
+            onContextFilterChange: () => this.onContextFilterChange(),
+            setMode: (mode) => this.setMode(mode),
+            collapseAllNodes: () => this.collapseAllNodes(),
+            toggleHighlightPath: () => this.toggleHighlightPath(),
+            reloadGraphData: () => this.reloadGraphData(),
+            fitView: () => this.fitView(),
+            zoomBy: (factor) => this.zoomBy(factor),
+            closeSidebar: () => this.closeSidebar(),
+            setSidebarTab: (tab) => this.setSidebarTab(tab),
+            selectDependency: (dep) => this.selectDependency(dep)
+        };
+    }
 
     get canvas() {
         return this.canvasWidget.canvas;
@@ -98,14 +147,6 @@ export class DependencyGraphController extends BaseController {
         this.canvasWidget.currentTransform = value;
     }
 
-    get isHighlightPathActive() {
-        return this.pathTracer.isHighlightPathActive;
-    }
-
-    set isHighlightPathActive(val) {
-        this.pathTracer.isHighlightPathActive = val;
-    }
-
     get activePathNodeRefs() {
         return this.pathTracer.activePathNodeRefs;
     }
@@ -128,14 +169,6 @@ export class DependencyGraphController extends BaseController {
 
     get focusedNodeId() {
         return this.canvasWidget.focusedNodeId;
-    }
-
-    get mode() {
-        return this.canvasWidget.mode;
-    }
-
-    set mode(val) {
-        this.canvasWidget.mode = val;
     }
 
     get totalElements() {
@@ -166,20 +199,10 @@ export class DependencyGraphController extends BaseController {
         return this.service.findBeanDefinitionsApi;
     }
 
-    // --- Lifecycle Methods ---
-
-    initEvents() {
-        this.searchWidget.bindEvents();
-        this._bindClickActionRouter();
-        this._bindCustomEventHandlers();
-    }
-
     async enter(params) {
-        this.initEvents();
-        this.sidebarWidget.initSidebar();
-        if (!this._initializeCanvas()) return;
+        this._bindCustomEventHandlers();
 
-        this._bindControls();
+        if (!this._initializeCanvas()) return;
 
         const isDataLoaded = await this._loadInitialData();
         if (!isDataLoaded) return;
@@ -194,15 +217,8 @@ export class DependencyGraphController extends BaseController {
         return this.canvasWidget.init(canvasElem, () => this.root);
     }
 
-    _bindControls() {
-        this.on('#btn-reload-graph', 'click', () => this.reloadGraphData());
-    }
-
     async reloadGraphData() {
-        const $btn = $('#btn-reload-graph');
-        const $icon = $btn.find('.material-symbols-outlined');
-        $icon.addClass('animate-spin');
-
+        this.setState({ refreshing: true, errorMessage: null });
         try {
             await this.service.fetchBeanGraphDependencies((progress) => this._updateProgressBadge(progress));
             this._buildHierarchyFromDependencies();
@@ -211,30 +227,28 @@ export class DependencyGraphController extends BaseController {
             this.fitView(0);
         } catch (error) {
             console.error('Error reloading graph data:', error);
+            this.setState({ errorMessage: error.message || 'Failed to reload graph data' });
         } finally {
-            setTimeout(() => $icon.removeClass('animate-spin'), 600);
+            setTimeout(() => this.setState({ refreshing: false }), 600);
         }
     }
 
     async _loadInitialData() {
         try {
+            this.setState({ errorMessage: null });
             await this.service.fetchBeanGraphDependencies((progress) => this._updateProgressBadge(progress));
             this._buildHierarchyFromDependencies();
             this._updateTotalBeanCount();
             return true;
         } catch (error) {
             console.error('Failed to initialize graph data:', error);
-            const clone = TemplateEngine.clone('tpl-bean-graph-error');
-            if (clone) {
-                $(clone).find('[data-field="errorMessage"]').text(error.message);
-                $('#beanGraph').empty().append(clone);
-            }
+            this.setState({ errorMessage: error.message || 'Failed to initialize graph data' });
             return false;
         }
     }
 
     _renderInitialGraph() {
-        this.setMode(this.mode, false);
+        this.canvasWidget.setMode(this.mode, false);
         this.update(null, null, 0);
         this.fitView(0);
     }
@@ -246,8 +260,6 @@ export class DependencyGraphController extends BaseController {
 
         setTimeout(() => this.focusOnBean(targetBean, contextId, false), 300);
     }
-
-    // --- Hierarchy & Data Delegation ---
 
     async fetchBeanDetails(contextId, beanName) {
         return this.service.fetchBeanDetails(contextId, beanName);
@@ -285,40 +297,32 @@ export class DependencyGraphController extends BaseController {
     }
 
     _populateContextFilter(beanDefinitions = []) {
-        const $contextFilterSelectElement = $('#context-filter');
-        if ($contextFilterSelectElement.length === 0) return;
-
         const uniqueContextIdentifiers = GraphHierarchyBuilder.extractUniqueContextIdentifiers(beanDefinitions);
-        const $filterContainerElement = $contextFilterSelectElement.closest('#context-filter-container').length
-            ? $contextFilterSelectElement.closest('#context-filter-container')
-            : $contextFilterSelectElement.parent();
+        this.setState({ availableContexts: uniqueContextIdentifiers });
+    }
 
-        if (uniqueContextIdentifiers.length <= 1) {
-            $filterContainerElement.addClass('hidden').removeClass('flex');
-            return;
-        }
-
-        $filterContainerElement.removeClass('hidden').addClass('flex');
-        const renderedOptionsHtml = GraphHierarchyBuilder.buildContextFilterOptionsHtml(
-            uniqueContextIdentifiers,
-            this.selectedContextId
-        );
-        $contextFilterSelectElement.html(renderedOptionsHtml);
+    onContextFilterChange() {
+        const beans = this.service.accumulatedBeans.length > 0 ? this.service.accumulatedBeans : null;
+        this._buildHierarchyFromDependencies(beans);
+        this.update(null, null, 0);
+        this._updateTotalBeanCount();
+        this.fitView(500);
     }
 
     _updateTotalBeanCount() {
         const beanList = this.service.accumulatedBeans;
         const totalElements = this.service.totalElements || beanList.length;
-        $('#beans-count').text(totalElements);
 
         let totalDeps = 0;
         for (let i = 0; i < beanList.length; i++) {
             totalDeps += beanList[i]?.dependencies?.length ?? 0;
         }
-        $('#deps-count').text(totalDeps);
-    }
 
-    // --- Canvas & Rendering Delegation ---
+        this.setState({
+            beansCount: totalElements,
+            depsCount: totalDeps
+        });
+    }
 
     _getExtraCanvasConfig() {
         return {
@@ -356,8 +360,24 @@ export class DependencyGraphController extends BaseController {
         this.pathTracer.resetPathHighlight(this.selectedNodeRef);
     }
 
-    showTip(event, node) {
-        this.canvasWidget.showTip(event, node);
+    toggleHighlightPath() {
+        const nextState = !this.isHighlightPathActive;
+        this.pathTracer.isHighlightPathActive = nextState;
+        this.setState({ isHighlightPathActive: nextState });
+
+        if (nextState && this.selectedNodeRef) {
+            this.highlightPathForNode(this.selectedNodeRef);
+        } else {
+            this.resetPathHighlight();
+        }
+
+        this._renderCanvas();
+    }
+
+    collapseAllNodes() {
+        this._mutateTreeNodes((node) => {
+            if (node.depth > 0) node.children = null;
+        });
     }
 
     zoomBy(factor, duration = 300) {
@@ -381,6 +401,7 @@ export class DependencyGraphController extends BaseController {
     }
 
     setMode(layoutMode, triggerUpdate = true) {
+        this.setState({ mode: layoutMode });
         this.canvasWidget.setMode(
             layoutMode,
             triggerUpdate ? this.root : null,
@@ -402,15 +423,11 @@ export class DependencyGraphController extends BaseController {
         );
     }
 
-    // --- Interactive Navigation & Node Details ---
-
     async focusOnBean(fullName, contextId = '', openSidebar = false) {
         if (!fullName) return;
 
-        // Auto-switch context filter if requested bean belongs to a different context
         if (contextId && this.selectedContextId && this.selectedContextId !== contextId) {
-            this.selectedContextId = contextId;
-            $('#context-filter').val(contextId);
+            this.setState({ selectedContextId: contextId });
             const beans = this.service.accumulatedBeans.length > 0 ? this.service.accumulatedBeans : null;
             this._buildHierarchyFromDependencies(beans);
             this.update(null, null, 0);
@@ -424,7 +441,6 @@ export class DependencyGraphController extends BaseController {
             }
 
             if (targetNode) {
-                // Expand collapsed parents along the upward ancestor path
                 let currentNode = targetNode.parent;
                 let needsUpdate = false;
 
@@ -462,9 +478,9 @@ export class DependencyGraphController extends BaseController {
 
                 this.markNodeAsFocused(targetNode);
 
-                const $graph = $('#beanGraph');
-                const width = $graph.width() || 800;
-                const height = $graph.height() || 600;
+                const beanGraphElem = document.getElementById('beanGraph');
+                const width = beanGraphElem?.clientWidth || 800;
+                const height = beanGraphElem?.clientHeight || 600;
 
                 const zoomScale = 1.15;
                 const translateX = width / 2 - targetX * zoomScale;
@@ -543,8 +559,21 @@ export class DependencyGraphController extends BaseController {
             this._mergeBeanDetailsIntoTree(hierarchyNode, beanDetails);
         }
 
-        this.sidebarWidget.populateDetails(beanDetails);
-        this.sidebarWidget.renderDependencyAccordions(dependencies, dependents, contextId);
+        const formatted = this.sidebarWidget.formatDetails(beanDetails);
+        const formattedDeps = this.sidebarWidget.formatDependencyItems(dependencies, contextId);
+        const formattedDependents = this.sidebarWidget.formatDependencyItems(dependents, contextId);
+
+        this.setState({
+            selectedBean: beanDetails,
+            selectedBeanFormatted: formatted,
+            selectedBeanMeta: formatted?.meta || { icon: 'schema', color: '#8b5cf6' },
+            sidebarDeps: formattedDeps,
+            sidebarDependents: formattedDependents,
+            sidebarTab: 'properties',
+            sidebarOpen: true
+        });
+
+        this.canvasWidget.animateSidebarTransition(this.root, this._getExtraCanvasConfig());
 
         if (this.root) {
             const targetNode = hierarchyNode || this.findNodeInTree(this.root, beanDetails.beanName, contextId);
@@ -558,18 +587,31 @@ export class DependencyGraphController extends BaseController {
     }
 
     openSidebar() {
-        this.sidebarWidget.openSidebar();
+        this.setState({ sidebarOpen: true });
+        this.canvasWidget.animateSidebarTransition(this.root, this._getExtraCanvasConfig());
     }
 
-    closeSidebar(immediate = false) {
-        this.sidebarWidget.closeSidebar();
+    closeSidebar() {
+        this.setState({ sidebarOpen: false });
+        this.canvasWidget.animateSidebarTransition(this.root, this._getExtraCanvasConfig());
+    }
+
+    setSidebarTab(tabName) {
+        this.setState({ sidebarTab: tabName });
     }
 
     switchTab(tabName) {
-        this.sidebarWidget.switchTab(tabName);
+        this.setSidebarTab(tabName);
     }
 
-    // --- Node Click / Toggle / Selection Handlers ---
+    selectDependency(dep) {
+        const fullName = typeof dep === 'string' ? dep : dep?.fullName;
+        const contextId = typeof dep === 'object' && dep.contextId ? dep.contextId : (this.selectedContextId || '');
+        if (!fullName) return;
+
+        this.focusOnBean(fullName, contextId, false);
+        this.showBeanDetails(fullName, contextId);
+    }
 
     async _handleNodeClick(event, node) {
         this.markNodeAsFocused(node);
@@ -605,81 +647,52 @@ export class DependencyGraphController extends BaseController {
         this.canvasWidget.hideTip();
     }
 
-    // --- Toolbar, Accordion & Action Routing ---
+    onSearchInput(event) {
+        const query = (event?.target?.value ?? this.searchQuery ?? '').trim();
+        this.setState({ searchQuery: event?.target?.value ?? '' });
 
-    _bindClickActionRouter() {
-        this.on(document, 'click', (event) => {
-            const $clickedElement = $(event.target);
+        if (!query) {
+            this.setState({ showSuggestions: false, searchSuggestions: [], isSearching: false });
+            this._debouncedSearch?.cancel();
+            return;
+        }
 
-            if (this._handleBeanNavigationClick($clickedElement, event)) return;
-            if (this._handleAccordionToggleClick($clickedElement)) return;
-            this._handleToolbarActionClick($clickedElement);
+        this.setState({ showSuggestions: true, isSearching: true });
+        this._debouncedSearch(query);
+    }
+
+    clearSearch() {
+        this._debouncedSearch?.cancel();
+        this.setState({
+            searchQuery: '',
+            showSuggestions: false,
+            searchSuggestions: [],
+            isSearching: false
         });
     }
 
-    _handleBeanNavigationClick($clickedElement, event) {
-        const $navigationLink = $clickedElement.closest('.suggestion-item, .dep-item-left, .dep-link');
-        if ($navigationLink.length === 0) return false;
-
-        event.stopPropagation();
-
-        const isSuggestion = $navigationLink.hasClass('suggestion-item');
-        if (isSuggestion) {
-            $('#search-input').val('');
-            $('#search-suggestions').hide();
-        }
-
-        const targetBeanFullName = $navigationLink.data('fullname') || $navigationLink.attr('data-fullname');
-        const targetContextId = $navigationLink.data('context-id') || $navigationLink.attr('data-context-id') || this.selectedContextId || '';
-
-        if (targetBeanFullName) {
-            if (isSuggestion) {
-                this.focusOnBean(targetBeanFullName, targetContextId, false);
-            } else {
-                this.showBeanDetails(targetBeanFullName, targetContextId);
+    onSearchEnter() {
+        this._debouncedSearch?.flush();
+        if (this.searchSuggestions && this.searchSuggestions.length > 0) {
+            this.selectSuggestion(this.searchSuggestions[0]);
+        } else {
+            const query = (this.searchQuery || '').trim();
+            if (query) {
+                this.focusOnBean(query, this.selectedContextId, false);
+                this.closeSuggestions();
             }
         }
-
-        return true;
     }
 
-    _handleAccordionToggleClick($clickedElement) {
-        const $accordionHeader = $clickedElement.closest('.accordion-header');
-        if (!$accordionHeader.length) return false;
-
-        $accordionHeader.toggleClass('open');
-        $accordionHeader.find('.material-symbols-outlined').toggleClass('rotate-90');
-        $accordionHeader.next('.accordion-body').slideToggle(200);
-
-        return true;
-    }
-
-    _handleToolbarActionClick($clickedElement) {
-        const $actionButton = $clickedElement.closest('button, [id^="btn-"]');
-        if ($actionButton.length === 0) return;
-
-        const actionButtonId = $actionButton.attr('id');
-        const buttonActionMap = this._getToolbarActionMap($actionButton);
-
-        const targetActionHandler = buttonActionMap[actionButtonId];
-        if (targetActionHandler) {
-            targetActionHandler();
+    selectSuggestion(item) {
+        this.clearSearch();
+        if (item) {
+            this.focusOnBean(item.fullName, item.contextId, false);
         }
     }
 
-    _getToolbarActionMap($actionButton) {
-        return {
-            'btn-expand': () => this._expandVisibleNodes(2),
-            'btn-collapse': () => this._mutateTreeNodes(node => { if (node.depth > 0) node.children = null; }),
-            'btn-control-zoom-in': () => this.zoomBy(1.25),
-            'btn-control-zoom-out': () => this.zoomBy(0.8),
-            'btn-control-fit': () => this.fitView(),
-            'btn-pan-mode': () => this.fitView(),
-            'btn-highlight-path': () => this.pathTracer.toggleHighlightState($actionButton, this.selectedNodeRef),
-            'btn-close-sidebar': () => this.closeSidebar(),
-            'btn-tb': () => this.setMode('tb'),
-            'btn-lr': () => this.setMode('lr')
-        };
+    closeSuggestions() {
+        this.setState({ showSuggestions: false });
     }
 
     _bindCustomEventHandlers() {
@@ -702,21 +715,15 @@ export class DependencyGraphController extends BaseController {
             debouncedResize.cancel?.();
         });
 
-        this.on(document, 'change', '#context-filter', (event) => {
-            this.selectedContextId = $(event.target).val();
-            const beans = this.service.accumulatedBeans.length > 0 ? this.service.accumulatedBeans : null;
-            this._buildHierarchyFromDependencies(beans);
-            this.update(null, null, 0);
-            this._updateTotalBeanCount();
-            this.fitView(500);
-        });
-
-        this.on(document, 'click', '.tab-btn', (event) => {
-            const tabName = $(event.currentTarget).attr('data-tab');
-            if (tabName) {
-                this.switchTab(tabName);
+        const keyHandler = (event) => {
+            if (event.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
+                event.preventDefault();
+                const searchInput = document.getElementById('search-input');
+                searchInput?.focus();
             }
-        });
+        };
+        document.addEventListener('keydown', keyHandler);
+        this.addDisposable(() => document.removeEventListener('keydown', keyHandler));
     }
 
     _expandVisibleNodes(maxDepth = 2) {
@@ -740,38 +747,47 @@ export class DependencyGraphController extends BaseController {
         this.fitView();
     }
 
-    // --- Loading Progress Indicator ---
-
     _updateProgressBadge({ loaded = 0, total = 0, isComplete = false, hasError = false, errorMsg = '' } = {}) {
-        const $badgeElement = $('#chunk-progress-badge');
-        const $dotElement = $('#chunk-progress-dot');
-        const $textElement = $('#chunk-progress-text');
-
-        if ($badgeElement.length === 0) return;
-
         const progressState = hasError ? 'error' : (isComplete ? 'complete' : 'loading');
-        const style = PROGRESS_BADGE_STYLES[progressState] || PROGRESS_BADGE_STYLES.loading;
 
-        const textHtmlMap = {
-            error: `Failed <span class="text-[11px] opacity-85">(${errorMsg || 'Retry'})</span>`,
-            complete: `Loaded (${loaded})`,
-            loading: `Loading: ${loaded} / ${total}`
-        };
+        let text = '';
+        if (hasError) {
+            text = `Failed <span class="text-[11px] opacity-85">(${errorMsg || 'Retry'})</span>`;
+        } else if (isComplete) {
+            text = `Loaded (${loaded})`;
+        } else {
+            text = `Loading: ${loaded} / ${total}`;
+        }
 
-        $badgeElement.removeClass(ALL_PROGRESS_BADGE_CLASSES).addClass(style.badge);
-        $dotElement.removeClass(ALL_PROGRESS_DOT_CLASSES).addClass(style.dot);
-        $textElement.html(textHtmlMap[progressState]);
+        this.setState({
+            chunkProgress: {
+                visible: !isComplete || loaded > 0,
+                state: progressState,
+                text,
+                loaded,
+                total
+            }
+        });
+
+        if (isComplete) {
+            setTimeout(() => {
+                if (this.chunkProgress.state === 'complete') {
+                    this.setState({
+                        chunkProgress: {
+                            ...this.chunkProgress,
+                            visible: false
+                        }
+                    });
+                }
+            }, 3000);
+        }
     }
-
-    // --- Teardown & Route Leave ---
 
     leave() {
         this.closeSidebar();
         this.clearFocusedNode();
         this.selectedNodeRef = null;
-
-        $('#search-input').val('');
-        $('#search-suggestions').hide().empty();
+        this.clearSearch();
 
         super.leave();
     }

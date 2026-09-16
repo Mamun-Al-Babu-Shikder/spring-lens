@@ -315,7 +315,7 @@ export class DashboardController extends BaseController {
     // --- Quick Search Business Logic ---
     async search() {
         const query = (this.alpine?.searchQuery ?? this.state?.searchQuery ?? '').trim();
-        if (!query.length < 2) {
+        if (query.length < 2) {
             this.resetSearch();
             return;
         }

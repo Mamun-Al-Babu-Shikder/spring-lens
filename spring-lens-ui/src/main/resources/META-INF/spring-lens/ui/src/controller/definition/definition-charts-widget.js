@@ -3,13 +3,13 @@ import {
     ROLE_COLORS,
     SCOPE_COLORS,
     LOADING_MODE_COLORS,
-    CONTEXT_THEME_COLORS,
-    TemplateEngine
+    CONTEXT_THEME_COLORS
 } from '../../helper/index.js';
 
 /**
- * Widget responsible for bean definition summary statistics, context distribution,
- * Scope, Role, and Loading Mode Doughnut charts, and filter dropdown population.
+ * Widget responsible for bean definition summary statistics calculation,
+ * context distribution, Scope, Role, and Loading Mode Doughnut charts,
+ * and custom legend calculations.
  */
 export default class DefinitionChartsWidget {
 
@@ -19,142 +19,163 @@ export default class DefinitionChartsWidget {
             roleChart: null,
             loadingModeChart: null
         };
+        this.summaryData = null;
     }
 
     /**
-     * Renders summary statistics, context bars, and doughnut distribution charts.
-     * @param {Object} beanSummaryData
+     * Computes reactive view model metrics for summary cards and legends.
+     * @param {Object} beanSummary
+     * @returns {Object}
      */
-    render(beanSummaryData) {
-        if (!beanSummaryData) return;
+    computeMetrics(beanSummary) {
+        if (!beanSummary) {
+            return {
+                totalDefinitions: '--',
+                contextDistributionList: [],
+                scopeLegend: [],
+                roleLegend: [],
+                loadingModeLegend: [],
+                contextOptions: [],
+                scopeOptions: []
+            };
+        }
 
-        const { contextDistribution, totalBeanDefinitions } = beanSummaryData;
-        this.updateTotalCount(totalBeanDefinitions);
-        this.updateContextDistribution(contextDistribution, totalBeanDefinitions);
-        this.renderDistributionCharts(beanSummaryData);
-    }
+        this.summaryData = beanSummary;
+        const total = beanSummary.totalBeanDefinitions || 0;
 
-    /**
-     * Updates total bean count card.
-     * @param {number} totalBeanDefinitions
-     */
-    updateTotalCount(totalBeanDefinitions) {
-        $('#def-total-count').text(totalBeanDefinitions ?? 0);
-    }
-
-    /**
-     * Updates context distribution list and progress bars.
-     * @param {Object} contextDistribution
-     * @param {number} totalBeanDefinitions
-     */
-    updateContextDistribution(contextDistribution, totalBeanDefinitions) {
-        if (!contextDistribution) return;
-
-        const $container = $('#def-context-list');
-        $container.empty();
-        const fragment = document.createDocumentFragment();
-
-        Object.entries(contextDistribution).forEach(([contextId, count], index) => {
-            const percentage = totalBeanDefinitions > 0 ? Math.round((count / totalBeanDefinitions) * 100) : 0;
+        // Context distribution list
+        const contextEntries = Object.entries(beanSummary.contextDistribution || {});
+        const contextDistributionList = contextEntries.map(([contextId, count], index) => {
+            const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
             const colorClass = CONTEXT_THEME_COLORS[index % CONTEXT_THEME_COLORS.length];
-            const clone = TemplateEngine.clone('tpl-context-list-item');
-            if (clone) {
-                const $el = $(clone.firstElementChild);
-                $el.find('[data-field="contextId"]').text(contextId).attr('title', contextId);
-                $el.find('[data-field="bar"]').addClass(colorClass).css('width', `${percentage}%`);
-                $el.find('[data-field="pct"]').text(`${percentage}% (${count})`);
-                fragment.appendChild(clone);
-            }
+            return {
+                contextId,
+                count,
+                percentage,
+                colorClass,
+                label: `${percentage}% (${count})`
+            };
         });
 
-        $container.append(fragment);
+        // Scope Legend
+        const scopeLegend = this._computeLegendItems(
+            beanSummary.scopeDistribution || {},
+            total,
+            key => Formatter.capitalize(key),
+            SCOPE_COLORS,
+            '#a855f7'
+        );
+
+        // Role Legend
+        const roleLegend = this._computeLegendItems(
+            beanSummary.roleDistribution || {},
+            total,
+            key => Formatter.capitalize(String(key).replace(/^ROLE_/, '')),
+            ROLE_COLORS,
+            '#cbd5e1'
+        );
+
+        // Loading Mode Legend
+        const loadingModeLegend = this._computeLegendItems(
+            beanSummary.loadingModeDistribution || {},
+            total,
+            key => Formatter.capitalize(key),
+            LOADING_MODE_COLORS,
+            '#a855f7'
+        );
+
+        return {
+            totalDefinitions: total.toLocaleString(),
+            contextDistributionList,
+            scopeLegend,
+            roleLegend,
+            loadingModeLegend,
+            contextOptions: Object.keys(beanSummary.contextDistribution || {}),
+            scopeOptions: Object.keys(beanSummary.scopeDistribution || {})
+        };
     }
 
     /**
-     * Renders Scope, Role, and Loading Mode Doughnut charts.
+     * Renders Scope, Role, and Loading Mode Doughnut charts on their respective canvases.
      * @param {Object} beanSummary
      */
-    renderDistributionCharts(beanSummary) {
+    renderCharts(beanSummary = this.summaryData) {
+        if (!beanSummary) return;
+        this.summaryData = beanSummary;
         this.destroyCharts();
-        const { scopeDistribution, roleDistribution, loadingModeDistribution } = beanSummary || {};
+
+        if (typeof Chart === 'undefined') return;
+
+        const total = beanSummary.totalBeanDefinitions || 0;
+        const isDark = document.documentElement.classList.contains('dark');
+
+        const { scopeDistribution, roleDistribution, loadingModeDistribution } = beanSummary;
 
         if (scopeDistribution) {
-            this._createChartFromDistribution(
+            this._instantiateDoughnutChart(
                 'scopeChart',
                 'scopeChart',
-                '#def-scope-legend',
                 scopeDistribution,
+                total,
                 key => Formatter.capitalize(key),
                 SCOPE_COLORS,
-                '#a855f7'
+                '#a855f7',
+                isDark
             );
         }
 
         if (roleDistribution) {
-            this._createChartFromDistribution(
+            this._instantiateDoughnutChart(
                 'roleChart',
                 'roleChart',
-                '#def-role-legend',
                 roleDistribution,
-                key => Formatter.capitalize(key.replace(/^ROLE_/, '')),
+                total,
+                key => Formatter.capitalize(String(key).replace(/^ROLE_/, '')),
                 ROLE_COLORS,
-                '#cbd5e1'
+                '#cbd5e1',
+                isDark
             );
         }
 
         if (loadingModeDistribution) {
-            this._createChartFromDistribution(
+            this._instantiateDoughnutChart(
                 'loadingModeChart',
                 'loadingModeChart',
-                '#def-loading-mode-legend',
                 loadingModeDistribution,
+                total,
                 key => Formatter.capitalize(key),
                 LOADING_MODE_COLORS,
-                '#a855f7'
+                '#a855f7',
+                isDark
             );
         }
     }
 
     /**
-     * Populates context dropdown selector.
-     * @param {Object} beanSummary
-     * @param {string} [currentValue='']
+     * Backward-compatible render method that calculates metrics and renders charts.
+     * @param {Object} beanSummaryData
+     * @returns {Object}
      */
-    populateContextDropdown(beanSummary, currentValue = '') {
-        const $contextDropdown = $('#bean-definition-filter-context');
-        if (!$contextDropdown.length || !beanSummary?.contextDistribution) return;
-
-        const contextIds = Object.keys(beanSummary.contextDistribution);
-        this._populateSelectDropdown(
-            $contextDropdown,
-            contextIds,
-            'Context: All',
-            contextId => contextId
-        );
-        $contextDropdown.val(currentValue);
+    render(beanSummaryData) {
+        if (!beanSummaryData) return null;
+        this.summaryData = beanSummaryData;
+        const metrics = this.computeMetrics(beanSummaryData);
+        this.renderCharts(beanSummaryData);
+        return metrics;
     }
 
     /**
-     * Populates scope dropdown selector.
-     * @param {Object} beanSummary
-     * @param {string} [currentValue='']
+     * Re-renders charts on theme changes (light/dark mode).
+     * @param {boolean} [isDark]
      */
-    populateScopeDropdown(beanSummary, currentValue = '') {
-        const $scopeDropdown = $('#bean-definition-filter-scope');
-        if (!$scopeDropdown.length || !beanSummary?.scopeDistribution) return;
-
-        const scopes = Object.keys(beanSummary.scopeDistribution);
-        this._populateSelectDropdown(
-            $scopeDropdown,
-            scopes,
-            'Scope: All',
-            scope => Formatter.capitalize(scope)
-        );
-        $scopeDropdown.val(currentValue);
+    onThemeChanged(isDark) {
+        if (this.summaryData) {
+            this.renderCharts(this.summaryData);
+        }
     }
 
     /**
-     * Destroys existing Chart.js instances to avoid canvas drawing conflicts and leaks.
+     * Destroys existing Chart.js instances to avoid canvas conflicts and memory leaks.
      */
     destroyCharts() {
         for (const [key, chartInstance] of Object.entries(this.activeCharts)) {
@@ -166,91 +187,60 @@ export default class DefinitionChartsWidget {
     }
 
     /**
-     * Alias for destroyCharts for BaseController disposable interface.
+     * Disposable cleanup hook for BaseController.
      */
     destroy() {
         this.destroyCharts();
-    }
-
-    /**
-     * Renders fallback error state when summary statistics cannot be loaded.
-     */
-    renderSummaryError() {
-        $('#def-total-count').text('-');
-        $('#def-context-list').html('<div class="text-sm text-gray-500 italic p-3">Failed to load context distribution</div>');
+        this.summaryData = null;
     }
 
     /**
      * @private
      */
-    _populateSelectDropdown($selectElement, optionsSet, defaultLabel, labelFormatter) {
-        $selectElement.html(`<option value="">${defaultLabel}</option>`);
-        Array.from(optionsSet).sort().forEach(value => {
-            $selectElement.append(`<option value="${value}">${labelFormatter(value)}</option>`);
-        });
-    }
-
-    /**
-     * @private
-     */
-    _createChartFromDistribution(chartKey, canvasId, legendContainerId, distributionObj, keyFormatter, colorMap, fallbackColor) {
+    _computeLegendItems(distributionObj, total, keyFormatter, colorMap, fallbackColor) {
         const itemFrequencies = {};
-        let totalCount = 0;
 
         for (const [rawKey, count] of Object.entries(distributionObj)) {
             const formattedKey = keyFormatter(rawKey) || 'unknown';
             itemFrequencies[formattedKey] = (itemFrequencies[formattedKey] || 0) + count;
-            totalCount += count;
         }
 
-        const chartTitles = Object.keys(itemFrequencies);
-        const chartData = Object.values(itemFrequencies);
-        const segmentColors = chartTitles.map(label => colorMap[label] || fallbackColor);
-
-        const $legend = $(legendContainerId);
-        $legend.empty();
-        const legendFragment = document.createDocumentFragment();
-
-        chartTitles.forEach((label, index) => {
-            const count = chartData[index];
-            const pctStr = Formatter.formatPercentage(count, totalCount);
-            const color = segmentColors[index];
-            const clone = TemplateEngine.clone('tpl-chart-legend-item');
-            if (clone) {
-                const $el = $(clone.firstElementChild);
-                $el.find('[data-field="dot"]').css('background-color', color);
-                $el.find('[data-field="label"]').text(`${label} (${count}) · ${pctStr}`).attr('title', label);
-                legendFragment.appendChild(clone);
-            }
+        return Object.entries(itemFrequencies).map(([label, count]) => {
+            const percentage = Formatter.formatPercentage(count, total);
+            const color = colorMap[label] || fallbackColor;
+            return {
+                label,
+                value: count,
+                percentage,
+                color
+            };
         });
-
-        $legend.append(legendFragment);
-
-        this.activeCharts[chartKey] = this._instantiateDoughnutChart(
-            canvasId,
-            chartTitles,
-            chartData,
-            segmentColors
-        );
     }
 
     /**
      * @private
      */
-    _instantiateDoughnutChart(canvasId, labels, data, backgroundColor) {
+    _instantiateDoughnutChart(chartKey, canvasId, distributionObj, total, keyFormatter, colorMap, fallbackColor, isDark) {
         const canvasElement = document.getElementById(canvasId);
-        if (!canvasElement) return null;
+        if (!canvasElement) return;
 
-        const isDark = document.documentElement.classList.contains('dark');
-        const total = data.reduce((sum, val) => sum + val, 0);
+        const itemFrequencies = {};
+        for (const [rawKey, count] of Object.entries(distributionObj)) {
+            const formattedKey = keyFormatter(rawKey) || 'unknown';
+            itemFrequencies[formattedKey] = (itemFrequencies[formattedKey] || 0) + count;
+        }
 
-        return new Chart(canvasElement, {
+        const labels = Object.keys(itemFrequencies);
+        const data = Object.values(itemFrequencies);
+        const backgroundColor = labels.map(label => colorMap[label] || fallbackColor);
+
+        this.activeCharts[chartKey] = new Chart(canvasElement, {
             type: 'doughnut',
             data: {
                 labels,
                 datasets: [{
-                    data,
-                    backgroundColor,
+                    data: data.length > 0 ? data : [1],
+                    backgroundColor: data.length > 0 ? backgroundColor : ['#94a3b8'],
                     borderWidth: 0,
                     borderRadius: 4,
                     spacing: 2,
@@ -264,7 +254,7 @@ export default class DefinitionChartsWidget {
                 animation: {
                     animateScale: true,
                     animateRotate: true,
-                    duration: 700,
+                    duration: 600,
                     easing: 'easeOutQuart'
                 },
                 plugins: {
@@ -295,3 +285,4 @@ export default class DefinitionChartsWidget {
         });
     }
 }
+

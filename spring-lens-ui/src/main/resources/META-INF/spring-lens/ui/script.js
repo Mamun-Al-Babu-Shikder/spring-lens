@@ -17,14 +17,17 @@ $(document).ready(() => {
     // 2. Bean Ecosystem Routes
     Route.get('/definitions', [DefinitionController, 'index'])
         .view('bean/definitions')
+        .header(null)
         .name('definitions');
 
     Route.get('/conditions', [ConditionalReportController, 'index'])
         .view('bean/condition-reports')
+        .header(null)
         .name('conditions');
 
     Route.get('/instances', [InstanceController, 'index'])
         .view('bean/instances')
+        .header(null)
         .name('instances');
 
     Route.get('/graph', [DependencyGraphController, 'index'])
