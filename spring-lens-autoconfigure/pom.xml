@@ -7,7 +7,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.sdlc.pro</groupId>
+        <groupId>io.github.sdlc-pro</groupId>
         <artifactId>spring-lens</artifactId>
         <version>1.0.0</version>
         <relativePath>../pom.xml</relativePath>
@@ -27,21 +27,21 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.sdlc.pro</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>spring-lens-core</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.sdlc.pro</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>spring-lens-insight</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.sdlc.pro</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>spring-lens-storage</artifactId>
             <scope>provided</scope>
             <optional>true</optional>
         </dependency>
         <dependency>
-            <groupId>com.sdlc.pro</groupId>
+            <groupId>${project.groupId}</groupId>
             <artifactId>spring-lens-exposure</artifactId>
             <scope>provided</scope>
             <optional>true</optional>
