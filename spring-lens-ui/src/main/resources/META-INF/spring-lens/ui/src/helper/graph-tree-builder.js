@@ -44,7 +44,7 @@ export default class GraphTreeBuilder {
             return list.reduce((acc, bean = {}) => {
                 const {
                     contextId = "default",
-                    beanName : name = '',
+                    beanName: name = '',
                     dependencies = []
                 } = bean;
 

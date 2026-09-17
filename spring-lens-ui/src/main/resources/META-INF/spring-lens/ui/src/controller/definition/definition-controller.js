@@ -94,11 +94,93 @@ export class DefinitionController extends BaseController {
         }
     }
 
+    bindAlpine(alpine) {
+        super.bindAlpine(alpine);
+        if (this.alpine?.filterCriteria && this.state?.filterCriteria) {
+            Object.assign(this.alpine.filterCriteria, this.state.filterCriteria);
+        }
+    }
+
     setState(patch) {
         if (!patch) return;
+        if (patch.filterCriteria && typeof patch.filterCriteria === 'object') {
+            this.state.filterCriteria = {
+                ...this.state.filterCriteria,
+                ...patch.filterCriteria
+            };
+            if (this.alpine?.filterCriteria) {
+                Object.assign(this.alpine.filterCriteria, patch.filterCriteria);
+            }
+        }
         Object.assign(this.state, patch);
         if (this.alpine) {
             Object.assign(this.alpine, patch);
+        }
+    }
+
+    _defaultFilterCriteria() {
+        return {
+            contextId: '',
+            scope: '',
+            role: '',
+            primary: '',
+            lazyInit: ''
+        };
+    }
+
+    _resetFilterState() {
+        const defaultFilters = this._defaultFilterCriteria();
+
+        this.setState({
+            searchQuery: '',
+            filterCriteria: defaultFilters,
+            itemsPerPage: 20,
+            currentPage: 1,
+            sortColumn: '',
+            sortDirection: 'asc',
+            selectedBeanId: null,
+            selectedBeanName: null,
+            selectedContextId: null,
+            selectedBean: null
+        });
+
+        if (this.alpine?.filterCriteria) {
+            Object.assign(this.alpine.filterCriteria, defaultFilters);
+        }
+
+        const searchInput = document.getElementById('bean-definition-search-input');
+        if (searchInput) {
+            searchInput.value = '';
+        }
+
+        const contextFilter = document.getElementById('bean-definition-filter-context');
+        if (contextFilter) {
+            contextFilter.value = '';
+        }
+
+        const scopeFilter = document.getElementById('bean-definition-filter-scope');
+        if (scopeFilter) {
+            scopeFilter.value = '';
+        }
+
+        const roleFilter = document.getElementById('bean-definition-filter-role');
+        if (roleFilter) {
+            roleFilter.value = '';
+        }
+
+        const primaryFilter = document.getElementById('bean-definition-filter-primary');
+        if (primaryFilter) {
+            primaryFilter.value = '';
+        }
+
+        const lazyFilter = document.getElementById('bean-definition-filter-lazy');
+        if (lazyFilter) {
+            lazyFilter.value = '';
+        }
+
+        const sizeFilter = document.getElementById('bean-definition-filter-size');
+        if (sizeFilter) {
+            sizeFilter.value = '20';
         }
     }
 
@@ -142,9 +224,19 @@ export class DefinitionController extends BaseController {
         const targetContextId = QueryParam.get(queryParams, 'contextId', 'context') || '';
 
         const patch = {};
-        if (targetBean) patch.searchQuery = targetBean;
+        if (targetBean) {
+            patch.searchQuery = targetBean;
+            const searchInput = document.getElementById('bean-definition-search-input');
+            if (searchInput) {
+                searchInput.value = targetBean;
+            }
+        }
         if (targetContextId) {
             patch.filterCriteria = { ...this.state.filterCriteria, contextId: targetContextId };
+            const contextFilter = document.getElementById('bean-definition-filter-context');
+            if (contextFilter) {
+                contextFilter.value = targetContextId;
+            }
         }
         if (Object.keys(patch).length > 0) {
             this.setState(patch);
@@ -171,6 +263,8 @@ export class DefinitionController extends BaseController {
         await super.enter(params);
 
         try {
+            this.closeSidebar();
+            this._resetFilterState();
             this._bindEventListeners();
             const { targetBean, targetContextId } = this._parseQueryParams(params);
 
@@ -201,11 +295,13 @@ export class DefinitionController extends BaseController {
     }
 
     leave() {
+        this._tableFetchSeq++;
         this.chartsWidget?.destroyCharts();
         this.closeGraphModal();
         this.closeSidebar();
         this.summaryData = null;
         this.rawBeans = [];
+        this._resetFilterState();
 
         super.leave();
     }
@@ -430,6 +526,10 @@ export class DefinitionController extends BaseController {
             searchQuery: '',
             currentPage: 1
         });
+        const searchInput = document.getElementById('bean-definition-search-input');
+        if (searchInput) {
+            searchInput.value = '';
+        }
         this.fetchTableData();
     }
 
@@ -448,20 +548,7 @@ export class DefinitionController extends BaseController {
     }
 
     resetFilters() {
-        this.setState({
-            searchQuery: '',
-            filterCriteria: {
-                contextId: '',
-                scope: '',
-                role: '',
-                primary: '',
-                lazyInit: ''
-            },
-            itemsPerPage: 20,
-            currentPage: 1,
-            sortColumn: '',
-            sortDirection: 'asc'
-        });
+        this._resetFilterState();
         this.fetchTableData();
     }
 

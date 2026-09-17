@@ -164,12 +164,14 @@ export class DashboardController extends BaseController {
                     || (this.searchItems && this.searchItems.length > 0)
                 );
             },
-            search: () => this.search(),
-            resetSearch: () => this.resetSearch(),
             goTo: (route, name, contextId) => this.goTo(route, name, contextId),
-            setChartMode: (mode) => this.setChartMode(mode),
+            search: () => this.search(),
+            radialReset: () => this.radialReset(),
+            refreshData: () => this.reloadDashboardData(),
+            resetSearch: () => this.resetSearch(),
             radialZoom: (factor) => this.radialZoom(factor),
-            radialReset: () => this.radialReset()
+            setChartMode: (mode) => this.setChartMode(mode),
+            reloadDashboardData: () => this.reloadDashboardData(),
         };
     }
 
@@ -178,6 +180,7 @@ export class DashboardController extends BaseController {
      */
     async enter() {
         try {
+            this.resetSearch();
             this.addDisposable(chartWidget);
             this.addDisposable(radialTreeWidget);
             this.addDisposable(() => this._stopUptimeTracker());
@@ -190,10 +193,8 @@ export class DashboardController extends BaseController {
         }
     }
 
-    /**
-     * Leaves dashboard route and cleans up all active timers, event listeners, and charts.
-     */
     leave() {
+        this.resetSearch();
         this._stopUptimeTracker();
         this.currentUptimeState = null;
         this.appStartDate = null;
@@ -209,12 +210,12 @@ export class DashboardController extends BaseController {
             ?.then(isHealthIsUp => this.updateUptimeStatus(isHealthIsUp));
 
         await this.service.fetchAll({
-            onApplicationInfo: (data) => this.updateApplicationInfo(data),
-            onApplicationFallback: () => this.updateApplicationFallback(),
-            onDefinitionsSummary: (data) => this.updateDefinitionsData(data),
             onInstances: (data) => this.updateInstancesData(data),
             onConditions: (data) => this.updateConditionsData(data),
-            onDependencies: (data) => this.updateDependenciesData(data)
+            onDependencies: (data) => this.updateDependenciesData(data),
+            onApplicationInfo: (data) => this.updateApplicationInfo(data),
+            onDefinitionsSummary: (data) => this.updateDefinitionsData(data),
+            onApplicationFallback: () => this.updateApplicationFallback(),
         });
     }
 
@@ -380,6 +381,7 @@ export class DashboardController extends BaseController {
         const params = { [paramKey]: name };
         if (contextId) params.contextId = contextId;
         const q = QueryParam.build(params).toString();
+        this.resetSearch();
         window.location.hash = `#/${route}?${q}`;
     }
 
@@ -486,12 +488,12 @@ export class DashboardController extends BaseController {
         };
         document.addEventListener('themechanged', themeHandler);
         this.addDisposable(() => document.removeEventListener('themechanged', themeHandler));
+
+        this.on('#btn-refresh-dashboard', 'click', () => this.reloadDashboardData());
     }
 
-    /**
-     * Reloads all dashboard data with UI spinner feedback on the refresh button.
-     */
     async reloadDashboardData() {
+        if (this.state.refreshing) return;
         this.setState({ refreshing: true });
         try {
             await this.loadAllDashboardData();

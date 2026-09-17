@@ -471,7 +471,7 @@ export default class Router {
 
             if (isSubLink) {
                 $link.toggleClass(sublink.active, isActive)
-                     .toggleClass(sublink.inactive, !isActive);
+                    .toggleClass(sublink.inactive, !isActive);
 
                 if (isActive) {
                     const $submenu = $link.parent('.submenu');
@@ -489,7 +489,7 @@ export default class Router {
 
             if (!isParent && pageAttr) {
                 $link.toggleClass(parent.active, isActive)
-                     .toggleClass(parent.inactive, !isActive);
+                    .toggleClass(parent.inactive, !isActive);
             }
 
             if (hasActiveChild && isParent) {
@@ -533,30 +533,30 @@ export default class Router {
      */
     _bindNavEvents() {
         $(document).off('click.springLensNav', '.parent-link, .nav-link')
-                   .on('click.springLensNav', '.parent-link, .nav-link', (event) => {
-            event.preventDefault();
-            const $target = $(event.currentTarget);
-            const page = $target.data('page');
-            const isParent = $target.hasClass('parent-link');
+            .on('click.springLensNav', '.parent-link, .nav-link', (event) => {
+                event.preventDefault();
+                const $target = $(event.currentTarget);
+                const page = $target.data('page');
+                const isParent = $target.hasClass('parent-link');
 
-            if (!isParent) {
-                if (page) this.navigate(page);
-                return;
-            }
+                if (!isParent) {
+                    if (page) this.navigate(page);
+                    return;
+                }
 
-            const $submenu = $target.next('.submenu');
-            if (!$submenu.length) {
-                if (page) this.navigate(page);
-                return;
-            }
+                const $submenu = $target.next('.submenu');
+                if (!$submenu.length) {
+                    if (page) this.navigate(page);
+                    return;
+                }
 
-            const isVisible = $submenu.is(':visible');
-            this._toggleSubmenu($submenu, $target, !isVisible);
+                const isVisible = $submenu.is(':visible');
+                this._toggleSubmenu($submenu, $target, !isVisible);
 
-            if (page) {
-                this.navigate(page);
-            }
-        });
+                if (page) {
+                    this.navigate(page);
+                }
+            });
     }
 
 
