@@ -1,8 +1,7 @@
 import CanvasTreeRenderer from './canvas-tree-renderer.js';
 import {
     BeanMetadataRules,
-    NW, NH, GAP_X, GAP_Y, ZOOM_SCALE_EXTENT,
-    TemplateEngine
+    NW, NH, GAP_X, GAP_Y, ZOOM_SCALE_EXTENT
 } from '../../helper/index.js';
 
 /**
@@ -34,6 +33,12 @@ export class GraphCanvasWidget {
         this.focusedNodeContextId = null;
         this.focusedNodeId = null;
 
+        this.tooltipElement = null;
+        this.tipName = null;
+        this.tipType = null;
+        this.tipScope = null;
+        this.tipMeta = null;
+
         this.resizeObserver = null;
         this._sidebarAnimFrameId = null;
     }
@@ -49,8 +54,6 @@ export class GraphCanvasWidget {
         if (!canvasElem) return false;
         this.canvas = canvasElem;
         this.getRootNode = getRootNodeFn;
-
-        this.injectTooltip();
 
         this.canvasRenderer = new CanvasTreeRenderer(canvasElem, {
             onNodeClick: (event, node) => this.options.onNodeClick?.(event, node),
@@ -364,29 +367,22 @@ export class GraphCanvasWidget {
         this.options.onZoomChange?.(percentStr);
     }
 
-    /**
-     * Injects the tooltip template into document body if not already present.
-     */
-    injectTooltip() {
-        if ($('#tip').length === 0) {
-            const clone = TemplateEngine.clone('tpl-tooltip');
-            if (clone) $('body').append(clone);
+    showTip(event, node) {
+        if (!this.tooltipElement) {
+            this.tooltipElement = document.getElementById('graph-tooltip');
+            this.tipName = document.getElementById('tip-name');
+            this.tipType = document.getElementById('tip-type');
+            this.tipScope = document.getElementById('tip-scope');
+            this.tipMeta = document.getElementById('tip-meta');
         }
-    }
+        if (!this.tooltipElement) return;
 
-    /**
-     * Displays the hover tooltip for a given node.
-     *
-     * @param {MouseEvent} param0 - Mouse event with pageX, pageY
-     * @param {d3.HierarchyNode} node - Target node
-     */
-    showTip({ pageX, pageY }, node) {
         const { data, depth, _children = [] } = node;
         const { name, meta = {} } = data;
         const { type, scope, role, deps, dependents } = meta;
 
         const childrenCount = _children?.length;
-        const shortType = type ? type.slice(type.lastIndexOf('.') + 1) : '';
+        const shortType = type ? (type.includes('.') ? type.slice(type.lastIndexOf('.') + 1) : type) : '';
 
         const typeLabel = shortType ? `Type: ${shortType}` : '';
         const scopeLabel = scope ? `Scope: ${scope}${role ? ` · ${role}` : ''}` : '';
@@ -398,21 +394,54 @@ export class GraphCanvasWidget {
             metaText = `${childrenCount} child bean(s) · depth ${depth}`;
         }
 
-        $('#tip-name').text(name);
-        $('#tip-type').text(typeLabel);
-        $('#tip-scope').text(scopeLabel);
-        $('#tip-meta').text(metaText);
+        if (this.tipName) this.tipName.textContent = name || '-';
+        if (this.tipType) {
+            this.tipType.textContent = typeLabel;
+            this.tipType.style.display = typeLabel ? 'block' : 'none';
+        }
+        if (this.tipScope) {
+            this.tipScope.textContent = scopeLabel;
+            this.tipScope.style.display = scopeLabel ? 'block' : 'none';
+        }
+        if (this.tipMeta) {
+            this.tipMeta.textContent = metaText;
+            this.tipMeta.style.display = metaText ? 'block' : 'none';
+        }
 
-        $('#tip')
-            .addClass('show')
-            .css({ left: pageX + 12, top: pageY + 20 });
+        const container = document.getElementById('beanGraph');
+        const containerWidth = container?.clientWidth || 800;
+        const containerHeight = container?.clientHeight || 600;
+        const rect = container?.getBoundingClientRect() || this.canvas.getBoundingClientRect();
+
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+
+        const tipWidth = this.tooltipElement.offsetWidth || 260;
+        const tipHeight = this.tooltipElement.offsetHeight || 110;
+
+        let tipX = mouseX + 28;
+        let tipY = mouseY + 22;
+
+        if (tipX + tipWidth > containerWidth - 12) {
+            tipX = Math.max(12, mouseX - tipWidth - 16);
+        }
+
+        if (tipY + tipHeight > containerHeight - 12) {
+            tipY = Math.max(12, mouseY - tipHeight - 16);
+        }
+
+        this.tooltipElement.style.left = `${Math.round(tipX)}px`;
+        this.tooltipElement.style.top = `${Math.round(tipY)}px`;
+        this.tooltipElement.classList.remove('hidden');
     }
 
-    /**
-     * Hides the hover tooltip.
-     */
     hideTip() {
-        $('#tip').removeClass('show');
+        if (!this.tooltipElement) {
+            this.tooltipElement = document.getElementById('graph-tooltip');
+        }
+        if (this.tooltipElement) {
+            this.tooltipElement.classList.add('hidden');
+        }
     }
 
     /**
@@ -423,6 +452,7 @@ export class GraphCanvasWidget {
             .scaleExtent(ZOOM_SCALE_EXTENT)
             .on('zoom', ({ transform }) => {
                 this.currentTransform = transform;
+                this.hideTip();
                 const root = this.getRootNode?.();
                 if (root) {
                     this.renderCanvas(root);
@@ -513,6 +543,17 @@ export class GraphCanvasWidget {
         });
 
         this.resizeObserver.observe(graphContainer);
+    }
+
+    /**
+     * Exports the graph tree to a PNG Blob.
+     *
+     * @param {Object} [options]
+     * @returns {Promise<Blob|null>}
+     */
+    async exportPNG(options) {
+        if (!this.canvasRenderer) return null;
+        return this.canvasRenderer.exportPNG(options);
     }
 
     /**

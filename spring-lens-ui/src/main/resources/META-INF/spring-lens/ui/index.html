@@ -34,8 +34,9 @@
                             class="hover:text-primary dark:hover:text-purple-300 transition-colors">SpringLens</a>
                     </h1>
                     <div class="flex items-center gap-1.5 mt-1">
-                        <span
-                            class="px-1.5 py-0.5 text-[9px] font-mono font-bold bg-primary/10 text-primary dark:text-purple-300 rounded border border-primary/20">v1.0.0</span>
+                        <a href="#/whats-new"
+                            class="px-1.5 py-0.5 text-[9px] font-mono font-bold bg-primary/10 text-primary dark:text-purple-300 rounded border border-primary/20 hover:bg-primary/20 transition-colors cursor-pointer"
+                            title="View what's new in v1.0.0">v1.0.0</a>
                         <span class="text-[10px] text-gray-400 dark:text-gray-500 font-medium">Observability</span>
                     </div>
                 </div>
@@ -114,6 +115,26 @@
                             </a>
                         </div>
                     </div>
+                </nav>
+            </div>
+
+            <!-- Product Updates Navigation -->
+            <div>
+                <div class="px-3 pb-2 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                    Updates & Releases
+                </div>
+                <nav class="space-y-1" aria-labelledby="updates-nav-tabs">
+                    <a data-page="whats-new" href="#/whats-new"
+                        class="flex items-center justify-between px-3 py-2.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100/70 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-slate-800/60 rounded-xl text-xs font-semibold transition-all nav-link group">
+                        <div class="flex items-center gap-3">
+                            <div
+                                class="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-950/40 text-primary dark:text-purple-300 flex items-center justify-center border border-primary/10 flex-shrink-0">
+                                <span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+                            </div>
+                            <span>What's New</span>
+                        </div>
+                        <span class="px-1.5 py-0.5 text-[9px] font-mono font-bold bg-primary/10 text-primary dark:text-purple-300 rounded border border-primary/20">v1.0.0</span>
+                    </a>
                 </nav>
             </div>
         </div>
@@ -238,25 +259,6 @@
                 data-field="message"></p>
             <button id="retry-load-btn"
                 class="px-4 py-2 bg-primary hover:bg-primary/95 text-white rounded-md text-sm font-semibold transition-colors">Retry</button>
-        </div>
-    </template>
-
-    <template id="tpl-tooltip">
-        <div id="tip"
-            class="absolute hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-gray-200/80 dark:border-slate-800 rounded-2xl p-3.5 shadow-2xl pointer-events-none z-50 text-xs min-w-[200px] max-w-[320px] transition-all duration-150">
-            <div class="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100 dark:border-slate-800/80">
-                <div
-                    class="w-6 h-6 rounded-lg bg-primary/10 dark:bg-purple-950/40 text-primary dark:text-purple-300 flex items-center justify-center flex-shrink-0 border border-primary/20">
-                    <span class="material-symbols-outlined text-[15px]">data_object</span>
-                </div>
-                <div id="tip-name" class="font-bold text-gray-900 dark:text-white font-mono text-[11.5px] truncate">
-                </div>
-            </div>
-            <div class="space-y-1.5 text-[11px]">
-                <div id="tip-type" class="text-gray-700 dark:text-gray-300 font-mono break-all leading-tight"></div>
-                <div id="tip-scope" class="text-gray-500 dark:text-gray-400 font-medium"></div>
-                <div id="tip-meta" class="text-primary dark:text-purple-300 font-semibold text-[10.5px]"></div>
-            </div>
         </div>
     </template>
 

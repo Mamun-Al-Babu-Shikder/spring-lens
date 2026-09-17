@@ -869,6 +869,146 @@ export default class CanvasTreeRenderer {
         });
     }
 
+    /**
+     * Exports the current tree graph to a high-resolution PNG Blob.
+     *
+     * @param {Object} [options]
+     * @param {boolean} [options.fullTree=true] - If true, exports entire expanded tree bounding box; if false, exports current viewport.
+     * @param {number} [options.pixelRatio=2] - Resolution multiplier (default 2 for Retina sharpness).
+     * @param {boolean} [options.includeBackground=true] - Whether to include theme background.
+     * @returns {Promise<Blob|null>}
+     */
+    async exportPNG({ fullTree = true, pixelRatio = 2, includeBackground = true } = {}) {
+        if (!this.currentRoot) return null;
+
+        const isDark = document.documentElement.classList.contains('dark');
+        const bgColor = isDark ? '#0f172a' : '#ffffff';
+        const isTB = this.currentConfig?.mode === 'tb';
+        const config = { ...this.currentConfig };
+
+        const exportCanvas = document.createElement('canvas');
+        const exportCtx = exportCanvas.getContext('2d');
+        if (!exportCtx) return null;
+
+        // Temporarily normalize opacities and positions for a clean snapshot
+        const savedStates = new Map();
+        for (const [id, state] of this.nodeStates.entries()) {
+            savedStates.set(id, { opacity: state.opacity, x: state.x, y: state.y });
+            if (!state.isExiting) {
+                state.opacity = 1;
+                if (state.targetX !== undefined) state.x = state.targetX;
+                if (state.targetY !== undefined) state.y = state.targetY;
+            }
+        }
+
+        try {
+            if (!fullTree) {
+                // Viewport snapshot mode: captures exactly what is framed in the canvas
+                const width = this.width;
+                const height = this.height;
+                const dpr = Math.max(1, pixelRatio);
+
+                exportCanvas.width = Math.round(width * dpr);
+                exportCanvas.height = Math.round(height * dpr);
+
+                if (includeBackground) {
+                    exportCtx.fillStyle = bgColor;
+                    exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+                }
+
+                exportCtx.scale(dpr, dpr);
+                exportCtx.translate(this.currentTransform.x, this.currentTransform.y);
+                exportCtx.scale(this.currentTransform.k, this.currentTransform.k);
+
+                this._drawAnimatedLinks(exportCtx, isTB, isDark, false, config, null);
+                this._drawAnimatedNodes(exportCtx, isTB, isDark, false, config, null);
+            } else {
+                // Full expanded tree mode: bounds calculated from all active nodes
+                let minX = Infinity;
+                let maxX = -Infinity;
+                let minY = Infinity;
+                let maxY = -Infinity;
+
+                let nodeCount = 0;
+                for (const state of this.nodeStates.values()) {
+                    if (state.isExiting) continue;
+                    const node = state.node;
+                    if (!node) continue;
+                    nodeCount++;
+
+                    const cx = state.x;
+                    const cy = state.y;
+                    const w = this._getNodeWidth(node);
+                    const h = NH;
+
+                    const left = cx - w / 2;
+                    const right = cx + w / 2;
+                    const top = cy - h / 2;
+                    const bottom = cy + h / 2;
+
+                    if (left < minX) minX = left;
+                    if (right > maxX) maxX = right;
+                    if (top < minY) minY = top;
+                    if (bottom > maxY) maxY = bottom;
+                }
+
+                if (nodeCount === 0 || !Number.isFinite(minX)) return null;
+
+                const padding = 72;
+                const contentWidth = Math.max(120, maxX - minX + padding * 2);
+                const contentHeight = Math.max(120, maxY - minY + padding * 2);
+
+                const maxDimension = 16384;
+                let dpr = Math.max(1, pixelRatio);
+                if (contentWidth * dpr > maxDimension || contentHeight * dpr > maxDimension) {
+                    dpr = Math.min(maxDimension / contentWidth, maxDimension / contentHeight);
+                }
+
+                exportCanvas.width = Math.round(contentWidth * dpr);
+                exportCanvas.height = Math.round(contentHeight * dpr);
+
+                if (includeBackground) {
+                    exportCtx.fillStyle = bgColor;
+                    exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+                }
+
+                exportCtx.scale(dpr, dpr);
+                exportCtx.translate(-(minX - padding), -(minY - padding));
+
+                // Render all links and nodes with no frustum culling
+                this._drawAnimatedLinks(exportCtx, isTB, isDark, false, config, null);
+                this._drawAnimatedNodes(exportCtx, isTB, isDark, false, config, null);
+
+                // Watermark footer
+                exportCtx.save();
+                exportCtx.setTransform(1, 0, 0, 1, 0, 0);
+                exportCtx.font = '500 ' + Math.max(10, Math.round(11 * (dpr > 1.5 ? 1.5 : dpr))) + 'px Inter, -apple-system, sans-serif';
+                exportCtx.fillStyle = isDark ? 'rgba(148, 163, 184, 0.65)' : 'rgba(100, 116, 139, 0.65)';
+                exportCtx.textAlign = 'right';
+                exportCtx.textBaseline = 'bottom';
+                const dateStr = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+                exportCtx.fillText(`SpringLens Dependency Graph • ${dateStr}`, exportCanvas.width - 20, exportCanvas.height - 16);
+                exportCtx.restore();
+            }
+
+            return new Promise((resolve) => {
+                exportCanvas.toBlob((blob) => {
+                    resolve(blob);
+                }, 'image/png');
+            });
+        } finally {
+            // Restore live animation states
+            for (const [id, saved] of savedStates.entries()) {
+                const state = this.nodeStates.get(id);
+                if (state) {
+                    state.opacity = saved.opacity;
+                    state.x = saved.x;
+                    state.y = saved.y;
+                }
+            }
+        }
+    }
+
     destroy() {
         if (this.animFrameId) {
             cancelAnimationFrame(this.animFrameId);

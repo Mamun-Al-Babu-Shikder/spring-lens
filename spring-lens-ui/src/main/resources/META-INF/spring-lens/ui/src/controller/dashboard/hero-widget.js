@@ -17,10 +17,9 @@ class HeroWidget {
             const parsedDate = new Date(startup.startedAt);
             if (!Number.isNaN(parsedDate.getTime())) {
                 startDate = parsedDate;
-                formattedStartedAt = parsedDate.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
+                formattedStartedAt = parsedDate.toLocaleString([], {
+                    dateStyle: 'medium',
+                    timeStyle: 'medium'
                 });
             }
         }

@@ -11,5 +11,7 @@ export {
     Formatter,
     QueryParam,
     BeanMetadataRules,
-    Pagination
+    Pagination,
+    ToastNotification
 } from '../../helper/index.js';
+

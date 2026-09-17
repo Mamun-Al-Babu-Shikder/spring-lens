@@ -1,6 +1,5 @@
 import BaseController from '../base-controller.js';
 import {
-    DependencyGraphService,
     GraphHierarchyBuilder,
     GraphPathTracer,
     GraphCanvasWidget,
@@ -31,6 +30,15 @@ export class DependencyGraphController extends BaseController {
             refreshing: false,
             chunkProgress: { visible: false, state: 'loading', text: '', loaded: 0, total: 0 },
             beansCount: 0,
+            loadedBeansCount: 0,
+            totalBeansCount: 0,
+            remainingBeansCount: 0,
+            hasMoreBeans: false,
+            isLoadingMore: false,
+            isLoadingAll: false,
+            loadAllModalOpen: false,
+            isExporting: false,
+            customLoadAmount: 100,
             depsCount: 0,
             zoomPercent: '100%',
             sidebarOpen: false,
@@ -119,7 +127,14 @@ export class DependencyGraphController extends BaseController {
             zoomBy: (factor) => this.zoomBy(factor),
             closeSidebar: () => this.closeSidebar(),
             setSidebarTab: (tab) => this.setSidebarTab(tab),
-            selectDependency: (dep) => this.selectDependency(dep)
+            selectDependency: (dep) => this.selectDependency(dep),
+            loadMoreBeans: (count) => this.loadMoreBeans(count),
+            loadCustomBatch: () => this.loadCustomBatch(),
+            onCustomLoadAmountInput: (event) => this.onCustomLoadAmountInput(event),
+            openLoadAllModal: () => this.openLoadAllModal(),
+            closeLoadAllModal: () => this.closeLoadAllModal(),
+            confirmLoadAll: () => this.confirmLoadAll(),
+            exportGraph: (fullTree = true) => this.exportGraph(fullTree)
         };
     }
 
@@ -220,7 +235,8 @@ export class DependencyGraphController extends BaseController {
     async reloadGraphData() {
         this.setState({ refreshing: true, errorMessage: null });
         try {
-            await this.service.fetchBeanGraphDependencies((progress) => this._updateProgressBadge(progress));
+            this.service.clearCache();
+            await this.service.fetchBeanGraphDependencies(500, (progress) => this._updateProgressBadge(progress));
             this._buildHierarchyFromDependencies();
             this._updateTotalBeanCount();
             this.update(null, null, 0);
@@ -236,7 +252,7 @@ export class DependencyGraphController extends BaseController {
     async _loadInitialData() {
         try {
             this.setState({ errorMessage: null });
-            await this.service.fetchBeanGraphDependencies((progress) => this._updateProgressBadge(progress));
+            await this.service.fetchBeanGraphDependencies(500, (progress) => this._updateProgressBadge(progress));
             this._buildHierarchyFromDependencies();
             this._updateTotalBeanCount();
             return true;
@@ -312,6 +328,9 @@ export class DependencyGraphController extends BaseController {
     _updateTotalBeanCount() {
         const beanList = this.service.accumulatedBeans;
         const totalElements = this.service.totalElements || beanList.length;
+        const loadedCount = beanList.length;
+        const remainingCount = Math.max(0, totalElements - loadedCount);
+        const hasMore = loadedCount < totalElements;
 
         let totalDeps = 0;
         for (let i = 0; i < beanList.length; i++) {
@@ -320,8 +339,141 @@ export class DependencyGraphController extends BaseController {
 
         this.setState({
             beansCount: totalElements,
+            loadedBeansCount: loadedCount,
+            totalBeansCount: totalElements,
+            remainingBeansCount: remainingCount,
+            hasMoreBeans: hasMore,
             depsCount: totalDeps
         });
+    }
+
+    async loadMoreBeans(count = 100) {
+        if (this.state.isLoadingMore || !this.state.hasMoreBeans) {
+            return;
+        }
+
+        const batchSize = Math.max(1, parseInt(count, 10) || 100);
+        this.setState({ isLoadingMore: true });
+
+        try {
+            // 1. Capture currently expanded nodes to preserve branch state
+            const expandedKeys = new Set();
+            if (this.root) {
+                this.root.eachBefore(node => {
+                    if (node.children && node.depth > 0) {
+                        const key = `${node.data?.contextId || ''}::${node.data?.fullName || node.data?.name || ''}`;
+                        expandedKeys.add(key);
+                    }
+                });
+            }
+
+            // 2. Fetch incremental batch from API using pageNumber & pageSize
+            const result = await this.service.fetchMoreBeans(batchSize, (progress) => {
+                this._updateProgressBadge(progress);
+            });
+
+            const newlyLoadedCount = result?.newBeans?.length ?? 0;
+
+            // 3. Rebuild hierarchy and inject new beans
+            this._buildHierarchyFromDependencies();
+
+            // 4. Restore expanded branch states
+            if (this.root && expandedKeys.size > 0) {
+                this.root.eachBefore(node => {
+                    const key = `${node.data?.contextId || ''}::${node.data?.fullName || node.data?.name || ''}`;
+                    if (expandedKeys.has(key)) {
+                        if (!node._children || node._children.length === 0) {
+                            this._lazyLoadChildren(node);
+                        }
+                        node.children = node._children;
+                    }
+                });
+            }
+
+            // 5. Update counts
+            this._updateTotalBeanCount();
+
+            // 6. Smooth canvas update
+            this.update(null, null, 400);
+        } catch (error) {
+            console.error('Error loading more beans into graph:', error);
+            ToastNotification.show({
+                title: 'Load Failed',
+                message: error.message || 'Failed to load additional beans',
+                type: 'error',
+                duration: 3500
+            });
+        } finally {
+            this.setState({ isLoadingMore: false });
+        }
+    }
+
+    loadCustomBatch() {
+        const amount = Number.parseInt(this.state.customLoadAmount, 10) || 100;
+        this.loadMoreBeans(amount);
+    }
+
+    onCustomLoadAmountInput(event) {
+        const val = Number.parseInt(event.target.value, 10);
+        if (Number.isFinite(val) && val > 0) {
+            this.setState({ customLoadAmount: Math.min(1000, val) });
+        }
+    }
+
+    openLoadAllModal() {
+        if (!this.state.hasMoreBeans || this.state.isLoadingMore || this.state.isLoadingAll) {
+            return;
+        }
+        this.setState({ loadAllModalOpen: true });
+    }
+
+    closeLoadAllModal() {
+        this.setState({ loadAllModalOpen: false });
+    }
+
+    async confirmLoadAll() {
+        this.closeLoadAllModal();
+        if (!this.state.hasMoreBeans || this.state.isLoadingMore || this.state.isLoadingAll) {
+            return;
+        }
+
+        this.setState({ isLoadingAll: true });
+        try {
+            await this.loadMoreBeans(this.state.remainingBeansCount);
+        } finally {
+            this.setState({ isLoadingAll: false });
+        }
+    }
+
+    async exportGraph(fullTree = true) {
+        if (this.state.isExporting || !this.root) return;
+
+        this.setState({ isExporting: true });
+        try {
+            const blob = await this.canvasWidget.exportPNG({ fullTree, pixelRatio: 2 });
+            if (!blob) {
+                console.warn('Failed to generate PNG export.');
+                return;
+            }
+
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            const contextSuffix = this.state.selectedContextId ? `-${this.state.selectedContextId}` : '';
+            const modeSuffix = fullTree ? 'full-tree' : 'viewport';
+            const filename = `spring-lens-graph${contextSuffix}-${modeSuffix}-${timestamp}.png`;
+
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (err) {
+            console.error('Error exporting graph as PNG:', err);
+        } finally {
+            this.setState({ isExporting: false });
+        }
     }
 
     _getExtraCanvasConfig() {
@@ -792,5 +944,3 @@ export class DependencyGraphController extends BaseController {
         super.leave();
     }
 }
-
-export default DependencyGraphController;

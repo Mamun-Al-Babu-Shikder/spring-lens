@@ -29,886 +29,893 @@
             </div>
         </div>
         <div class="flex items-center gap-2.5 flex-shrink-0">
-            <button id="def-btn-refresh"
-                @click="refreshData()"
-                :disabled="refreshing"
+            <button id="def-btn-refresh" @click="refreshData()" :disabled="refreshing"
                 class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/80 hover:border-gray-300 dark:hover:border-slate-600 shadow-xs transition-all cursor-pointer disabled:opacity-50"
                 title="Refresh bean definitions">
                 <span class="material-symbols-outlined text-[16px] text-gray-500 dark:text-gray-400"
                     :class="{ 'animate-spin': refreshing }">refresh</span>
                 <span>Refresh</span>
             </button>
-            <button id="beans-btn-export"
-                @click="exportData()"
+            <button id="beans-btn-export" @click="exportData()"
                 class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/80 hover:border-gray-300 dark:hover:border-slate-600 shadow-xs transition-all cursor-pointer"
                 title="Export bean definitions as JSON">
-                <span class="material-symbols-outlined text-[16px] text-gray-500 dark:text-gray-400">file_download</span>
+                <span
+                    class="material-symbols-outlined text-[16px] text-gray-500 dark:text-gray-400">file_download</span>
                 <span>Export</span>
             </button>
         </div>
     </header>
 
     <!-- Main Workspace (Center Column & Right Slide-Over Sidebar) -->
-    <div class="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-4 sm:p-6 flex items-stretch gap-6 h-full min-h-0">
+    <div
+        class="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-4 sm:p-6 flex items-stretch gap-6 h-full min-h-0">
 
-    <!-- Center Main Column -->
-    <div class="flex-1 flex flex-col gap-5 sm:gap-6 min-w-0 h-full min-h-0 transition-all duration-300 ease-in-out">
+        <!-- Center Main Column -->
+        <div class="flex-1 flex flex-col gap-5 sm:gap-6 min-w-0 h-full min-h-0 transition-all duration-300 ease-in-out">
 
-        <!-- 4 Summary KPI & Distribution Cards Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-shrink-0">
+            <!-- 4 Summary KPI & Distribution Cards Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-shrink-0">
 
-            <!-- Card 1: Total Bean Definitions & Context Distribution -->
-            <div
-                class="bg-gradient-to-b from-white via-white to-purple-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-purple-950/10 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-xs hover:shadow-md hover:border-primary/40 dark:hover:border-primary/40 flex flex-col transition-all duration-300 group">
-                <div class="flex items-center justify-between mb-2.5">
-                    <div class="flex items-center gap-2 min-w-0">
+                <!-- Card 1: Total Bean Definitions & Context Distribution -->
+                <div
+                    class="bg-gradient-to-b from-white via-white to-purple-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-purple-950/10 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-xs hover:shadow-md hover:border-primary/40 dark:hover:border-primary/40 flex flex-col transition-all duration-300 group">
+                    <div class="flex items-center justify-between mb-2.5">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <div
+                                class="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/20 via-purple-500/15 to-transparent text-primary dark:text-purple-300 flex items-center justify-center ring-1 ring-primary/25 shadow-2xs group-hover:scale-105 transition-transform flex-shrink-0">
+                                <span class="material-symbols-outlined text-[18px]">widgets</span>
+                            </div>
+                            <div class="min-w-0">
+                                <span
+                                    class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block truncate">Registry</span>
+                                <span class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate block">Total
+                                    Bean Definitions</span>
+                            </div>
+                        </div>
+                        <div class="text-right flex-shrink-0 pl-2">
+                            <div class="text-xl font-black text-gray-900 dark:text-white tracking-tight font-mono leading-none"
+                                x-text="totalDefinitions">-</div>
+                            <span class="text-[10px] text-gray-400 dark:text-gray-500 font-medium">beans</span>
+                        </div>
+                    </div>
+
+                    <div
+                        class="pt-2 border-t border-gray-100 dark:border-slate-800/80 flex-1 flex flex-col justify-center">
                         <div
-                            class="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/20 via-purple-500/15 to-transparent text-primary dark:text-purple-300 flex items-center justify-center ring-1 ring-primary/25 shadow-2xs group-hover:scale-105 transition-transform flex-shrink-0">
-                            <span class="material-symbols-outlined text-[18px]">widgets</span>
-                        </div>
-                        <div class="min-w-0">
-                            <span
-                                class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block truncate">Registry</span>
-                            <span class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate block">Total
-                                Bean Definitions</span>
-                        </div>
-                    </div>
-                    <div class="text-right flex-shrink-0 pl-2">
-                        <div class="text-xl font-black text-gray-900 dark:text-white tracking-tight font-mono leading-none"
-                            x-text="totalDefinitions">-</div>
-                        <span class="text-[10px] text-gray-400 dark:text-gray-500 font-medium">beans</span>
-                    </div>
-                </div>
-
-                <div class="pt-2 border-t border-gray-100 dark:border-slate-800/80 flex-1 flex flex-col justify-center">
-                    <div class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">
-                        Context Breakdown</div>
-                    <div class="space-y-1 max-h-16 overflow-y-auto custom-scrollbar pr-1" id="def-context-list">
-                        <template x-for="ctx in contextDistributionList" :key="ctx.contextId">
-                            <div class="flex items-center gap-2 py-0.5">
-                                <span class="text-[11px] font-mono font-medium text-gray-700 dark:text-gray-300 max-w-[120px] truncate"
-                                    x-text="ctx.contextId" :title="ctx.contextId"></span>
-                                <div class="flex-1 h-1.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                    <div class="h-full rounded-full transition-all duration-300"
-                                        :class="ctx.colorClass"
-                                        :style="{ width: ctx.percentage + '%' }"></div>
+                            class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">
+                            Context Breakdown</div>
+                        <div class="space-y-1 max-h-16 overflow-y-auto custom-scrollbar pr-1" id="def-context-list">
+                            <template x-for="ctx in contextDistributionList" :key="ctx.contextId">
+                                <div class="flex items-center gap-2 py-0.5">
+                                    <span
+                                        class="text-[11px] font-mono font-medium text-gray-700 dark:text-gray-300 max-w-[120px] truncate"
+                                        x-text="ctx.contextId" :title="ctx.contextId"></span>
+                                    <div
+                                        class="flex-1 h-1.5 bg-gray-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                        <div class="h-full rounded-full transition-all duration-300"
+                                            :class="ctx.colorClass" :style="{ width: ctx.percentage + '%' }"></div>
+                                    </div>
+                                    <span
+                                        class="text-[10px] text-gray-500 dark:text-gray-400 font-bold font-mono text-right whitespace-nowrap"
+                                        x-text="ctx.label"></span>
                                 </div>
-                                <span class="text-[10px] text-gray-500 dark:text-gray-400 font-bold font-mono text-right whitespace-nowrap"
-                                    x-text="ctx.label"></span>
-                            </div>
-                        </template>
-                        <div x-show="contextDistributionList.length === 0" class="text-[11px] text-gray-400 italic py-1">
-                            No context data available
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Card 2: Scope Distribution -->
-            <div
-                class="bg-gradient-to-b from-white via-white to-emerald-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-emerald-950/10 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-xs hover:shadow-md hover:border-emerald-500/40 dark:hover:border-emerald-500/40 flex flex-col transition-all duration-300 group">
-                <div class="flex items-center justify-between mb-2.5">
-                    <div class="flex items-center gap-2 min-w-0">
-                        <div
-                            class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500/20 via-teal-500/15 to-transparent text-emerald-600 dark:text-emerald-400 flex items-center justify-center ring-1 ring-emerald-500/25 shadow-2xs group-hover:scale-105 transition-transform flex-shrink-0">
-                            <span class="material-symbols-outlined text-[18px]">pie_chart</span>
-                        </div>
-                        <div class="min-w-0">
-                            <span
-                                class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block truncate">Lifecycle</span>
-                            <span class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate block">Scope
-                                Distribution</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    class="pt-2 border-t border-gray-100 dark:border-slate-800/80 flex-1 flex items-center justify-between gap-2.5">
-                    <div class="w-14 h-14 relative flex-shrink-0 flex items-center justify-center">
-                        <canvas id="scopeChart"></canvas>
-                    </div>
-                    <div class="flex flex-col gap-1 pl-1 overflow-hidden flex-1 max-h-16 overflow-y-auto custom-scrollbar"
-                        id="def-scope-legend">
-                        <template x-for="scope in scopeLegend" :key="scope.label">
-                            <div
-                                class="flex items-center gap-1.5 truncate py-0.5 px-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
-                                <div class="w-2 h-2 rounded-full flex-shrink-0 shadow-2xs"
-                                    :style="{ backgroundColor: scope.color }"></div>
-                                <span class="text-[10px] font-semibold text-gray-600 dark:text-gray-300 truncate"
-                                    x-text="scope.label + ' (' + scope.value + ') · ' + scope.percentage"
-                                    :title="scope.label"></span>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Card 3: Role Distribution -->
-            <div
-                class="bg-gradient-to-b from-white via-white to-rose-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-rose-950/10 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-xs hover:shadow-md hover:border-rose-500/40 dark:hover:border-rose-500/40 flex flex-col transition-all duration-300 group">
-                <div class="flex items-center justify-between mb-2.5">
-                    <div class="flex items-center gap-2 min-w-0">
-                        <div
-                            class="w-8 h-8 rounded-xl bg-gradient-to-br from-rose-500/20 via-pink-500/15 to-transparent text-rose-600 dark:text-rose-400 flex items-center justify-center ring-1 ring-rose-500/25 shadow-2xs group-hover:scale-105 transition-transform flex-shrink-0">
-                            <span class="material-symbols-outlined text-[18px]">donut_large</span>
-                        </div>
-                        <div class="min-w-0">
-                            <span
-                                class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block truncate">Responsibility</span>
-                            <span class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate block">Role
-                                Distribution</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    class="pt-2 border-t border-gray-100 dark:border-slate-800/80 flex-1 flex items-center justify-between gap-2.5">
-                    <div class="w-14 h-14 relative flex-shrink-0 flex items-center justify-center">
-                        <canvas id="roleChart"></canvas>
-                    </div>
-                    <div class="flex flex-col gap-1 pl-1 overflow-hidden flex-1 max-h-16 overflow-y-auto custom-scrollbar"
-                        id="def-role-legend">
-                        <template x-for="role in roleLegend" :key="role.label">
-                            <div
-                                class="flex items-center gap-1.5 truncate py-0.5 px-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
-                                <div class="w-2 h-2 rounded-full flex-shrink-0 shadow-2xs"
-                                    :style="{ backgroundColor: role.color }"></div>
-                                <span class="text-[10px] font-semibold text-gray-600 dark:text-gray-300 truncate"
-                                    x-text="role.label + ' (' + role.value + ') · ' + role.percentage"
-                                    :title="role.label"></span>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Card 4: Loading Mode Distribution -->
-            <div
-                class="bg-gradient-to-b from-white via-white to-sky-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-sky-950/10 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-xs hover:shadow-md hover:border-sky-500/40 dark:hover:border-sky-500/40 flex flex-col transition-all duration-300 group">
-                <div class="flex items-center justify-between mb-2.5">
-                    <div class="flex items-center gap-2 min-w-0">
-                        <div
-                            class="w-8 h-8 rounded-xl bg-gradient-to-br from-sky-500/20 via-blue-500/15 to-transparent text-sky-600 dark:text-sky-400 flex items-center justify-center ring-1 ring-sky-500/25 shadow-2xs group-hover:scale-105 transition-transform flex-shrink-0">
-                            <span class="material-symbols-outlined text-[18px]">bolt</span>
-                        </div>
-                        <div class="min-w-0">
-                            <span
-                                class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block truncate">Initialization</span>
-                            <span class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate block">Loading
-                                Mode</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    class="pt-2 border-t border-gray-100 dark:border-slate-800/80 flex-1 flex items-center justify-between gap-2.5">
-                    <div class="w-14 h-14 relative flex-shrink-0 flex items-center justify-center">
-                        <canvas id="loadingModeChart"></canvas>
-                    </div>
-                    <div class="flex flex-col gap-1 pl-1 overflow-hidden flex-1 max-h-16 overflow-y-auto custom-scrollbar"
-                        id="def-loading-mode-legend">
-                        <template x-for="item in loadingModeLegend" :key="item.label">
-                            <div
-                                class="flex items-center gap-1.5 truncate py-0.5 px-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
-                                <div class="w-2 h-2 rounded-full flex-shrink-0 shadow-2xs"
-                                    :style="{ backgroundColor: item.color }"></div>
-                                <span class="text-[10px] font-semibold text-gray-600 dark:text-gray-300 truncate"
-                                    x-text="item.label + ' (' + item.value + ') · ' + item.percentage"
-                                    :title="item.label"></span>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- Table Section -->
-        <div
-            class="bg-white dark:bg-slate-900 border border-gray-200/80 dark:border-slate-800 rounded-2xl shadow-sm flex flex-col flex-1 min-h-[360px] overflow-hidden transition-colors duration-300">
-            <div
-                class="p-5 border-b border-gray-100 dark:border-slate-800 bg-gray-50/40 dark:bg-slate-900/40 flex-shrink-0">
-                <div class="flex flex-wrap gap-2.5 items-center justify-between">
-                    <!-- Search Input -->
-                    <div class="relative flex-1 min-w-[240px] max-w-md">
-                        <span
-                            class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 text-[18px]">search</span>
-                        <input type="text" id="bean-definition-search-input"
-                            x-model="searchQuery"
-                            @input.debounce.250ms="onSearchInput($event)"
-                            @keydown.escape="clearSearch()"
-                            @keydown.enter.prevent="onSearchInput($event)"
-                            placeholder="Search beans by name, type, or context id..."
-                            class="w-full pl-9 pr-8 py-2 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 text-gray-800 dark:text-gray-100 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all shadow-sm">
-                        <button type="button" x-show="searchQuery && searchQuery.length > 0" x-cloak @click="clearSearch()"
-                            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-0.5 rounded transition-colors"
-                            title="Clear search">
-                            <span class="material-symbols-outlined text-[16px] block">close</span>
-                        </button>
-                    </div>
-
-                    <!-- Filter Dropdowns & Reset Button -->
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <select id="bean-definition-filter-context"
-                            x-model="filterCriteria.contextId"
-                            @change="onFilterChange()"
-                            class="text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none hover:border-gray-300 dark:hover:border-slate-700 focus:ring-2 focus:ring-primary/20 cursor-pointer shadow-sm transition-all">
-                            <option value="">Context: All</option>
-                            <template x-for="ctx in contextOptions" :key="ctx">
-                                <option :value="ctx" x-text="ctx"></option>
                             </template>
-                        </select>
-
-                        <select id="bean-definition-filter-scope"
-                            x-model="filterCriteria.scope"
-                            @change="onFilterChange()"
-                            class="text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none hover:border-gray-300 dark:hover:border-slate-700 focus:ring-2 focus:ring-primary/20 cursor-pointer shadow-sm transition-all">
-                            <option value="">Scope: All</option>
-                            <template x-for="scope in scopeOptions" :key="scope">
-                                <option :value="scope" x-text="scope"></option>
-                            </template>
-                        </select>
-
-                        <select id="bean-definition-filter-role"
-                            x-model="filterCriteria.role"
-                            @change="onFilterChange()"
-                            class="text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none hover:border-gray-300 dark:hover:border-slate-700 focus:ring-2 focus:ring-primary/20 cursor-pointer shadow-sm transition-all">
-                            <option value="">Role: All</option>
-                            <option value="ROLE_APPLICATION">Application</option>
-                            <option value="ROLE_SUPPORT">Support</option>
-                            <option value="ROLE_INFRASTRUCTURE">Infrastructure</option>
-                        </select>
-
-                        <select id="bean-definition-filter-primary"
-                            x-model="filterCriteria.primary"
-                            @change="onFilterChange()"
-                            class="text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none hover:border-gray-300 dark:hover:border-slate-700 focus:ring-2 focus:ring-primary/20 cursor-pointer shadow-sm transition-all">
-                            <option value="">Primary: All</option>
-                            <option value="true">Primary</option>
-                            <option value="false">Non-Primary</option>
-                        </select>
-
-                        <select id="bean-definition-filter-lazy"
-                            x-model="filterCriteria.lazyInit"
-                            @change="onFilterChange()"
-                            class="text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none hover:border-gray-300 dark:hover:border-slate-700 focus:ring-2 focus:ring-primary/20 cursor-pointer shadow-sm transition-all">
-                            <option value="">Lazy: All</option>
-                            <option value="true">Lazy</option>
-                            <option value="false">Eager</option>
-                        </select>
-
-                        <select id="bean-definition-filter-size"
-                            x-model.number="itemsPerPage"
-                            @change="onPageSizeChange($event)"
-                            class="text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none hover:border-gray-300 dark:hover:border-slate-700 focus:ring-2 focus:ring-primary/20 cursor-pointer shadow-sm transition-all">
-                            <option value="10">10 / page</option>
-                            <option value="20">20 / page</option>
-                            <option value="50">50 / page</option>
-                            <option value="100">100 / page</option>
-                        </select>
-
-                        <button id="bean-definition-btn-reset-filters"
-                            type="button"
-                            @click="resetFilters()"
-                            class="flex items-center gap-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-xl px-3 py-2 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-all cursor-pointer shadow-sm">
-                            <span class="material-symbols-outlined text-[15px]">filter_alt_off</span> Reset
-                        </button>
+                            <div x-show="contextDistributionList.length === 0"
+                                class="text-[11px] text-gray-400 italic py-1">
+                                No context data available
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+                <!-- Card 2: Scope Distribution -->
+                <div
+                    class="bg-gradient-to-b from-white via-white to-emerald-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-emerald-950/10 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-xs hover:shadow-md hover:border-emerald-500/40 dark:hover:border-emerald-500/40 flex flex-col transition-all duration-300 group">
+                    <div class="flex items-center justify-between mb-2.5">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <div
+                                class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500/20 via-teal-500/15 to-transparent text-emerald-600 dark:text-emerald-400 flex items-center justify-center ring-1 ring-emerald-500/25 shadow-2xs group-hover:scale-105 transition-transform flex-shrink-0">
+                                <span class="material-symbols-outlined text-[18px]">pie_chart</span>
+                            </div>
+                            <div class="min-w-0">
+                                <span
+                                    class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block truncate">Lifecycle</span>
+                                <span class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate block">Scope
+                                    Distribution</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div
+                        class="pt-2 border-t border-gray-100 dark:border-slate-800/80 flex-1 flex items-center justify-between gap-2.5">
+                        <div class="w-14 h-14 relative flex-shrink-0 flex items-center justify-center">
+                            <canvas id="scopeChart"></canvas>
+                        </div>
+                        <div class="flex flex-col gap-1 pl-1 overflow-hidden flex-1 max-h-16 overflow-y-auto custom-scrollbar"
+                            id="def-scope-legend">
+                            <template x-for="scope in scopeLegend" :key="scope.label">
+                                <div
+                                    class="flex items-center gap-1.5 truncate py-0.5 px-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
+                                    <div class="w-2 h-2 rounded-full flex-shrink-0 shadow-2xs"
+                                        :style="{ backgroundColor: scope.color }"></div>
+                                    <span class="text-[10px] font-semibold text-gray-600 dark:text-gray-300 truncate"
+                                        x-text="scope.label + ' (' + scope.value + ') · ' + scope.percentage"
+                                        :title="scope.label"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 3: Role Distribution -->
+                <div
+                    class="bg-gradient-to-b from-white via-white to-rose-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-rose-950/10 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-xs hover:shadow-md hover:border-rose-500/40 dark:hover:border-rose-500/40 flex flex-col transition-all duration-300 group">
+                    <div class="flex items-center justify-between mb-2.5">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <div
+                                class="w-8 h-8 rounded-xl bg-gradient-to-br from-rose-500/20 via-pink-500/15 to-transparent text-rose-600 dark:text-rose-400 flex items-center justify-center ring-1 ring-rose-500/25 shadow-2xs group-hover:scale-105 transition-transform flex-shrink-0">
+                                <span class="material-symbols-outlined text-[18px]">donut_large</span>
+                            </div>
+                            <div class="min-w-0">
+                                <span
+                                    class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block truncate">Responsibility</span>
+                                <span class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate block">Role
+                                    Distribution</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div
+                        class="pt-2 border-t border-gray-100 dark:border-slate-800/80 flex-1 flex items-center justify-between gap-2.5">
+                        <div class="w-14 h-14 relative flex-shrink-0 flex items-center justify-center">
+                            <canvas id="roleChart"></canvas>
+                        </div>
+                        <div class="flex flex-col gap-1 pl-1 overflow-hidden flex-1 max-h-16 overflow-y-auto custom-scrollbar"
+                            id="def-role-legend">
+                            <template x-for="role in roleLegend" :key="role.label">
+                                <div
+                                    class="flex items-center gap-1.5 truncate py-0.5 px-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
+                                    <div class="w-2 h-2 rounded-full flex-shrink-0 shadow-2xs"
+                                        :style="{ backgroundColor: role.color }"></div>
+                                    <span class="text-[10px] font-semibold text-gray-600 dark:text-gray-300 truncate"
+                                        x-text="role.label + ' (' + role.value + ') · ' + role.percentage"
+                                        :title="role.label"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 4: Loading Mode Distribution -->
+                <div
+                    class="bg-gradient-to-b from-white via-white to-sky-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-sky-950/10 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-xs hover:shadow-md hover:border-sky-500/40 dark:hover:border-sky-500/40 flex flex-col transition-all duration-300 group">
+                    <div class="flex items-center justify-between mb-2.5">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <div
+                                class="w-8 h-8 rounded-xl bg-gradient-to-br from-sky-500/20 via-blue-500/15 to-transparent text-sky-600 dark:text-sky-400 flex items-center justify-center ring-1 ring-sky-500/25 shadow-2xs group-hover:scale-105 transition-transform flex-shrink-0">
+                                <span class="material-symbols-outlined text-[18px]">bolt</span>
+                            </div>
+                            <div class="min-w-0">
+                                <span
+                                    class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider block truncate">Initialization</span>
+                                <span class="text-xs font-bold text-gray-800 dark:text-gray-200 truncate block">Loading
+                                    Mode</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div
+                        class="pt-2 border-t border-gray-100 dark:border-slate-800/80 flex-1 flex items-center justify-between gap-2.5">
+                        <div class="w-14 h-14 relative flex-shrink-0 flex items-center justify-center">
+                            <canvas id="loadingModeChart"></canvas>
+                        </div>
+                        <div class="flex flex-col gap-1 pl-1 overflow-hidden flex-1 max-h-16 overflow-y-auto custom-scrollbar"
+                            id="def-loading-mode-legend">
+                            <template x-for="item in loadingModeLegend" :key="item.label">
+                                <div
+                                    class="flex items-center gap-1.5 truncate py-0.5 px-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors">
+                                    <div class="w-2 h-2 rounded-full flex-shrink-0 shadow-2xs"
+                                        :style="{ backgroundColor: item.color }"></div>
+                                    <span class="text-[10px] font-semibold text-gray-600 dark:text-gray-300 truncate"
+                                        x-text="item.label + ' (' + item.value + ') · ' + item.percentage"
+                                        :title="item.label"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
-            <!-- Table Container -->
-            <div class="overflow-x-auto overflow-y-auto flex-1 min-h-0 custom-scrollbar relative">
-                <table class="w-full text-left border-collapse min-w-[850px]">
-                    <thead class="sticky top-0 z-10 bg-gray-50/95 dark:bg-slate-800/95 backdrop-blur-xs shadow-xs">
-                        <tr
-                            class="border-b border-gray-100 dark:border-slate-800 text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider select-none">
-                            <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors select-none bg-gray-50/95 dark:bg-slate-800/95"
-                                @click="sort('beanName')">
-                                <div class="flex items-center gap-1.5">
-                                    <span>Bean Name</span>
-                                    <span class="material-symbols-outlined text-[15px] sort-icon"
-                                        :class="sortColumn === 'beanName' ? 'text-primary font-bold' : 'text-gray-400'"
-                                        x-text="getSortIcon('beanName')">unfold_more</span>
-                                </div>
-                            </th>
-                            <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors select-none bg-gray-50/95 dark:bg-slate-800/95"
-                                @click="sort('type')">
-                                <div class="flex items-center gap-1.5">
-                                    <span>Type</span>
-                                    <span class="material-symbols-outlined text-[15px] sort-icon"
-                                        :class="sortColumn === 'type' ? 'text-primary font-bold' : 'text-gray-400'"
-                                        x-text="getSortIcon('type')">unfold_more</span>
-                                </div>
-                            </th>
-                            <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors select-none bg-gray-50/95 dark:bg-slate-800/95"
-                                @click="sort('scope')">
-                                <div class="flex items-center gap-1.5">
-                                    <span>Scope</span>
-                                    <span class="material-symbols-outlined text-[15px] sort-icon"
-                                        :class="sortColumn === 'scope' ? 'text-primary font-bold' : 'text-gray-400'"
-                                        x-text="getSortIcon('scope')">unfold_more</span>
-                                </div>
-                            </th>
-                            <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors select-none bg-gray-50/95 dark:bg-slate-800/95"
-                                @click="sort('role')">
-                                <div class="flex items-center gap-1.5">
-                                    <span>Role</span>
-                                    <span class="material-symbols-outlined text-[15px] sort-icon"
-                                        :class="sortColumn === 'role' ? 'text-primary font-bold' : 'text-gray-400'"
-                                        x-text="getSortIcon('role')">unfold_more</span>
-                                </div>
-                            </th>
-                            <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors select-none bg-gray-50/95 dark:bg-slate-800/95"
-                                @click="sort('lazyInit')">
-                                <div class="flex items-center gap-1.5">
-                                    <span>Loading Mode</span>
-                                    <span class="material-symbols-outlined text-[15px] sort-icon"
-                                        :class="sortColumn === 'lazyInit' ? 'text-primary font-bold' : 'text-gray-400'"
-                                        x-text="getSortIcon('lazyInit')">unfold_more</span>
-                                </div>
-                            </th>
-                            <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors select-none bg-gray-50/95 dark:bg-slate-800/95"
-                                @click="sort('contextId')">
-                                <div class="flex items-center gap-1.5">
-                                    <span>Context ID</span>
-                                    <span class="material-symbols-outlined text-[15px] sort-icon"
-                                        :class="sortColumn === 'contextId' ? 'text-primary font-bold' : 'text-gray-400'"
-                                        x-text="getSortIcon('contextId')">unfold_more</span>
-                                </div>
-                            </th>
-                            <th class="px-5 py-3.5 w-16 text-right font-bold bg-gray-50/95 dark:bg-slate-800/95">Action
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100 dark:divide-slate-800/80 text-[13px] text-gray-600 dark:text-gray-300"
-                        id="beanDefinitionTableBody">
+            <!-- Table Section -->
+            <div
+                class="bg-white dark:bg-slate-900 border border-gray-200/80 dark:border-slate-800 rounded-2xl shadow-sm flex flex-col flex-1 min-h-[360px] overflow-hidden transition-colors duration-300">
+                <div
+                    class="p-5 border-b border-gray-100 dark:border-slate-800 bg-gray-50/40 dark:bg-slate-900/40 flex-shrink-0">
+                    <div class="flex flex-wrap gap-2.5 items-center justify-between">
+                        <!-- Search Input -->
+                        <div class="relative flex-1 min-w-[240px] max-w-md">
+                            <span
+                                class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 text-[18px]">search</span>
+                            <input type="text" id="bean-definition-search-input" x-model="searchQuery"
+                                @input.debounce.250ms="onSearchInput($event)" @keydown.escape="clearSearch()"
+                                @keydown.enter.prevent="onSearchInput($event)"
+                                placeholder="Search beans by name, type, or context id..."
+                                class="w-full pl-9 pr-8 py-2 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 text-gray-800 dark:text-gray-100 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/25 focus:border-primary transition-all shadow-sm">
+                            <button type="button" x-show="searchQuery && searchQuery.length > 0" x-cloak
+                                @click="clearSearch()"
+                                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-0.5 rounded transition-colors"
+                                title="Clear search">
+                                <span class="material-symbols-outlined text-[16px] block">close</span>
+                            </button>
+                        </div>
 
-                        <!-- Loading State Placeholder -->
-                        <template x-if="tableLoading">
-                            <tr>
-                                <td colspan="7" class="px-5 py-14 text-center text-gray-400">
-                                    <div class="flex flex-col items-center justify-center gap-2.5">
-                                        <span class="animate-spin rounded-full h-7 w-7 border-2 border-primary border-t-transparent"></span>
-                                        <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">Loading bean definitions...</span>
+                        <!-- Filter Dropdowns & Reset Button -->
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <select id="bean-definition-filter-context" x-model="filterCriteria.contextId"
+                                @change="onFilterChange()"
+                                class="text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none hover:border-gray-300 dark:hover:border-slate-700 focus:ring-2 focus:ring-primary/20 cursor-pointer shadow-sm transition-all">
+                                <option value="">Context: All</option>
+                                <template x-for="ctx in contextOptions" :key="ctx">
+                                    <option :value="ctx" x-text="ctx"></option>
+                                </template>
+                            </select>
+
+                            <select id="bean-definition-filter-scope" x-model="filterCriteria.scope"
+                                @change="onFilterChange()"
+                                class="text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none hover:border-gray-300 dark:hover:border-slate-700 focus:ring-2 focus:ring-primary/20 cursor-pointer shadow-sm transition-all">
+                                <option value="">Scope: All</option>
+                                <template x-for="scope in scopeOptions" :key="scope">
+                                    <option :value="scope" x-text="scope"></option>
+                                </template>
+                            </select>
+
+                            <select id="bean-definition-filter-role" x-model="filterCriteria.role"
+                                @change="onFilterChange()"
+                                class="text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none hover:border-gray-300 dark:hover:border-slate-700 focus:ring-2 focus:ring-primary/20 cursor-pointer shadow-sm transition-all">
+                                <option value="">Role: All</option>
+                                <option value="ROLE_APPLICATION">Application</option>
+                                <option value="ROLE_SUPPORT">Support</option>
+                                <option value="ROLE_INFRASTRUCTURE">Infrastructure</option>
+                            </select>
+
+                            <select id="bean-definition-filter-primary" x-model="filterCriteria.primary"
+                                @change="onFilterChange()"
+                                class="text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none hover:border-gray-300 dark:hover:border-slate-700 focus:ring-2 focus:ring-primary/20 cursor-pointer shadow-sm transition-all">
+                                <option value="">Primary: All</option>
+                                <option value="true">Primary</option>
+                                <option value="false">Non-Primary</option>
+                            </select>
+
+                            <select id="bean-definition-filter-lazy" x-model="filterCriteria.lazyInit"
+                                @change="onFilterChange()"
+                                class="text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none hover:border-gray-300 dark:hover:border-slate-700 focus:ring-2 focus:ring-primary/20 cursor-pointer shadow-sm transition-all">
+                                <option value="">Lazy: All</option>
+                                <option value="true">Lazy</option>
+                                <option value="false">Eager</option>
+                            </select>
+
+                            <select id="bean-definition-filter-size" x-model.number="itemsPerPage"
+                                @change="onPageSizeChange($event)"
+                                class="text-xs font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-3 py-2 outline-none hover:border-gray-300 dark:hover:border-slate-700 focus:ring-2 focus:ring-primary/20 cursor-pointer shadow-sm transition-all">
+                                <option value="10">10 / page</option>
+                                <option value="20">20 / page</option>
+                                <option value="50">50 / page</option>
+                                <option value="100">100 / page</option>
+                            </select>
+
+                            <button id="bean-definition-btn-reset-filters" type="button" @click="resetFilters()"
+                                class="flex items-center gap-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/40 rounded-xl px-3 py-2 hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-all cursor-pointer shadow-sm">
+                                <span class="material-symbols-outlined text-[15px]">filter_alt_off</span> Reset
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Table Container -->
+                <div class="overflow-x-auto overflow-y-auto flex-1 min-h-0 custom-scrollbar relative">
+                    <table class="w-full text-left border-collapse min-w-[850px]">
+                        <thead class="sticky top-0 z-10 bg-gray-50/95 dark:bg-slate-800/95 backdrop-blur-xs shadow-xs">
+                            <tr
+                                class="border-b border-gray-100 dark:border-slate-800 text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider select-none">
+                                <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors select-none bg-gray-50/95 dark:bg-slate-800/95"
+                                    @click="sort('beanName')">
+                                    <div class="flex items-center gap-1.5">
+                                        <span>Bean Name</span>
+                                        <span class="material-symbols-outlined text-[15px] sort-icon"
+                                            :class="sortColumn === 'beanName' ? 'text-primary font-bold' : 'text-gray-400'"
+                                            x-text="getSortIcon('beanName')">unfold_more</span>
                                     </div>
-                                </td>
-                            </tr>
-                        </template>
-
-                        <!-- Error State Placeholder -->
-                        <template x-if="!tableLoading && tableError">
-                            <tr>
-                                <td colspan="7" class="px-5 py-10 text-center text-rose-500 dark:text-rose-400">
-                                    <div class="flex items-center justify-center gap-2 text-sm font-bold">
-                                        <span class="material-symbols-outlined text-xl">warning</span>
-                                        <span>Failed to fetch table data: <span x-text="tableError"></span></span>
+                                </th>
+                                <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors select-none bg-gray-50/95 dark:bg-slate-800/95"
+                                    @click="sort('type')">
+                                    <div class="flex items-center gap-1.5">
+                                        <span>Type</span>
+                                        <span class="material-symbols-outlined text-[15px] sort-icon"
+                                            :class="sortColumn === 'type' ? 'text-primary font-bold' : 'text-gray-400'"
+                                            x-text="getSortIcon('type')">unfold_more</span>
                                     </div>
-                                </td>
-                            </tr>
-                        </template>
-
-                        <!-- Empty State Placeholder -->
-                        <template x-if="!tableLoading && !tableError && beans.length === 0">
-                            <tr>
-                                <td colspan="7" class="px-5 py-12 text-center text-gray-400 dark:text-gray-500">
-                                    <div class="flex flex-col items-center justify-center gap-1.5">
-                                        <span class="material-symbols-outlined text-2xl text-gray-300 dark:text-slate-600">search_off</span>
-                                        <span class="text-xs font-semibold">No beans found matching the active filters or search query.</span>
+                                </th>
+                                <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors select-none bg-gray-50/95 dark:bg-slate-800/95"
+                                    @click="sort('scope')">
+                                    <div class="flex items-center gap-1.5">
+                                        <span>Scope</span>
+                                        <span class="material-symbols-outlined text-[15px] sort-icon"
+                                            :class="sortColumn === 'scope' ? 'text-primary font-bold' : 'text-gray-400'"
+                                            x-text="getSortIcon('scope')">unfold_more</span>
                                     </div>
-                                </td>
+                                </th>
+                                <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors select-none bg-gray-50/95 dark:bg-slate-800/95"
+                                    @click="sort('role')">
+                                    <div class="flex items-center gap-1.5">
+                                        <span>Role</span>
+                                        <span class="material-symbols-outlined text-[15px] sort-icon"
+                                            :class="sortColumn === 'role' ? 'text-primary font-bold' : 'text-gray-400'"
+                                            x-text="getSortIcon('role')">unfold_more</span>
+                                    </div>
+                                </th>
+                                <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors select-none bg-gray-50/95 dark:bg-slate-800/95"
+                                    @click="sort('lazyInit')">
+                                    <div class="flex items-center gap-1.5">
+                                        <span>Loading Mode</span>
+                                        <span class="material-symbols-outlined text-[15px] sort-icon"
+                                            :class="sortColumn === 'lazyInit' ? 'text-primary font-bold' : 'text-gray-400'"
+                                            x-text="getSortIcon('lazyInit')">unfold_more</span>
+                                    </div>
+                                </th>
+                                <th class="px-5 py-3.5 cursor-pointer hover:text-primary transition-colors select-none bg-gray-50/95 dark:bg-slate-800/95"
+                                    @click="sort('contextId')">
+                                    <div class="flex items-center gap-1.5">
+                                        <span>Context ID</span>
+                                        <span class="material-symbols-outlined text-[15px] sort-icon"
+                                            :class="sortColumn === 'contextId' ? 'text-primary font-bold' : 'text-gray-400'"
+                                            x-text="getSortIcon('contextId')">unfold_more</span>
+                                    </div>
+                                </th>
+                                <th class="px-5 py-3.5 w-16 text-right font-bold bg-gray-50/95 dark:bg-slate-800/95">
+                                    Action
+                                </th>
                             </tr>
-                        </template>
+                        </thead>
+                        <tbody
+                            class="divide-y divide-gray-100 dark:divide-slate-800/80 text-[13px] text-gray-600 dark:text-gray-300"
+                            id="beanDefinitionTableBody">
 
-                        <!-- Dynamic Bean Rows -->
-                        <template x-for="bean in beans" :key="bean.uniqueId">
-                            <tr @click="selectBean(bean)"
-                                :class="{ 'def-row-active bg-gradient-to-r from-purple-100/70 via-purple-50/40 to-transparent dark:from-purple-950/60 dark:via-purple-900/20 dark:to-transparent border-l-2 border-primary dark:border-purple-400 font-medium': isSelected(bean) }"
-                                class="hover:bg-purple-50/40 dark:hover:bg-purple-950/20 cursor-pointer transition-colors bean-row group">
-
-                                <!-- Bean Name & Subtitle -->
-                                <td class="px-5 py-3.5 max-w-xs sm:max-w-sm">
-                                    <div class="flex items-center gap-3 min-w-0">
-                                        <div
-                                            class="w-8 h-8 rounded-xl bg-gray-100 dark:bg-slate-800/90 border border-gray-200/50 dark:border-slate-700/50 flex items-center justify-center text-gray-500 dark:text-gray-400 group-hover:bg-primary/10 dark:group-hover:bg-purple-950/40 group-hover:border-primary/20 transition-all flex-shrink-0 shadow-2xs">
-                                            <span class="material-symbols-outlined text-[17px]"
-                                                :style="{ color: bean.meta.color }"
-                                                x-text="bean.meta.icon">widgets</span>
+                            <!-- Loading State Placeholder -->
+                            <template x-if="tableLoading">
+                                <tr>
+                                    <td colspan="7" class="px-5 py-14 text-center text-gray-400">
+                                        <div class="flex flex-col items-center justify-center gap-2.5">
+                                            <span
+                                                class="animate-spin rounded-full h-7 w-7 border-2 border-primary border-t-transparent"></span>
+                                            <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">Loading
+                                                bean definitions...</span>
                                         </div>
+                                    </td>
+                                </tr>
+                            </template>
+
+                            <!-- Error State Placeholder -->
+                            <template x-if="!tableLoading && tableError">
+                                <tr>
+                                    <td colspan="7" class="px-5 py-10 text-center text-rose-500 dark:text-rose-400">
+                                        <div class="flex items-center justify-center gap-2 text-sm font-bold">
+                                            <span class="material-symbols-outlined text-xl">warning</span>
+                                            <span>Failed to fetch table data: <span x-text="tableError"></span></span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+
+                            <!-- Empty State Placeholder -->
+                            <template x-if="!tableLoading && !tableError && beans.length === 0">
+                                <tr>
+                                    <td colspan="7" class="px-5 py-12 text-center text-gray-400 dark:text-gray-500">
+                                        <div class="flex flex-col items-center justify-center gap-1.5">
+                                            <span
+                                                class="material-symbols-outlined text-2xl text-gray-300 dark:text-slate-600">search_off</span>
+                                            <span class="text-xs font-semibold">No beans found matching the active
+                                                filters or search query.</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+
+                            <!-- Dynamic Bean Rows -->
+                            <template x-for="bean in beans" :key="bean.uniqueId">
+                                <tr @click="selectBean(bean)"
+                                    :class="{ 'def-row-active bg-gradient-to-r from-purple-100/70 via-purple-50/40 to-transparent dark:from-purple-950/60 dark:via-purple-900/20 dark:to-transparent border-l-2 border-primary dark:border-purple-400 font-medium': isSelected(bean) }"
+                                    class="hover:bg-purple-50/40 dark:hover:bg-purple-950/20 cursor-pointer transition-colors bean-row group">
+
+                                    <!-- Bean Name & Subtitle -->
+                                    <td class="px-5 py-3.5 max-w-xs sm:max-w-sm">
+                                        <div class="flex items-center gap-3 min-w-0">
+                                            <div
+                                                class="w-8 h-8 rounded-xl bg-gray-100 dark:bg-slate-800/90 border border-gray-200/50 dark:border-slate-700/50 flex items-center justify-center text-gray-500 dark:text-gray-400 group-hover:bg-primary/10 dark:group-hover:bg-purple-950/40 group-hover:border-primary/20 transition-all flex-shrink-0 shadow-2xs">
+                                                <span class="material-symbols-outlined text-[17px]"
+                                                    :style="{ color: bean.meta.color }"
+                                                    x-text="bean.meta.icon">widgets</span>
+                                            </div>
+                                            <div class="min-w-0 flex-1">
+                                                <div class="flex items-center gap-1.5 min-w-0">
+                                                    <span
+                                                        class="font-mono font-bold text-xs text-gray-900 dark:text-gray-100 group-hover:text-primary dark:group-hover:text-purple-300 transition-colors truncate"
+                                                        x-text="bean.beanName" :title="bean.beanName">-</span>
+                                                    <!-- Inline Traits Micro-Badges -->
+                                                    <span x-show="bean.primary" x-cloak
+                                                        class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold tracking-wider bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-yellow-500/20 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-500/40 shadow-xs"
+                                                        title="Primary Bean Definition">
+                                                        <span
+                                                            class="material-symbols-outlined text-[11px] text-amber-500">star</span>PRIMARY
+                                                    </span>
+                                                    <span x-show="bean.lazyInit" x-cloak
+                                                        class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold tracking-wider bg-gradient-to-r from-indigo-500/20 via-purple-500/15 to-pink-500/20 text-indigo-900 dark:text-indigo-200 border border-indigo-300/80 dark:border-purple-500/40 shadow-xs"
+                                                        title="Lazy Initialized">
+                                                        <span
+                                                            class="material-symbols-outlined text-[11px] text-purple-500">bedtime</span>LAZY
+                                                    </span>
+                                                </div>
+                                                <div
+                                                    class="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-slate-400 font-mono truncate mt-0.5">
+                                                    <span
+                                                        class="inline-flex items-center gap-1 text-[10.5px] text-gray-600 dark:text-slate-300"
+                                                        :title="bean.depsTooltip">
+                                                        <span
+                                                            class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-2xs"></span>
+                                                        <span x-text="bean.depsCount">0 deps</span>
+                                                    </span>
+                                                    <span class="text-gray-300 dark:text-slate-600 text-[10px]">•</span>
+                                                    <span
+                                                        class="inline-flex items-center gap-1 text-[10.5px] text-gray-600 dark:text-slate-300"
+                                                        :title="bean.usedByTooltip">
+                                                        <span
+                                                            class="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-2xs"></span>
+                                                        <span x-text="bean.usedByCount">0 used by</span>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    <!-- Type & Package -->
+                                    <td class="px-5 py-3.5 max-w-xs">
                                         <div class="min-w-0 flex-1">
                                             <div class="flex items-center gap-1.5 min-w-0">
                                                 <span
-                                                    class="font-mono font-bold text-xs text-gray-900 dark:text-gray-100 group-hover:text-primary dark:group-hover:text-purple-300 transition-colors truncate"
-                                                    x-text="bean.beanName" :title="bean.beanName">-</span>
-                                                <!-- Inline Traits Micro-Badges -->
-                                                <span x-show="bean.primary" x-cloak
-                                                    class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold tracking-wider bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-yellow-500/20 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-500/40 shadow-xs"
-                                                    title="Primary Bean Definition">
-                                                    <span class="material-symbols-outlined text-[11px] text-amber-500">star</span>PRIMARY
-                                                </span>
-                                                <span x-show="bean.lazyInit" x-cloak
-                                                    class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-mono font-bold tracking-wider bg-gradient-to-r from-indigo-500/20 via-purple-500/15 to-pink-500/20 text-indigo-900 dark:text-indigo-200 border border-indigo-300/80 dark:border-purple-500/40 shadow-xs"
-                                                    title="Lazy Initialized">
-                                                    <span class="material-symbols-outlined text-[11px] text-purple-500">bedtime</span>LAZY
-                                                </span>
+                                                    class="font-mono font-semibold text-xs text-gray-800 dark:text-gray-200 group-hover:text-primary dark:group-hover:text-purple-300 transition-colors truncate"
+                                                    x-text="bean.shortType" :title="bean.type">-</span>
                                             </div>
-                                            <div class="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-slate-400 font-mono truncate mt-0.5">
-                                                <span class="inline-flex items-center gap-1 text-[10.5px] text-gray-600 dark:text-slate-300"
-                                                    :title="bean.depsTooltip">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-2xs"></span>
-                                                    <span x-text="bean.depsCount">0 deps</span>
-                                                </span>
-                                                <span class="text-gray-300 dark:text-slate-600 text-[10px]">•</span>
-                                                <span class="inline-flex items-center gap-1 text-[10.5px] text-gray-600 dark:text-slate-300"
-                                                    :title="bean.usedByTooltip">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-purple-500 shadow-2xs"></span>
-                                                    <span x-text="bean.usedByCount">0 used by</span>
-                                                </span>
-                                            </div>
+                                            <div class="text-[11px] text-gray-500 dark:text-slate-400 font-mono truncate mt-0.5"
+                                                x-text="bean.packageName" :title="bean.packageName">-</div>
                                         </div>
-                                    </div>
-                                </td>
+                                    </td>
 
-                                <!-- Type & Package -->
-                                <td class="px-5 py-3.5 max-w-xs">
-                                    <div class="min-w-0 flex-1">
-                                        <div class="flex items-center gap-1.5 min-w-0">
-                                            <span
-                                                class="font-mono font-semibold text-xs text-gray-800 dark:text-gray-200 group-hover:text-primary dark:group-hover:text-purple-300 transition-colors truncate"
-                                                x-text="bean.shortType" :title="bean.type">-</span>
-                                        </div>
-                                        <div class="text-[11px] text-gray-500 dark:text-slate-400 font-mono truncate mt-0.5"
-                                            x-text="bean.packageName" :title="bean.packageName">-</div>
-                                    </div>
-                                </td>
-
-                                <!-- Scope -->
-                                <td class="px-5 py-3.5 whitespace-nowrap">
-                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wide border shadow-xs"
-                                        :class="{
+                                    <!-- Scope -->
+                                    <td class="px-5 py-3.5 whitespace-nowrap">
+                                        <span
+                                            class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wide border shadow-xs"
+                                            :class="{
                                             'bg-gradient-to-r from-purple-500/15 via-purple-500/10 to-indigo-500/10 text-purple-900 dark:text-purple-200 border-purple-300/80 dark:border-purple-500/40': bean.scope === 'SINGLETON',
                                             'bg-gradient-to-r from-blue-500/15 via-sky-500/10 to-cyan-500/10 text-blue-900 dark:text-blue-200 border-blue-300/80 dark:border-blue-500/40': bean.scope === 'PROTOTYPE',
                                             'bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-yellow-500/10 text-amber-900 dark:text-amber-200 border-amber-300/80 dark:border-amber-500/40': bean.scope === 'REQUEST',
                                             'bg-gradient-to-r from-emerald-500/15 via-green-500/10 to-teal-500/10 text-emerald-900 dark:text-emerald-200 border-emerald-300/80 dark:border-emerald-500/40': bean.scope === 'SESSION',
                                             'bg-gradient-to-r from-pink-500/15 via-rose-500/10 to-purple-500/10 text-pink-900 dark:text-pink-200 border-pink-300/80 dark:border-pink-500/40': bean.scope === 'REFRESH',
                                             'bg-gradient-to-r from-slate-500/15 via-gray-500/10 to-zinc-500/10 text-slate-900 dark:text-slate-200 border-slate-300/80 dark:border-slate-500/40': !['SINGLETON', 'PROTOTYPE', 'REQUEST', 'SESSION', 'REFRESH'].includes(bean.scope)
-                                        }"
-                                        x-text="bean.scope">-</span>
-                                </td>
+                                        }" x-text="bean.scope">-</span>
+                                    </td>
 
-                                <!-- Role -->
-                                <td class="px-5 py-3.5 whitespace-nowrap">
-                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider border shadow-xs"
-                                        :class="{
+                                    <!-- Role -->
+                                    <td class="px-5 py-3.5 whitespace-nowrap">
+                                        <span
+                                            class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider border shadow-xs"
+                                            :class="{
                                             'bg-gradient-to-r from-rose-500/20 via-pink-500/15 to-red-500/15 text-rose-900 dark:text-rose-200 border-rose-300/80 dark:border-rose-500/40': bean.role === 'INFRASTRUCTURE',
                                             'bg-gradient-to-r from-teal-500/20 via-emerald-500/15 to-cyan-500/15 text-teal-900 dark:text-teal-200 border-teal-300/80 dark:border-teal-500/40': bean.role === 'SUPPORT',
                                             'bg-gradient-to-r from-blue-500/20 via-indigo-500/15 to-sky-500/15 text-blue-900 dark:text-blue-200 border-blue-300/80 dark:border-blue-500/40': bean.role !== 'INFRASTRUCTURE' && bean.role !== 'SUPPORT'
-                                        }"
-                                        x-text="bean.role">-</span>
-                                </td>
+                                        }" x-text="bean.role">-</span>
+                                    </td>
 
-                                <!-- Traits -->
-                                <td class="px-5 py-3.5 whitespace-nowrap">
-                                    <span x-show="bean.lazyInit" x-cloak
-                                        class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider bg-gradient-to-r from-indigo-500/20 via-purple-500/15 to-pink-500/20 text-indigo-900 dark:text-indigo-200 border border-indigo-300/80 dark:border-purple-500/40 shadow-xs"
-                                        title="Lazy Initialized">
-                                        <span class="material-symbols-outlined text-[13px] text-purple-500">bedtime</span>LAZY
-                                    </span>
-                                    <span x-show="!bean.lazyInit" x-cloak
-                                        class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider bg-gradient-to-r from-emerald-500/20 via-teal-500/15 to-cyan-500/20 text-emerald-900 dark:text-emerald-200 border border-teal-300/80 dark:border-teal-500/40 shadow-xs"
-                                        title="Eager Initialized">
-                                        <span class="material-symbols-outlined text-[13px] text-teal-500">bolt</span>EAGER
-                                    </span>
-                                </td>
+                                    <!-- Traits -->
+                                    <td class="px-5 py-3.5 whitespace-nowrap">
+                                        <span x-show="bean.lazyInit" x-cloak
+                                            class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider bg-gradient-to-r from-indigo-500/20 via-purple-500/15 to-pink-500/20 text-indigo-900 dark:text-indigo-200 border border-indigo-300/80 dark:border-purple-500/40 shadow-xs"
+                                            title="Lazy Initialized">
+                                            <span
+                                                class="material-symbols-outlined text-[13px] text-purple-500">bedtime</span>LAZY
+                                        </span>
+                                        <span x-show="!bean.lazyInit" x-cloak
+                                            class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wider bg-gradient-to-r from-emerald-500/20 via-teal-500/15 to-cyan-500/20 text-emerald-900 dark:text-emerald-200 border border-teal-300/80 dark:border-teal-500/40 shadow-xs"
+                                            title="Eager Initialized">
+                                            <span
+                                                class="material-symbols-outlined text-[13px] text-teal-500">bolt</span>EAGER
+                                        </span>
+                                    </td>
 
-                                <!-- Context ID -->
-                                <td class="px-5 py-3.5 whitespace-nowrap">
-                                    <span
-                                        class="font-mono text-xs text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-md bg-gray-100 dark:bg-slate-800 truncate max-w-[120px] block"
-                                        x-text="bean.contextId || '-'" :title="bean.contextId || ''">-</span>
-                                </td>
+                                    <!-- Context ID -->
+                                    <td class="px-5 py-3.5 whitespace-nowrap">
+                                        <span
+                                            class="font-mono text-xs text-gray-500 dark:text-gray-400 px-2 py-0.5 rounded-md bg-gray-100 dark:bg-slate-800 truncate max-w-[140px] block"
+                                            x-text="bean.contextId || '-'" :title="bean.contextId || ''">-</span>
+                                    </td>
 
-                                <!-- Action -->
-                                <td class="px-5 py-3.5 text-right whitespace-nowrap">
-                                    <button type="button" @click.stop="selectBean(bean)"
-                                        class="w-7 h-7 rounded-lg inline-flex items-center justify-center text-gray-400 hover:text-primary dark:hover:text-purple-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                                        title="View bean details">
-                                        <span class="material-symbols-outlined text-[18px]">chevron_right</span>
-                                    </button>
-                                </td>
-                            </tr>
+                                    <!-- Action -->
+                                    <td class="px-5 py-3.5 text-right whitespace-nowrap">
+                                        <button type="button" @click.stop="selectBean(bean)"
+                                            class="w-7 h-7 rounded-lg inline-flex items-center justify-center text-gray-400 hover:text-primary dark:hover:text-purple-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                            title="View bean details">
+                                            <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination Bar -->
+                <div
+                    class="px-5 py-3.5 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 mt-auto flex-shrink-0 z-10">
+                    <div class="text-xs font-medium text-gray-500 dark:text-gray-400"
+                        id="bean-definition-pagination-info" x-text="paginationInfo">
+                        Showing 0 to 0 of 0 beans
+                    </div>
+                    <div class="flex items-center gap-1.5" id="bean-definition-pagination-buttons">
+                        <!-- Previous Page -->
+                        <button type="button" @click="prevPage()" :disabled="pagination.isFirstPage"
+                            class="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                            title="Previous page">
+                            <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+                        </button>
+
+                        <!-- Numbered Page Buttons with Ellipses -->
+                        <template x-for="p in pageButtons" :key="p.key">
+                            <div class="inline-flex items-center">
+                                <span x-show="p.isEllipsis"
+                                    class="w-7 h-7 flex items-center justify-center text-xs text-gray-400 font-medium select-none">...</span>
+                                <button x-show="!p.isEllipsis" type="button" @click="goToPage(p.page)"
+                                    :class="p.isActive ? 'text-white bg-primary font-bold shadow-xs' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 border border-gray-200 dark:border-slate-800'"
+                                    class="w-7 h-7 flex items-center justify-center rounded-lg text-xs font-medium cursor-pointer transition-all"
+                                    x-text="p.label"></button>
+                            </div>
                         </template>
-                    </tbody>
-                </table>
-            </div>
 
-            <!-- Pagination Bar -->
-            <div
-                class="px-5 py-3.5 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 mt-auto flex-shrink-0 z-10">
-                <div class="text-xs font-medium text-gray-500 dark:text-gray-400" id="bean-definition-pagination-info"
-                    x-text="paginationInfo">
-                    Showing 0 to 0 of 0 beans
-                </div>
-                <div class="flex items-center gap-1.5" id="bean-definition-pagination-buttons">
-                    <!-- Previous Page -->
-                    <button type="button" @click="prevPage()" :disabled="pagination.isFirstPage"
-                        class="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
-                        title="Previous page">
-                        <span class="material-symbols-outlined text-[18px]">chevron_left</span>
-                    </button>
-
-                    <!-- Numbered Page Buttons with Ellipses -->
-                    <template x-for="p in pageButtons" :key="p.key">
-                        <div class="inline-flex items-center">
-                            <span x-show="p.isEllipsis"
-                                class="w-7 h-7 flex items-center justify-center text-xs text-gray-400 font-medium select-none">...</span>
-                            <button x-show="!p.isEllipsis" type="button" @click="goToPage(p.page)"
-                                :class="p.isActive ? 'text-white bg-primary font-bold shadow-xs' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 border border-gray-200 dark:border-slate-800'"
-                                class="w-7 h-7 flex items-center justify-center rounded-lg text-xs font-medium cursor-pointer transition-all"
-                                x-text="p.label"></button>
-                        </div>
-                    </template>
-
-                    <!-- Next Page -->
-                    <button type="button" @click="nextPage()" :disabled="pagination.isLastPage"
-                        class="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
-                        title="Next page">
-                        <span class="material-symbols-outlined text-[18px]">chevron_right</span>
-                    </button>
+                        <!-- Next Page -->
+                        <button type="button" @click="nextPage()" :disabled="pagination.isLastPage"
+                            class="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
+                            title="Next page">
+                            <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+                        </button>
+                    </div>
                 </div>
             </div>
+
         </div>
 
-    </div>
+        <!-- Right Sidebar - Bean Details Slide-Over Inspector -->
+        <div :class="sidebarOpen ? 'w-[380px] max-w-[380px] opacity-100 mr-0 border' : 'w-0 max-w-0 opacity-0 pointer-events-none -mr-6 border-0'"
+            class="transition-all duration-300 ease-in-out bg-white dark:bg-slate-900 border-gray-200/80 dark:border-slate-800 rounded-2xl shadow-lg flex flex-col flex-shrink-0 sticky top-0 h-full max-h-full overflow-hidden"
+            id="def-details-sidebar">
 
-    <!-- Right Sidebar - Bean Details Slide-Over Inspector -->
-    <div :class="sidebarOpen ? 'w-[380px] max-w-[380px] opacity-100 mr-0 border' : 'w-0 max-w-0 opacity-0 pointer-events-none -mr-6 border-0'"
-        class="transition-all duration-300 ease-in-out bg-white dark:bg-slate-900 border-gray-200/80 dark:border-slate-800 rounded-2xl shadow-lg flex flex-col flex-shrink-0 sticky top-0 h-full max-h-full overflow-hidden"
-        id="def-details-sidebar">
-
-        <div class="flex flex-col h-full w-full min-w-0">
-            <!-- Sidebar Header -->
-            <div
-                class="px-4 py-3.5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-purple-50/60 via-indigo-50/30 to-transparent dark:from-purple-950/20 dark:via-slate-900/40 dark:to-transparent flex-shrink-0">
-                <div class="flex items-center gap-2.5 min-w-0">
-                    <div
-                        class="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/20 via-purple-500/15 to-transparent text-primary dark:text-purple-300 flex items-center justify-center ring-1 ring-primary/25 shadow-2xs flex-shrink-0">
-                        <span class="material-symbols-outlined text-[18px]">manage_search</span>
+            <div class="flex flex-col h-full w-full min-w-0">
+                <!-- Sidebar Header -->
+                <div
+                    class="px-4 py-3.5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-purple-50/60 via-indigo-50/30 to-transparent dark:from-purple-950/20 dark:via-slate-900/40 dark:to-transparent flex-shrink-0">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <div
+                            class="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/20 via-purple-500/15 to-transparent text-primary dark:text-purple-300 flex items-center justify-center ring-1 ring-primary/25 shadow-2xs flex-shrink-0">
+                            <span class="material-symbols-outlined text-[18px]">manage_search</span>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <h3
+                                    class="font-black text-xs text-gray-900 dark:text-white uppercase tracking-wider truncate">
+                                    Bean Inspector</h3>
+                                <span
+                                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-purple-50 text-primary border border-purple-200/80 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/40">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Active
+                                </span>
+                            </div>
+                            <p class="text-[10.5px] text-gray-400 dark:text-gray-500 font-medium truncate">Definition &
+                                Metadata Explorer</p>
+                        </div>
                     </div>
-                    <div class="min-w-0">
-                        <div class="flex items-center gap-1.5 flex-wrap">
-                            <h3
-                                class="font-black text-xs text-gray-900 dark:text-white uppercase tracking-wider truncate">
-                                Bean Inspector</h3>
+                    <button type="button" @click="closeSidebar()"
+                        class="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition-all cursor-pointer group flex-shrink-0"
+                        id="btn-close-sidebar" title="Close sidebar">
+                        <span
+                            class="material-symbols-outlined text-[18px] group-hover:rotate-90 transition-transform duration-200">close</span>
+                    </button>
+                </div>
+
+                <!-- Hero Identity Card: Dynamic Icon Box, Name, Type, Metagrid -->
+                <div
+                    class="p-4 border-b border-gray-100 dark:border-slate-800 bg-gray-50/40 dark:bg-slate-900/40 space-y-3 flex-shrink-0">
+                    <!-- Identity Header -->
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center border shadow-2xs flex-shrink-0"
+                            :style="{ backgroundColor: (selectedBeanMeta.color || '#8b5cf6') + '15', color: selectedBeanMeta.color || '#8b5cf6', borderColor: (selectedBeanMeta.color || '#8b5cf6') + '33' }"
+                            id="sidebar-icon-container">
+                            <span class="material-symbols-outlined text-[20px]"
+                                x-text="selectedBeanMeta.icon || 'schema'" id="sidebar-icon">schema</span>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="font-mono font-bold text-[13px] text-gray-900 dark:text-white truncate leading-tight hover:text-primary transition-colors cursor-pointer select-all"
+                                x-text="selectedBean?.beanName || '-'" :title="selectedBean?.beanName || ''"
+                                id="detail-bean-name">-</div>
+                            <div class="text-[11px] text-gray-400 dark:text-gray-500 font-mono truncate mt-0.5"
+                                x-text="selectedBean?.type || '-'" :title="selectedBean?.type || ''"
+                                id="detail-bean-type">-</div>
+                        </div>
+                    </div>
+
+                    <!-- Structured Metagrid: 2 Columns for Scope/Role + Full Width for Context -->
+                    <div class="space-y-2">
+                        <div class="grid grid-cols-2 gap-2">
+                            <!-- Scope -->
+                            <div
+                                class="bg-white dark:bg-slate-950 p-2.5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-2xs">
+                                <div class="flex items-center gap-1 text-gray-400 dark:text-gray-500 mb-0.5">
+                                    <span class="material-symbols-outlined text-[13px]">pie_chart</span>
+                                    <span class="text-[9.5px] font-bold uppercase tracking-wider">Scope</span>
+                                </div>
+                                <div class="text-[11.5px] font-mono font-bold text-purple-600 dark:text-purple-300 truncate"
+                                    x-text="selectedBeanFormatted?.scope || '-'" id="detail-bean-scope">-</div>
+                            </div>
+                            <!-- Role -->
+                            <div
+                                class="bg-white dark:bg-slate-950 p-2.5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-2xs">
+                                <div class="flex items-center gap-1 text-gray-400 dark:text-gray-500 mb-0.5">
+                                    <span class="material-symbols-outlined text-[13px]">shield</span>
+                                    <span class="text-[9.5px] font-bold uppercase tracking-wider">Role</span>
+                                </div>
+                                <div class="text-[11.5px] font-mono font-bold text-blue-600 dark:text-blue-300 truncate"
+                                    x-text="selectedBeanFormatted?.role || '-'" id="detail-bean-role">Application</div>
+                            </div>
+                        </div>
+
+                        <!-- Context ID (Full Width) -->
+                        <div
+                            class="bg-white dark:bg-slate-950 px-3 py-2 rounded-xl border border-gray-100 dark:border-slate-800 shadow-2xs flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-1 text-gray-400 dark:text-gray-500 flex-shrink-0">
+                                <span class="material-symbols-outlined text-[13px]">hub</span>
+                                <span class="text-[9.5px] font-bold uppercase tracking-wider">Context</span>
+                            </div>
+                            <div class="text-[11.5px] font-mono font-bold text-emerald-600 dark:text-emerald-300 truncate text-right"
+                                x-text="selectedBeanFormatted?.contextId || selectedBean?.contextId || '-'"
+                                id="detail-prop-context">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Segmented Modern Tabs -->
+                <div class="px-4 py-2.5 border-b border-gray-100 dark:border-slate-800 flex-shrink-0">
+                    <div class="flex items-center bg-gray-100/90 dark:bg-slate-950/80 p-1 rounded-xl border border-gray-200/60 dark:border-slate-800"
+                        id="sidebar-tabs">
+                        <button type="button" @click="setSidebarTab('properties')"
+                            :class="sidebarTab === 'properties' ? 'bg-white dark:bg-slate-800 text-primary dark:text-purple-300 shadow-xs font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium'"
+                            class="flex-1 py-1.5 px-2 text-[11px] rounded-lg transition-all tab-btn cursor-pointer flex items-center justify-center gap-1">
+                            <span class="material-symbols-outlined text-[14px]">tune</span> Properties
+                        </button>
+                        <button type="button" @click="setSidebarTab('dependencies')"
+                            :class="sidebarTab === 'dependencies' ? 'bg-white dark:bg-slate-800 text-primary dark:text-purple-300 shadow-xs font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium'"
+                            class="flex-1 py-1.5 px-2 text-[11px] rounded-lg transition-all tab-btn cursor-pointer flex items-center justify-center gap-1">
+                            <span>Deps</span>
                             <span
-                                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-purple-50 text-primary border border-purple-200/80 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/40">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Active
-                            </span>
-                        </div>
-                        <p class="text-[10.5px] text-gray-400 dark:text-gray-500 font-medium truncate">Definition &
-                            Metadata Explorer</p>
-                    </div>
-                </div>
-                <button type="button" @click="closeSidebar()"
-                    class="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition-all cursor-pointer group flex-shrink-0"
-                    id="btn-close-sidebar" title="Close sidebar">
-                    <span
-                        class="material-symbols-outlined text-[18px] group-hover:rotate-90 transition-transform duration-200">close</span>
-                </button>
-            </div>
-
-            <!-- Hero Identity Card: Dynamic Icon Box, Name, Type, Metagrid -->
-            <div
-                class="p-4 border-b border-gray-100 dark:border-slate-800 bg-gray-50/40 dark:bg-slate-900/40 space-y-3 flex-shrink-0">
-                <!-- Identity Header -->
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl flex items-center justify-center border shadow-2xs flex-shrink-0"
-                        :style="{ backgroundColor: (selectedBeanMeta.color || '#8b5cf6') + '15', color: selectedBeanMeta.color || '#8b5cf6', borderColor: (selectedBeanMeta.color || '#8b5cf6') + '33' }"
-                        id="sidebar-icon-container">
-                        <span class="material-symbols-outlined text-[20px]"
-                            x-text="selectedBeanMeta.icon || 'schema'"
-                            id="sidebar-icon">schema</span>
-                    </div>
-                    <div class="min-w-0 flex-1">
-                        <div class="font-mono font-bold text-[13px] text-gray-900 dark:text-white truncate leading-tight hover:text-primary transition-colors cursor-pointer select-all"
-                            x-text="selectedBean?.beanName || '-'"
-                            :title="selectedBean?.beanName || ''"
-                            id="detail-bean-name">-</div>
-                        <div class="text-[11px] text-gray-400 dark:text-gray-500 font-mono truncate mt-0.5"
-                            x-text="selectedBean?.type || '-'"
-                            :title="selectedBean?.type || ''"
-                            id="detail-bean-type">-</div>
+                                class="px-1.5 py-0.2 rounded-full text-[9px] font-bold font-mono bg-purple-100 text-primary dark:bg-purple-950 dark:text-purple-300"
+                                x-text="selectedBean?.dependencies?.length || 0" id="detail-deps-count">0</span>
+                        </button>
+                        <button type="button" @click="setSidebarTab('dependents')"
+                            :class="sidebarTab === 'dependents' ? 'bg-white dark:bg-slate-800 text-primary dark:text-purple-300 shadow-xs font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium'"
+                            class="flex-1 py-1.5 px-2 text-[11px] rounded-lg transition-all tab-btn cursor-pointer flex items-center justify-center gap-1">
+                            <span>Dependent</span>
+                            <span
+                                class="px-1.5 py-0.2 rounded-full text-[9px] font-bold font-mono bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                                x-text="selectedBean?.dependents?.length || 0" id="detail-dependents-count">0</span>
+                        </button>
                     </div>
                 </div>
 
-                <!-- Structured Metagrid: 2 Columns for Scope/Role + Full Width for Context -->
-                <div class="space-y-2">
-                    <div class="grid grid-cols-2 gap-2">
-                        <!-- Scope -->
+                <!-- Scrollable Content Area -->
+                <div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3.5" id="sidebar-content">
+                    <!-- Tab Pane: Properties -->
+                    <div x-show="sidebarTab === 'properties'" class="tab-pane space-y-3.5">
+                        <!-- Traits & Flags Grid -->
                         <div
-                            class="bg-white dark:bg-slate-950 p-2.5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-2xs">
-                            <div class="flex items-center gap-1 text-gray-400 dark:text-gray-500 mb-0.5">
-                                <span class="material-symbols-outlined text-[13px]">pie_chart</span>
-                                <span class="text-[9.5px] font-bold uppercase tracking-wider">Scope</span>
+                            class="p-3.5 rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-3">
+                            <div class="flex items-center justify-between">
+                                <h4
+                                    class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                                    <span class="material-symbols-outlined text-[13px] text-amber-500">toggle_on</span>
+                                    Flags & Traits
+                                </h4>
+                                <span class="text-[10px] font-mono text-gray-400">Spring DI</span>
                             </div>
-                            <div class="text-[11.5px] font-mono font-bold text-purple-600 dark:text-purple-300 truncate"
-                                x-text="selectedBeanFormatted?.scope || '-'"
-                                id="detail-bean-scope">-</div>
+                            <div class="space-y-2 text-xs">
+                                <div
+                                    class="flex justify-between items-center py-1.5 px-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
+                                    <span
+                                        class="text-gray-600 dark:text-gray-300 font-medium text-[11px] flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined text-[15px] text-amber-500">star</span>
+                                        Primary Bean
+                                    </span>
+                                    <span class="font-bold text-[10px] font-mono px-2 py-0.5 rounded-md"
+                                        :class="selectedBeanFormatted?.primary ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/50' : 'bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-gray-400 border border-transparent'"
+                                        x-text="selectedBeanFormatted?.primaryLabel || 'FALSE'"
+                                        id="detail-prop-primary">FALSE</span>
+                                </div>
+                                <div
+                                    class="flex justify-between items-center py-1.5 px-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
+                                    <span
+                                        class="text-gray-600 dark:text-gray-300 font-medium text-[11px] flex items-center gap-1.5">
+                                        <span
+                                            class="material-symbols-outlined text-[15px] text-purple-500">bedtime</span>
+                                        Lazy Initialized
+                                    </span>
+                                    <span class="font-bold text-[10px] font-mono px-2 py-0.5 rounded-md"
+                                        :class="selectedBeanFormatted?.lazyInit ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/50' : 'bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-gray-400 border border-transparent'"
+                                        x-text="selectedBeanFormatted?.lazyInitLabel || 'FALSE'"
+                                        id="detail-prop-lazy">FALSE</span>
+                                </div>
+                                <div
+                                    class="flex justify-between items-center py-1.5 px-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
+                                    <span
+                                        class="text-gray-600 dark:text-gray-300 font-medium text-[11px] flex items-center gap-1.5">
+                                        <span
+                                            class="material-symbols-outlined text-[15px] text-emerald-500">check_circle</span>
+                                        Autowired Candidate
+                                    </span>
+                                    <span class="font-bold text-[10px] font-mono px-2 py-0.5 rounded-md"
+                                        :class="selectedBeanFormatted?.autowired ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/50' : 'bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-gray-400 border border-transparent'"
+                                        x-text="selectedBeanFormatted?.autowiredLabel || 'TRUE'"
+                                        id="detail-prop-autowired">TRUE</span>
+                                </div>
+                            </div>
                         </div>
-                        <!-- Role -->
+
+                        <!-- Factory Details Section -->
                         <div
-                            class="bg-white dark:bg-slate-950 p-2.5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-2xs">
-                            <div class="flex items-center gap-1 text-gray-400 dark:text-gray-500 mb-0.5">
-                                <span class="material-symbols-outlined text-[13px]">shield</span>
-                                <span class="text-[9.5px] font-bold uppercase tracking-wider">Role</span>
-                            </div>
-                            <div class="text-[11.5px] font-mono font-bold text-blue-600 dark:text-blue-300 truncate"
-                                x-text="selectedBeanFormatted?.role || '-'"
-                                id="detail-bean-role">Application</div>
-                        </div>
-                    </div>
-
-                    <!-- Context ID (Full Width) -->
-                    <div
-                        class="bg-white dark:bg-slate-950 px-3 py-2 rounded-xl border border-gray-100 dark:border-slate-800 shadow-2xs flex items-center justify-between gap-2">
-                        <div class="flex items-center gap-1 text-gray-400 dark:text-gray-500 flex-shrink-0">
-                            <span class="material-symbols-outlined text-[13px]">hub</span>
-                            <span class="text-[9.5px] font-bold uppercase tracking-wider">Context</span>
-                        </div>
-                        <div class="text-[11.5px] font-mono font-bold text-emerald-600 dark:text-emerald-300 truncate text-right"
-                            x-text="selectedBeanFormatted?.contextId || selectedBean?.contextId || '-'"
-                            id="detail-prop-context">-</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Segmented Modern Tabs -->
-            <div class="px-4 py-2.5 border-b border-gray-100 dark:border-slate-800 flex-shrink-0">
-                <div class="flex items-center bg-gray-100/90 dark:bg-slate-950/80 p-1 rounded-xl border border-gray-200/60 dark:border-slate-800"
-                    id="sidebar-tabs">
-                    <button type="button" @click="setSidebarTab('properties')"
-                        :class="sidebarTab === 'properties' ? 'bg-white dark:bg-slate-800 text-primary dark:text-purple-300 shadow-xs font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium'"
-                        class="flex-1 py-1.5 px-2 text-[11px] rounded-lg transition-all tab-btn cursor-pointer flex items-center justify-center gap-1">
-                        <span class="material-symbols-outlined text-[14px]">tune</span> Properties
-                    </button>
-                    <button type="button" @click="setSidebarTab('dependencies')"
-                        :class="sidebarTab === 'dependencies' ? 'bg-white dark:bg-slate-800 text-primary dark:text-purple-300 shadow-xs font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium'"
-                        class="flex-1 py-1.5 px-2 text-[11px] rounded-lg transition-all tab-btn cursor-pointer flex items-center justify-center gap-1">
-                        <span>Deps</span>
-                        <span
-                            class="px-1.5 py-0.2 rounded-full text-[9px] font-bold font-mono bg-purple-100 text-primary dark:bg-purple-950 dark:text-purple-300"
-                            x-text="selectedBean?.dependencies?.length || 0"
-                            id="detail-deps-count">0</span>
-                    </button>
-                    <button type="button" @click="setSidebarTab('dependents')"
-                        :class="sidebarTab === 'dependents' ? 'bg-white dark:bg-slate-800 text-primary dark:text-purple-300 shadow-xs font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium'"
-                        class="flex-1 py-1.5 px-2 text-[11px] rounded-lg transition-all tab-btn cursor-pointer flex items-center justify-center gap-1">
-                        <span>Dependent</span>
-                        <span
-                            class="px-1.5 py-0.2 rounded-full text-[9px] font-bold font-mono bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-                            x-text="selectedBean?.dependents?.length || 0"
-                            id="detail-dependents-count">0</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Scrollable Content Area -->
-            <div class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3.5" id="sidebar-content">
-                <!-- Tab Pane: Properties -->
-                <div x-show="sidebarTab === 'properties'" class="tab-pane space-y-3.5">
-                    <!-- Traits & Flags Grid -->
-                    <div
-                        class="p-3.5 rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-3">
-                        <div class="flex items-center justify-between">
+                            class="p-3.5 rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-2.5">
                             <h4
                                 class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                                <span class="material-symbols-outlined text-[13px] text-amber-500">toggle_on</span>
-                                Flags & Traits
+                                <span class="material-symbols-outlined text-[13px] text-blue-500">factory</span> Factory
+                                Provider
                             </h4>
-                            <span class="text-[10px] font-mono text-gray-400">Spring DI</span>
-                        </div>
-                        <div class="space-y-2 text-xs">
-                            <div
-                                class="flex justify-between items-center py-1.5 px-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
-                                <span
-                                    class="text-gray-600 dark:text-gray-300 font-medium text-[11px] flex items-center gap-1.5">
-                                    <span class="material-symbols-outlined text-[15px] text-amber-500">star</span>
-                                    Primary Bean
-                                </span>
-                                <span class="font-bold text-[10px] font-mono px-2 py-0.5 rounded-md"
-                                    :class="selectedBeanFormatted?.primary ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/50' : 'bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-gray-400 border border-transparent'"
-                                    x-text="selectedBeanFormatted?.primaryLabel || 'FALSE'"
-                                    id="detail-prop-primary">FALSE</span>
-                            </div>
-                            <div
-                                class="flex justify-between items-center py-1.5 px-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
-                                <span
-                                    class="text-gray-600 dark:text-gray-300 font-medium text-[11px] flex items-center gap-1.5">
-                                    <span class="material-symbols-outlined text-[15px] text-purple-500">bedtime</span>
-                                    Lazy Initialized
-                                </span>
-                                <span class="font-bold text-[10px] font-mono px-2 py-0.5 rounded-md"
-                                    :class="selectedBeanFormatted?.lazyInit ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/50' : 'bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-gray-400 border border-transparent'"
-                                    x-text="selectedBeanFormatted?.lazyInitLabel || 'FALSE'"
-                                    id="detail-prop-lazy">FALSE</span>
-                            </div>
-                            <div
-                                class="flex justify-between items-center py-1.5 px-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
-                                <span
-                                    class="text-gray-600 dark:text-gray-300 font-medium text-[11px] flex items-center gap-1.5">
+                            <div class="space-y-2 text-xs">
+                                <div
+                                    class="p-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
                                     <span
-                                        class="material-symbols-outlined text-[15px] text-emerald-500">check_circle</span>
-                                    Autowired Candidate
-                                </span>
-                                <span class="font-bold text-[10px] font-mono px-2 py-0.5 rounded-md"
-                                    :class="selectedBeanFormatted?.autowired ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/50' : 'bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-gray-400 border border-transparent'"
-                                    x-text="selectedBeanFormatted?.autowiredLabel || 'TRUE'"
-                                    id="detail-prop-autowired">TRUE</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Factory Details Section -->
-                    <div
-                        class="p-3.5 rounded-2xl border border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs space-y-2.5">
-                        <h4
-                            class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                            <span class="material-symbols-outlined text-[13px] text-blue-500">factory</span> Factory
-                            Provider
-                        </h4>
-                        <div class="space-y-2 text-xs">
-                            <div
-                                class="p-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
-                                <span
-                                    class="text-[9.5px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider block mb-0.5">Factory
-                                    Bean</span>
-                                <span
-                                    class="text-[11px] font-mono font-medium text-gray-800 dark:text-gray-200 break-all leading-normal block"
-                                    x-text="selectedBeanFormatted?.factoryBean || '-'"
-                                    id="detail-factory-bean">-</span>
-                            </div>
-                            <div
-                                class="p-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
-                                <span
-                                    class="text-[9.5px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider block mb-0.5">Factory
-                                    Method</span>
-                                <span
-                                    class="text-[11px] font-mono font-medium text-gray-800 dark:text-gray-200 break-all leading-normal block"
-                                    x-text="selectedBeanFormatted?.factoryMethod || '-'"
-                                    id="detail-factory-method">-</span>
-                            </div>
-                            <div
-                                class="p-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
-                                <span
-                                    class="text-[9.5px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider block mb-0.5">Init
-                                    Method</span>
-                                <span
-                                    class="text-[11px] font-mono font-medium text-gray-800 dark:text-gray-200 break-all leading-normal block"
-                                    x-text="selectedBeanFormatted?.initMethod || '-'"
-                                    id="detail-init-method">-</span>
-                            </div>
-                            <div
-                                class="p-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
-                                <span
-                                    class="text-[9.5px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider block mb-0.5">Destroy
-                                    Method</span>
-                                <span
-                                    class="text-[11px] font-mono font-medium text-gray-800 dark:text-gray-200 break-all leading-normal block"
-                                    x-text="selectedBeanFormatted?.destroyMethod || '-'"
-                                    id="detail-destroy-method">-</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Tab Pane: Dependencies -->
-                <div x-show="sidebarTab === 'dependencies'" class="tab-pane space-y-2">
-                    <div class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 px-1">
-                        Beans This Definition Depends On
-                    </div>
-
-                    <!-- Empty state -->
-                    <div x-show="sidebarDeps.length === 0" class="text-gray-400 dark:text-gray-500 text-xs p-4 italic text-center">
-                        No dependencies registered
-                    </div>
-
-                    <!-- Dependency items -->
-                    <div class="space-y-1.5" id="detail-deps-list">
-                        <template x-for="dep in sidebarDeps" :key="dep.fullName">
-                            <div @click="selectDependency(dep.fullName)"
-                                class="def-sidebar-item-click flex items-center justify-between p-2.5 bg-white dark:bg-slate-950 hover:bg-purple-50/80 dark:hover:bg-purple-950/40 rounded-xl transition-all cursor-pointer border border-gray-100 dark:border-slate-800 hover:border-primary/30 shadow-2xs hover:shadow-xs group">
-                                <div class="flex items-center gap-2.5 min-w-0">
-                                    <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-2xs"
-                                        :class="'bg-' + dep.categoryColor + '-500'"></span>
+                                        class="text-[9.5px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider block mb-0.5">Factory
+                                        Bean</span>
                                     <span
-                                        class="font-bold text-gray-700 dark:text-gray-200 group-hover:text-primary dark:group-hover:text-purple-300 font-mono text-[11px] truncate"
-                                        x-text="dep.name" :title="dep.fullName"></span>
+                                        class="text-[11px] font-mono font-medium text-gray-800 dark:text-gray-200 break-all leading-normal block"
+                                        x-text="selectedBeanFormatted?.factoryBean || '-'"
+                                        id="detail-factory-bean">-</span>
                                 </div>
-                                <span
-                                    class="w-6 h-6 rounded-lg bg-gray-50 dark:bg-slate-900 flex items-center justify-center text-gray-400 dark:text-gray-500 group-hover:text-primary group-hover:bg-primary/10 transition-all flex-shrink-0">
-                                    <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-                                </span>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                <!-- Tab Pane: Dependents -->
-                <div x-show="sidebarTab === 'dependents'" class="tab-pane space-y-2">
-                    <div class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 px-1">
-                        Beans That Depend On This Definition
-                    </div>
-
-                    <!-- Empty state -->
-                    <div x-show="sidebarDependents.length === 0" class="text-gray-400 dark:text-gray-500 text-xs p-4 italic text-center">
-                        No dependents registered
-                    </div>
-
-                    <!-- Dependent items -->
-                    <div class="space-y-1.5" id="detail-dependents-list">
-                        <template x-for="dep in sidebarDependents" :key="dep.fullName">
-                            <div @click="selectDependency(dep.fullName)"
-                                class="def-sidebar-item-click flex items-center justify-between p-2.5 bg-white dark:bg-slate-950 hover:bg-purple-50/80 dark:hover:bg-purple-950/40 rounded-xl transition-all cursor-pointer border border-gray-100 dark:border-slate-800 hover:border-primary/30 shadow-2xs hover:shadow-xs group">
-                                <div class="flex items-center gap-2.5 min-w-0">
-                                    <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-2xs"
-                                        :class="'bg-' + dep.categoryColor + '-500'"></span>
+                                <div
+                                    class="p-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
                                     <span
-                                        class="font-bold text-gray-700 dark:text-gray-200 group-hover:text-primary dark:group-hover:text-purple-300 font-mono text-[11px] truncate"
-                                        x-text="dep.name" :title="dep.fullName"></span>
+                                        class="text-[9.5px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider block mb-0.5">Factory
+                                        Method</span>
+                                    <span
+                                        class="text-[11px] font-mono font-medium text-gray-800 dark:text-gray-200 break-all leading-normal block"
+                                        x-text="selectedBeanFormatted?.factoryMethod || '-'"
+                                        id="detail-factory-method">-</span>
                                 </div>
-                                <span
-                                    class="w-6 h-6 rounded-lg bg-gray-50 dark:bg-slate-900 flex items-center justify-center text-gray-400 dark:text-gray-500 group-hover:text-primary group-hover:bg-primary/10 transition-all flex-shrink-0">
-                                    <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
-                                </span>
+                                <div
+                                    class="p-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
+                                    <span
+                                        class="text-[9.5px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider block mb-0.5">Init
+                                        Method</span>
+                                    <span
+                                        class="text-[11px] font-mono font-medium text-gray-800 dark:text-gray-200 break-all leading-normal block"
+                                        x-text="selectedBeanFormatted?.initMethod || '-'"
+                                        id="detail-init-method">-</span>
+                                </div>
+                                <div
+                                    class="p-2.5 rounded-xl bg-gray-50/70 dark:bg-slate-950/60 border border-gray-100 dark:border-slate-800/60">
+                                    <span
+                                        class="text-[9.5px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider block mb-0.5">Destroy
+                                        Method</span>
+                                    <span
+                                        class="text-[11px] font-mono font-medium text-gray-800 dark:text-gray-200 break-all leading-normal block"
+                                        x-text="selectedBeanFormatted?.destroyMethod || '-'"
+                                        id="detail-destroy-method">-</span>
+                                </div>
                             </div>
-                        </template>
+                        </div>
+                    </div>
+
+                    <!-- Tab Pane: Dependencies -->
+                    <div x-show="sidebarTab === 'dependencies'" class="tab-pane space-y-2">
+                        <div
+                            class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 px-1">
+                            Beans This Definition Depends On
+                        </div>
+
+                        <!-- Empty state -->
+                        <div x-show="sidebarDeps.length === 0"
+                            class="text-gray-400 dark:text-gray-500 text-xs p-4 italic text-center">
+                            No dependencies registered
+                        </div>
+
+                        <!-- Dependency items -->
+                        <div class="space-y-1.5" id="detail-deps-list">
+                            <template x-for="dep in sidebarDeps" :key="dep.fullName">
+                                <div @click="selectDependency(dep.fullName)"
+                                    class="def-sidebar-item-click flex items-center justify-between p-2.5 bg-white dark:bg-slate-950 hover:bg-purple-50/80 dark:hover:bg-purple-950/40 rounded-xl transition-all cursor-pointer border border-gray-100 dark:border-slate-800 hover:border-primary/30 shadow-2xs hover:shadow-xs group">
+                                    <div class="flex items-center gap-2.5 min-w-0">
+                                        <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-2xs"
+                                            :class="'bg-' + dep.categoryColor + '-500'"></span>
+                                        <span
+                                            class="font-bold text-gray-700 dark:text-gray-200 group-hover:text-primary dark:group-hover:text-purple-300 font-mono text-[11px] truncate"
+                                            x-text="dep.name" :title="dep.fullName"></span>
+                                    </div>
+                                    <span
+                                        class="w-6 h-6 rounded-lg bg-gray-50 dark:bg-slate-900 flex items-center justify-center text-gray-400 dark:text-gray-500 group-hover:text-primary group-hover:bg-primary/10 transition-all flex-shrink-0">
+                                        <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                                    </span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Tab Pane: Dependents -->
+                    <div x-show="sidebarTab === 'dependents'" class="tab-pane space-y-2">
+                        <div
+                            class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 px-1">
+                            Beans That Depend On This Definition
+                        </div>
+
+                        <!-- Empty state -->
+                        <div x-show="sidebarDependents.length === 0"
+                            class="text-gray-400 dark:text-gray-500 text-xs p-4 italic text-center">
+                            No dependents registered
+                        </div>
+
+                        <!-- Dependent items -->
+                        <div class="space-y-1.5" id="detail-dependents-list">
+                            <template x-for="dep in sidebarDependents" :key="dep.fullName">
+                                <div @click="selectDependency(dep.fullName)"
+                                    class="def-sidebar-item-click flex items-center justify-between p-2.5 bg-white dark:bg-slate-950 hover:bg-purple-50/80 dark:hover:bg-purple-950/40 rounded-xl transition-all cursor-pointer border border-gray-100 dark:border-slate-800 hover:border-primary/30 shadow-2xs hover:shadow-xs group">
+                                    <div class="flex items-center gap-2.5 min-w-0">
+                                        <span class="w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-2xs"
+                                            :class="'bg-' + dep.categoryColor + '-500'"></span>
+                                        <span
+                                            class="font-bold text-gray-700 dark:text-gray-200 group-hover:text-primary dark:group-hover:text-purple-300 font-mono text-[11px] truncate"
+                                            x-text="dep.name" :title="dep.fullName"></span>
+                                    </div>
+                                    <span
+                                        class="w-6 h-6 rounded-lg bg-gray-50 dark:bg-slate-900 flex items-center justify-center text-gray-400 dark:text-gray-500 group-hover:text-primary group-hover:bg-primary/10 transition-all flex-shrink-0">
+                                        <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                                    </span>
+                                </div>
+                            </template>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Sidebar Footer: Dependency Graph Launch Button -->
-            <div
-                class="p-4 border-t border-gray-100 dark:border-slate-800/80 mt-auto bg-gray-50/70 dark:bg-slate-900/70 backdrop-blur-md">
-                <button type="button" @click="openGraphModal()"
-                    class="w-full py-2.5 px-4 bg-gradient-to-r from-primary via-purple-600 to-indigo-600 hover:from-primary/95 hover:to-indigo-600/95 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/35 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
-                    id="def-view-graph-btn">
-                    <span class="material-symbols-outlined text-[18px]">account_tree</span>
-                    <span>View Dependency Graph</span>
-                    <span
-                        class="px-1.5 py-0.5 rounded-md text-[9px] font-mono bg-white/20 text-white font-medium ml-auto">Graph</span>
-                </button>
+                <!-- Sidebar Footer: Dependency Graph Launch Button -->
+                <div
+                    class="p-4 border-t border-gray-100 dark:border-slate-800/80 mt-auto bg-gray-50/70 dark:bg-slate-900/70 backdrop-blur-md">
+                    <button type="button" @click.stop="openGraphModal()"
+                        class="w-full py-2.5 px-4 bg-gradient-to-r from-primary via-purple-600 to-indigo-600 hover:from-primary/95 hover:to-indigo-600/95 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/35 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
+                        id="def-view-graph-btn">
+                        <span class="material-symbols-outlined text-[18px]">account_tree</span>
+                        <span>View Dependency Graph</span>
+                        <span
+                            class="px-1.5 py-0.5 rounded-md text-[9px] font-mono bg-white/20 text-white font-medium ml-auto">Graph</span>
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
     </div>
 
     <!-- Modal: Interactive Bean Dependency Graph Preview -->
-    <div id="bean-dependency-graph-modal"
-        x-show="graphModalOpen"
-        x-cloak
+    <div id="bean-dependency-graph-modal" x-show="graphModalOpen" x-cloak
+        @keydown.escape.window="if (graphModalOpen) closeGraphModal()" @click.self="closeGraphModal()"
         class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6 transition-all duration-300">
 
-        <div id="modal-graph-card"
+        <div id="modal-graph-card" @click.away="closeGraphModal()"
             class="bg-white dark:bg-slate-900 border border-gray-200/90 dark:border-slate-800 rounded-3xl shadow-2xl w-full max-w-6xl h-[76vh] flex flex-col overflow-hidden transition-all duration-300">
 
             <!-- Modal Header -->
@@ -921,14 +928,16 @@
                     </div>
                     <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-2 flex-wrap">
-                            <span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Bean
+                            <span
+                                class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Bean
                                 Graph Inspector</span>
                             <span id="modal-graph-bean-name"
                                 class="px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold bg-primary/10 text-primary dark:text-purple-300 border border-primary/20 truncate max-w-xs"
                                 x-text="graphTargetBean?.beanName || ''"
                                 :title="graphTargetBean?.beanName || ''"></span>
                         </div>
-                        <p class="text-[11.5px] text-gray-400 dark:text-gray-500 font-medium truncate mt-0.5">Explore direct
+                        <p class="text-[11.5px] text-gray-400 dark:text-gray-500 font-medium truncate mt-0.5">Explore
+                            direct
                             dependencies and dependents hierarchy</p>
                     </div>
                 </div>
@@ -938,32 +947,42 @@
                     <!-- Layout Toggle -->
                     <div
                         class="flex items-center border border-gray-200 dark:border-slate-800 rounded-xl bg-gray-50/80 dark:bg-slate-950 p-1 shadow-xs">
-                        <button type="button" id="modal-btn-lr"
-                            @click="setGraphMode('lr')"
+                        <button type="button" id="modal-btn-lr" @click="setGraphMode('lr')"
                             :class="graphMode === 'lr' ? 'bg-white dark:bg-slate-800 text-gray-800 dark:text-white shadow-xs font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white font-semibold'"
                             class="px-2.5 py-1 text-xs rounded-lg transition-all cursor-pointer flex items-center gap-1"
                             title="Left → Right Layout">
                             <span class="material-symbols-outlined text-[15px]">east</span> Left-Right
                         </button>
-                        <button type="button" id="modal-btn-tb"
-                            @click="setGraphMode('tb')"
+                        <button type="button" id="modal-btn-tb" @click="setGraphMode('tb')"
                             :class="graphMode === 'tb' ? 'bg-white dark:bg-slate-800 text-gray-800 dark:text-white shadow-xs font-bold' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white font-semibold'"
                             class="px-2.5 py-1 text-xs rounded-lg transition-all cursor-pointer flex items-center gap-1"
                             title="Top → Bottom Layout">
                             <span class="material-symbols-outlined text-[15px]">south</span> Top-Down
                         </button>
                     </div>
-                    <button type="button" id="btn-close-graph-modal"
-                        @click="closeGraphModal()"
+
+                    <!-- Export PNG Button -->
+                    <button type="button" @click="exportModalGraph()" :disabled="isExportingGraph"
+                        class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-slate-800 rounded-xl bg-gray-50/80 dark:bg-slate-950 hover:bg-gray-100 dark:hover:bg-slate-800 text-xs font-semibold text-gray-700 dark:text-gray-200 hover:text-primary dark:hover:text-purple-300 transition-all cursor-pointer whitespace-nowrap shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                        id="modal-btn-export" title="Export Bean Dependency Tree as PNG Image">
+                        <span x-show="!isExportingGraph"
+                            class="material-symbols-outlined text-[16px] text-gray-500 dark:text-gray-400">image</span>
+                        <span x-show="isExportingGraph"
+                            class="material-symbols-outlined text-[16px] animate-spin text-primary">progress_activity</span>
+                        <span x-text="isExportingGraph ? 'Exporting...' : 'Export'">Export</span>
+                    </button>
+
+                    <button type="button" id="btn-close-graph-modal" @click="closeGraphModal()"
                         class="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
                         <span class="material-symbols-outlined text-[20px]">close</span>
                     </button>
                 </div>
             </header>
 
-            <!-- Modal Body / SVG Canvas -->
+            <!-- Modal Body / Canvas -->
             <div class="relative flex-1 bg-gray-50/40 dark:bg-slate-950/40 overflow-hidden" id="modal-graph-container">
-                <svg id="modal-tree-svg" class="w-full h-full min-h-[400px] cursor-grab active:cursor-grabbing"></svg>
+                <canvas id="modal-tree-canvas"
+                    class="w-full h-full min-h-[400px] block cursor-grab active:cursor-grabbing"></canvas>
 
                 <!-- Navigation Controls floating in bottom-left -->
                 <div
@@ -1004,14 +1023,21 @@
 
                 <!-- Floating Tooltip Card -->
                 <div id="modal-graph-tooltip"
-                    x-show="graphTooltip?.visible"
-                    x-cloak
-                    :style="`left: ${graphTooltip?.x || 0}px; top: ${graphTooltip?.y || 0}px;`"
-                    class="absolute min-w-[200px] max-w-[260px] p-3 rounded-xl bg-gray-900/95 dark:bg-slate-800/95 text-white text-xs shadow-2xl backdrop-blur-md pointer-events-none z-30 border border-white/15 transition-all duration-75">
-                    <div class="font-mono font-bold text-xs text-white truncate" id="tip-name" x-text="graphTooltip?.name || '-'">-</div>
-                    <div class="text-[10px] text-gray-300 font-mono truncate mt-0.5" id="tip-type" x-text="graphTooltip?.type || '-'">-</div>
-                    <div class="text-[10px] text-purple-300 font-mono truncate mt-0.5" id="tip-scope" x-text="graphTooltip?.scope || '-'">-</div>
-                    <div class="text-[9px] text-gray-400 uppercase tracking-wider mt-1" id="tip-meta" x-text="graphTooltip?.meta || ''" x-show="graphTooltip?.meta"></div>
+                    class="absolute hidden min-w-[200px] max-w-[280px] p-3 rounded-2xl bg-white/95 dark:bg-slate-900/95 text-gray-900 dark:text-white text-xs shadow-2xl backdrop-blur-md pointer-events-none z-30 border border-gray-200/90 dark:border-slate-800 flex flex-col gap-1 transition-opacity duration-150">
+                    <div class="flex items-center gap-2 pb-1.5 mb-1 border-b border-gray-100 dark:border-slate-800">
+                        <div
+                            class="w-5 h-5 rounded-lg bg-primary/10 dark:bg-purple-950/40 text-primary dark:text-purple-300 flex items-center justify-center flex-shrink-0 border border-primary/20">
+                            <span class="material-symbols-outlined text-[13px]">data_object</span>
+                        </div>
+                        <div class="font-mono font-bold text-xs text-gray-900 dark:text-white truncate"
+                            id="modal-tip-name">-</div>
+                    </div>
+                    <div class="text-[11px] text-gray-600 dark:text-gray-300 font-mono truncate" id="modal-tip-type">-
+                    </div>
+                    <div class="text-[11px] text-purple-600 dark:text-purple-300 font-medium truncate mt-0.5"
+                        id="modal-tip-scope">-</div>
+                    <div class="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold mt-0.5"
+                        id="modal-tip-meta"></div>
                 </div>
             </div>
         </div>

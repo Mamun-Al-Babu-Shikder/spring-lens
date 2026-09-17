@@ -1,0 +1,237 @@
+<div x-data="whatsNew" class="flex-1 flex flex-col min-h-0 overflow-hidden">
+
+    <header
+        class="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 px-6 sm:px-8 py-4 flex items-center justify-between z-10 flex-shrink-0 h-[72px] transition-colors duration-300">
+        <div class="flex items-center gap-3 min-w-0">
+            <div
+                class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 via-purple-500/10 to-indigo-500/20 text-primary dark:text-purple-300 flex items-center justify-center border border-primary/20 shadow-xs flex-shrink-0">
+                <span class="material-symbols-outlined text-[22px]">auto_awesome</span>
+            </div>
+            <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                    <h1 class="text-lg font-bold text-gray-900 dark:text-white tracking-tight truncate">
+                        What's New
+                    </h1>
+                    <span
+                        class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-primary border border-primary/20 dark:bg-purple-950/40 dark:text-purple-300 flex-shrink-0">
+                        Changelog & Updates
+                    </span>
+                </div>
+                <div class="text-xs text-gray-500 dark:text-gray-400 font-medium flex items-center gap-1 truncate">
+                    <span x-text="appName || 'SpringLens'"></span>
+                    <span class="material-symbols-outlined text-[12px] opacity-60">chevron_right</span>
+                    <span class="text-gray-700 dark:text-gray-300 font-semibold">Release Notes</span>
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center gap-2.5 flex-shrink-0">
+            <a href="https://github.com/sdlc-pro/spring-lens/releases" target="_blank" rel="noopener noreferrer"
+                class="flex items-center gap-1.5 px-3 py-1.5 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-gray-700 dark:text-gray-200 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/80 hover:border-gray-300 dark:hover:border-slate-600 shadow-xs transition-all cursor-pointer"
+                title="View GitHub releases">
+                <span class="material-symbols-outlined text-[16px] text-gray-500 dark:text-gray-400">open_in_new</span>
+                <span>GitHub Releases</span>
+            </a>
+        </div>
+    </header>
+
+    <div class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
+
+        <div
+            class="relative overflow-hidden bg-gradient-to-br from-purple-900/90 via-indigo-900 to-slate-950 text-white rounded-3xl p-8 sm:p-10 border border-purple-500/20 shadow-xl">
+            <div
+                class="absolute -top-24 -right-24 w-80 h-80 bg-primary/25 rounded-full blur-3xl pointer-events-none"></div>
+            <div
+                class="absolute -bottom-24 -left-24 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="relative z-10 max-w-3xl space-y-4">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs font-semibold text-purple-200">
+                    <span class="material-symbols-outlined text-[16px] text-amber-400">celebration</span>
+                    <span>Continuous Observability Evolution</span>
+                </div>
+                <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+                    What's New in SpringLens
+                </h2>
+                <p class="text-sm text-purple-200/90 leading-relaxed">
+                    Explore newly delivered diagnostic engines, dependency graph visualizers, startup latency profilers, and performance improvements across versions.
+                </p>
+
+                <div class="pt-2 flex items-center gap-2 flex-wrap">
+                    <template x-for="cat in categories" :key="cat.id">
+                        <button type="button" @click="setFilter(cat.id)"
+                            class="px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5"
+                            :class="activeFilter === cat.id 
+                                ? 'bg-white text-gray-900 shadow-sm font-bold' 
+                                : 'bg-white/10 hover:bg-white/20 text-purple-200 border border-white/10'">
+                            <span x-text="cat.label"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <template x-for="release in releases" :key="release.version">
+            <div class="space-y-6">
+
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200 dark:border-slate-800">
+                    <div class="flex items-center gap-3">
+                        <span class="px-3 py-1 rounded-xl text-sm font-extrabold font-mono bg-primary text-white shadow-sm shadow-primary/30"
+                            x-text="release.version">v1.0.0</span>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" x-show="release.isCurrent"></span>
+                            <span class="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400"
+                                x-show="release.isCurrent" x-text="release.badge">Latest</span>
+                            <span class="text-xs text-gray-400 dark:text-gray-500">•</span>
+                            <span class="text-xs text-gray-500 dark:text-gray-400 font-medium"
+                                x-text="release.date">--</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <template x-for="stat in release.stats" :key="stat.label">
+                            <div class="px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-slate-800 text-[11px] font-medium text-gray-700 dark:text-gray-300 border border-gray-200/60 dark:border-slate-700/60 flex items-center gap-1.5">
+                                <span class="text-gray-400 dark:text-gray-500" x-text="stat.label + ':'"></span>
+                                <strong class="text-gray-900 dark:text-white" x-text="stat.value"></strong>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm overflow-hidden transition-colors duration-300">
+                    <div class="p-6 sm:p-8 space-y-6">
+                        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6 border-b border-gray-100 dark:border-slate-800">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-200/80 dark:border-blue-800/60 shadow-xs flex-shrink-0">
+                                    <span class="material-symbols-outlined text-[28px]" x-text="release.hero.icon">hub</span>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold"
+                                            :class="release.hero.badgeClass" x-text="release.hero.category">Flagship</span>
+                                    </div>
+                                    <h3 class="text-lg font-bold text-gray-900 dark:text-white tracking-tight mt-1"
+                                        x-text="release.hero.title">Feature</h3>
+                                </div>
+                            </div>
+
+                            <button type="button" @click="goTo(release.hero.route)"
+                                class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary/95 text-white text-xs font-bold shadow-md shadow-primary/20 transition-all cursor-pointer group self-start lg:self-auto">
+                                <span x-text="release.hero.actionText">Open Feature</span>
+                                <span class="material-symbols-outlined text-[16px] group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
+                            </button>
+                        </div>
+
+                        <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-300 leading-relaxed max-w-4xl"
+                            x-text="release.hero.description"></p>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                            <template x-for="(point, idx) in release.hero.highlights" :key="idx">
+                                <div class="flex items-start gap-2.5 p-3 rounded-xl bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-800 text-xs text-gray-700 dark:text-gray-300">
+                                    <span class="material-symbols-outlined text-[16px] text-primary dark:text-purple-400 flex-shrink-0 mt-0.5">check_circle</span>
+                                    <span x-text="point"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <template x-for="feature in release.features" :key="feature.id">
+                        <div x-show="isFeatureVisible(feature)"
+                            class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm flex flex-col justify-between transition-colors duration-300 group hover:border-primary/40 dark:hover:border-purple-500/40">
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold"
+                                        :class="feature.badgeClass" x-text="feature.category"></span>
+                                    <span class="material-symbols-outlined text-[20px]"
+                                        :style="{ color: feature.iconColor }" x-text="feature.icon"></span>
+                                </div>
+
+                                <div>
+                                    <h4 class="text-sm font-bold text-gray-900 dark:text-white group-hover:text-primary dark:group-hover:text-purple-300 transition-colors"
+                                        x-text="feature.title"></h4>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1.5 leading-relaxed"
+                                        x-text="feature.description"></p>
+                                </div>
+
+                                <div class="space-y-2 pt-2 border-t border-gray-100 dark:border-slate-800">
+                                    <template x-for="(pt, pIdx) in feature.points" :key="pIdx">
+                                        <div class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-primary/60 flex-shrink-0"></span>
+                                            <span x-text="pt"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <div class="pt-4 mt-4 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between">
+                                <button type="button" @click="goTo(feature.route)"
+                                    class="text-xs font-bold text-primary dark:text-purple-400 hover:underline flex items-center gap-1 cursor-pointer">
+                                    <span x-text="feature.actionText"></span>
+                                    <span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <div class="bg-gradient-to-br from-gray-50 via-purple-50/20 to-indigo-50/20 dark:from-slate-900 dark:via-purple-950/10 dark:to-slate-900 p-6 sm:p-7 rounded-2xl border border-dashed border-gray-300 dark:border-slate-700/80 space-y-4">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[20px] text-primary dark:text-purple-400">upcoming</span>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-gray-900 dark:text-white">
+                            What's Coming Next in Future Releases
+                        </h4>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <template x-for="(item, idx) in release.upcoming" :key="idx">
+                            <div class="p-3.5 rounded-xl bg-white dark:bg-slate-800/60 border border-gray-200/70 dark:border-slate-700/60 shadow-xs space-y-1">
+                                <div class="flex items-center gap-2 text-xs font-bold text-gray-800 dark:text-gray-200">
+                                    <span class="material-symbols-outlined text-[16px] text-primary" x-text="item.icon"></span>
+                                    <span x-text="item.title"></span>
+                                </div>
+                                <p class="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed" x-text="item.description"></p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+            </div>
+        </template>
+
+    </div>
+
+    <footer
+        class="bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 px-6 py-2.5 flex items-center justify-between z-10 flex-shrink-0 text-xs transition-colors duration-300">
+        <div class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+            <span class="w-2 h-2 rounded-full bg-primary/60"></span>
+            <span class="font-medium text-[11px]">SpringLens <span
+                    class="font-mono text-[10px] text-gray-400 dark:text-gray-500">v1.0.0</span></span>
+        </div>
+        <div class="flex items-center gap-4 sm:gap-6 text-xs flex-wrap">
+            <a href="https://github.com/sdlc-pro/spring-lens" target="_blank" rel="noopener noreferrer"
+                class="flex items-center gap-1.5 text-gray-600 hover:text-amber-600 dark:text-gray-400 dark:hover:text-amber-400 font-medium transition-colors">
+                <span class="material-symbols-outlined text-[15px] text-amber-500 fill-current">star</span>
+                <span>Star on GitHub</span>
+            </a>
+            <a href="https://github.com/sdlc-pro/spring-lens/issues/new" target="_blank" rel="noopener noreferrer"
+                class="flex items-center gap-1.5 text-gray-600 hover:text-rose-600 dark:text-gray-400 dark:hover:text-rose-400 font-medium transition-colors">
+                <span class="material-symbols-outlined text-[15px] text-rose-500">bug_report</span>
+                <span>Report an Issue</span>
+            </a>
+            <a href="https://github.com/sdlc-pro/spring-lens#contributing" target="_blank" rel="noopener noreferrer"
+                class="flex items-center gap-1.5 text-gray-600 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 font-medium transition-colors">
+                <span class="material-symbols-outlined text-[15px] text-indigo-500">code</span>
+                <span>Contribute</span>
+            </a>
+            <a href="https://github.com/sdlc-pro/spring-lens/graphs/contributors" target="_blank" rel="noopener noreferrer"
+                class="flex items-center gap-1.5 text-gray-600 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 font-medium transition-colors">
+                <span class="material-symbols-outlined text-[15px] text-blue-500">group</span>
+                <span>Contributors</span>
+            </a>
+            <a href="mailto:aalmamun295@email.com"
+                class="flex items-center gap-1.5 text-gray-600 hover:text-emerald-600 dark:text-gray-400 dark:hover:text-emerald-400 font-medium transition-colors">
+                <span class="material-symbols-outlined text-[15px] text-emerald-500">mail</span>
+                <span>Contact</span>
+            </a>
+        </div>
+    </footer>
+</div>

@@ -22,12 +22,22 @@ export class InstanceSidebarWidget {
         const durationStyle = BeanMetadataRules.resolveDurationColor(initDurationNanos, maxDurationNanos, bottleneckThresholdNanos) || {};
         const definitionHref = `#/definitions?beanName=${encodeURIComponent(beanName)}${contextId ? `&contextId=${encodeURIComponent(contextId)}` : ''}`;
 
+        const isBottleneck = (initDurationNanos || 0) > bottleneckThresholdNanos;
+        const pctOfMax = maxDurationNanos > 0 ? Math.min(100, Math.max(1, Math.round(((initDurationNanos || 0) / maxDurationNanos) * 100))) : 0;
+        const simpleType = type && type !== 'N/A' ? (type.includes('.') ? type.split('.').pop() : type) : 'N/A';
+        const packageName = type && type !== 'N/A' && type.includes('.') ? type.substring(0, type.lastIndexOf('.')) : '';
+
         return {
             name: GraphTreeBuilder._displayName(beanName),
             fullName: beanName,
             type: type || 'N/A',
+            simpleType,
+            packageName,
             scope: Formatter.capitalize(scope || 'singleton'),
             duration: Formatter.formatDuration(initDurationNanos),
+            initDurationNanos: initDurationNanos || 0,
+            pctOfMax,
+            isBottleneck,
             context: contextId || 'root',
             created: Formatter.formatDateTime(createdAt),
             rawCreated: createdAt || 'N/A',

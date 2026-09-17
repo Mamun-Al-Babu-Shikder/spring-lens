@@ -22,11 +22,6 @@ export class DefinitionController extends BaseController {
         this.sidebarWidget = definitionSidebarWidget;
         this.modalWidget = definitionGraphModalWidget;
         this.modalWidget.onSelectBean = (beanName) => this.selectGraphNode(beanName);
-        this.modalWidget.onTooltipChange = (tooltip) => {
-            this.setState({
-                graphTooltip: { ...(this.state.graphTooltip || {}), ...tooltip }
-            });
-        };
 
         this.addDisposable(this.chartsWidget);
         this.addDisposable(this.modalWidget);
@@ -81,15 +76,7 @@ export class DefinitionController extends BaseController {
             graphModalOpen: false,
             graphMode: 'lr',
             graphTargetBean: null,
-            graphTooltip: {
-                visible: false,
-                x: 0,
-                y: 0,
-                name: '',
-                type: '',
-                scope: '',
-                meta: ''
-            },
+            isExportingGraph: false,
             refreshing: false
         };
 
@@ -142,6 +129,7 @@ export class DefinitionController extends BaseController {
             graphZoomIn: () => this.graphZoomIn(),
             graphZoomOut: () => this.graphZoomOut(),
             graphFitView: () => this.graphFitView(),
+            exportModalGraph: () => this.exportModalGraph(),
 
             refreshData: () => this.refreshData(),
             exportData: () => this.exportData()
@@ -535,7 +523,7 @@ export class DefinitionController extends BaseController {
     closeGraphModal() {
         this.setState({
             graphModalOpen: false,
-            graphTooltip: { ...(this.state.graphTooltip || {}), visible: false }
+            isExportingGraph: false
         });
         this.modalWidget.close();
     }
@@ -555,6 +543,34 @@ export class DefinitionController extends BaseController {
 
     graphFitView() {
         this.modalWidget.fitView();
+    }
+
+    async exportModalGraph() {
+        if (this.state.isExportingGraph || !this.state.graphTargetBean) return;
+
+        this.setState({ isExportingGraph: true });
+        try {
+            const blob = await this.modalWidget.exportPNG({ pixelRatio: 2 });
+            if (!blob) return;
+
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            const beanName = this.state.graphTargetBean?.beanName || 'bean';
+            const contextSuffix = this.state.graphTargetBean?.contextId ? `-${this.state.graphTargetBean.contextId}` : '';
+            const filename = `spring-lens-bean-${beanName}${contextSuffix}-graph-${timestamp}.png`;
+
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = filename;
+            document.body.appendChild(anchor);
+            anchor.click();
+            document.body.removeChild(anchor);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (error) {
+            console.error('Failed to export modal graph as PNG:', error);
+        } finally {
+            this.setState({ isExportingGraph: false });
+        }
     }
 
     async selectGraphNode(beanName) {
@@ -612,6 +628,7 @@ export class DefinitionController extends BaseController {
         const keydownHandler = (e) => {
             if (e.key === 'Escape') {
                 if (this.state.graphModalOpen) {
+                    e.stopPropagation();
                     this.closeGraphModal();
                 } else if (this.state.sidebarOpen) {
                     this.closeSidebar();

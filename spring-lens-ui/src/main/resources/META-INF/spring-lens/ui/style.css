@@ -30,19 +30,6 @@
     scrollbar-width: none;
 }
 
-#tip {
-    display: none;
-    opacity: 0;
-    transform: translateY(4px);
-    transition: opacity 0.15s ease, transform 0.15s ease;
-}
-
-#tip.show {
-    display: block;
-    opacity: 1;
-    transform: translateY(0);
-}
-
 .submenu a {
     display: flex !important;
     align-items: center;
