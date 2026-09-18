@@ -175,22 +175,6 @@
                             class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none text-[16px]">expand_more</span>
                     </div>
 
-                    <!-- Bottleneck Threshold Dropdown -->
-                    <div class="relative">
-                        <select id="time-filter-bottleneck" :value="String(bottleneckThresholdNanos)"
-                            @change="onBottleneckThresholdChange($event)"
-                            class="appearance-none pl-3 pr-7 py-1.5 bg-gray-50 dark:bg-slate-950 border border-gray-200/80 dark:border-slate-800 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 hover:border-gray-300 dark:hover:border-slate-700 cursor-pointer transition-all"
-                            title="Configure Bean Initialization Bottleneck Threshold">
-                            <template x-for="opt in bottleneckOptions" :key="opt.value">
-                                <option :value="opt.value" x-text="opt.label"
-                                    :selected="String(bottleneckThresholdNanos) === opt.value"></option>
-                            </template>
-                            <option value="custom">Custom Threshold...</option>
-                        </select>
-                        <span
-                            class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none text-[16px]">expand_more</span>
-                    </div>
-
                     <!-- Page Size Dropdown -->
                     <div class="relative">
                         <select id="time-filter-size" :value="String(pageSize)" @change="onPageSizeChange($event)"
@@ -211,8 +195,22 @@
                     </button>
                 </div>
 
-                <!-- Right Controls: View Switcher Toggle -->
                 <div class="flex items-center gap-2 self-start lg:self-auto flex-shrink-0">
+                    <div class="relative">
+                        <select id="time-filter-bottleneck" :value="String(bottleneckThresholdNanos)"
+                            @change="onBottleneckThresholdChange($event)"
+                            class="appearance-none pl-3 pr-7 py-1.5 bg-gray-50 dark:bg-slate-950 border border-gray-200/80 dark:border-slate-800 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 hover:border-gray-300 dark:hover:border-slate-700 cursor-pointer transition-all"
+                            title="Configure Bean Initialization Bottleneck Threshold">
+                            <template x-for="opt in bottleneckOptions" :key="opt.value">
+                                <option :value="opt.value" x-text="opt.label"
+                                    :selected="String(bottleneckThresholdNanos) === opt.value"></option>
+                            </template>
+                            <option value="custom">Custom Threshold...</option>
+                        </select>
+                        <span
+                            class="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 pointer-events-none text-[16px]">expand_more</span>
+                    </div>
+
                     <div
                         class="flex items-center bg-gray-100/90 dark:bg-slate-950/90 p-1 rounded-xl border border-gray-200/70 dark:border-slate-800 shadow-2xs">
                         <button id="time-view-btn-instance" @click="switchView('instance')"
