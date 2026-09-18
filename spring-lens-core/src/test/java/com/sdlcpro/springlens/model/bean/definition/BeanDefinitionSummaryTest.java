@@ -22,7 +22,7 @@ class BeanDefinitionSummaryTest {
                 -1L
         ))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Total bean definition count must not be negative value");
+                .hasMessage("Total bean bean-definition count must not be negative value");
     }
 
     @Test

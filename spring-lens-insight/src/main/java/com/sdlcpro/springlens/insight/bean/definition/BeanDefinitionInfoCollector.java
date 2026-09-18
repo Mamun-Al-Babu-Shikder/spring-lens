@@ -76,7 +76,7 @@ public final class BeanDefinitionInfoCollector implements SmartInitializingSingl
                 return Optional.of(beanDefinitionInfo);
             }
         } catch (Exception ex) {
-            logger.debug("Failed to collect bean definition information for beanName '{}' in context '{}'",
+            logger.debug("Failed to collect bean bean-definition information for beanName '{}' in context '{}'",
                     beanName,
                     contextId,
                     ex

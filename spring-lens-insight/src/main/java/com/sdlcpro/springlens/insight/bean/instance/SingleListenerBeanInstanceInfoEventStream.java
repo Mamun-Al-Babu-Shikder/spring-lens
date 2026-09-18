@@ -51,14 +51,14 @@ public final class SingleListenerBeanInstanceInfoEventStream implements BeanInst
     public void subscribe(BeanInstanceInfoCollectListener listener) {
         Preconditions.notNull(listener, "The BeanInstanceInfoCollectListener must not be null");
         if (this.state != State.BUFFERING) {
-            logger.info("Bean instance info collector listener already exists; ignoring this new one");
+            logger.info("Bean bean=instance info collector listener already exists; ignoring this new one");
             return;
         }
 
         this.lock.lock();
         try {
             if (this.state != State.BUFFERING) {
-                logger.info("Bean instance info collector listener already exists; ignoring this new one");
+                logger.info("Bean bean=instance info collector listener already exists; ignoring this new one");
                 return;
             }
 

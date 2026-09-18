@@ -44,7 +44,7 @@ export default class GraphTreeBuilder {
             return list.reduce((acc, bean = {}) => {
                 const {
                     contextId = "default",
-                    beanName : name = '',
+                    beanName: name = '',
                     dependencies = []
                 } = bean;
 
@@ -91,41 +91,41 @@ export default class GraphTreeBuilder {
         const rootBeans = beans.filter(bean => !hasParent.has(bean.name));
         const rootNames = rootBeans.length ? rootBeans.map(bean => bean.name) : [beans[0].name];
 
-        // 3. Build tree recursively with single-set backtracking (prevents memory cloning)
-        const visited = new Set();
+        // Sort: Active dependency roots first, and application beans before framework auto-configuration
+        rootNames.sort((aName, bName) => {
+            const aRecord = beanMap.get(aName);
+            const bRecord = beanMap.get(bName);
+            const aDeps = aRecord?.dependencies?.length || 0;
+            const bDeps = bRecord?.dependencies?.length || 0;
+            if (aDeps > 0 && bDeps === 0) return -1;
+            if (aDeps === 0 && bDeps > 0) return 1;
+            const aIsAuto = aName.startsWith('org.springframework.boot.autoconfigure');
+            const bIsAuto = bName.startsWith('org.springframework.boot.autoconfigure');
+            if (!aIsAuto && bIsAuto) return -1;
+            if (aIsAuto && !bIsAuto) return 1;
+            return aName.localeCompare(bName);
+        });
 
-        const buildNode = (name) => {
+        // 3. Build top-level root bean nodes (SHALLOW: 1 level only, eliminating exponential DAG explosion)
+        contextNode.children = rootNames.map(name => {
             const beanRecord = beanMap.get(name) || {};
-            const isCycle = visited.has(name);
-            const meta = {
-                type: beanRecord.type || 'N/A',
-                scope: beanRecord.scope || 'singleton',
-                contextId,
-                ...(isCycle && { isCycle: true })
-            };
-
-            const node = {
+            const deps = beanRecord.dependencies || [];
+            return {
                 name: this._displayName(name),
                 fullName: name,
                 contextId,
-                meta,
-                ...(isCycle && { isCycle: true })
+                hasChildren: deps.length > 0,
+                dependencyNames: deps,
+                meta: {
+                    type: beanRecord.type || 'N/A',
+                    scope: beanRecord.scope || 'singleton',
+                    contextId,
+                    deps: deps.length
+                },
+                children: null
             };
+        });
 
-            if (isCycle) return node;
-
-            visited.add(name);
-            const validChildren = beanRecord.dependencies || [];
-
-            if (validChildren.length > 0) {
-                node.children = validChildren.map(buildNode);
-            }
-
-            visited.delete(name);
-            return node;
-        };
-
-        contextNode.children = rootNames.map(buildNode);
         return contextNode;
     }
 

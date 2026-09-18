@@ -205,7 +205,7 @@ export default class ToastNotification {
      * Dismisses a toast with a smooth slide-and-fade animation.
      */
     static _dismissToast($toast) {
-        if (!$toast || !$toast.length || $toast.data('dismissing')) return;
+        if (!$toast.length || $toast.data('dismissing')) return;
         $toast.data('dismissing', true);
 
         $toast.removeClass('translate-x-0 opacity-100 scale-100')

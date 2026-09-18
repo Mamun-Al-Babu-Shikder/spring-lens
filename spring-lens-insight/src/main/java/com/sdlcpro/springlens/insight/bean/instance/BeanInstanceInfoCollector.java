@@ -106,7 +106,7 @@ public final class BeanInstanceInfoCollector implements BeanPostProcessor {
                 this.beanInstanceInfoBuilderMap.put(key, builder);
             }
         } catch (Exception ex) {
-            logger.debug("Failed to initialized the tracking of bean instance info for beanName '{}' in context '{}'",
+            logger.debug("Failed to initialized the tracking of bean bean=instance info for beanName '{}' in context '{}'",
                     beanName,
                     this.contextId,
                     ex
@@ -122,7 +122,7 @@ public final class BeanInstanceInfoCollector implements BeanPostProcessor {
             this.subscribeIfListenerBean(bean);
             this.buildAndPublishBeanInstanceInfo(beanName);
         } catch (Exception ex) {
-            logger.debug("Failed to keep track the bean instance info for beanName '{}' in context '{}'",
+            logger.debug("Failed to keep track the bean bean=instance info for beanName '{}' in context '{}'",
                     beanName,
                     this.contextId,
                     ex

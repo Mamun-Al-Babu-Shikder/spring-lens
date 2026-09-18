@@ -1,45 +1,4 @@
-export function debounce(fn, delay = 180) {
-    let timeoutId = null;
-    let lastArgs = null;
-    let lastThis = null;
-
-    const debounced = function (...args) {
-        lastArgs = args;
-        lastThis = this;
-
-        if (timeoutId) {
-            clearTimeout(timeoutId);
-        }
-
-        timeoutId = setTimeout(() => {
-            fn.apply(lastThis, lastArgs);
-            timeoutId = null;
-            lastArgs = null;
-            lastThis = null;
-        }, delay);
-    };
-
-    debounced.cancel = () => {
-        if (timeoutId) {
-            clearTimeout(timeoutId);
-            timeoutId = null;
-            lastArgs = null;
-            lastThis = null;
-        }
-    };
-
-    debounced.flush = () => {
-        if (timeoutId && lastArgs) {
-            clearTimeout(timeoutId);
-            fn.apply(lastThis, lastArgs);
-            timeoutId = null;
-            lastArgs = null;
-            lastThis = null;
-        }
-    };
-
-    return debounced;
-}
+import AsyncUtils from './async-utils.js';
 
 /**
  * High-performance, zero-dependency search engine for Spring bean metadata with relevance scoring and input debouncing.
@@ -136,7 +95,7 @@ export default class BeanSearchEngine {
     }
 
     static createDebouncedSearch(onSearch, delay = 180) {
-        return debounce((items, query, options) => {
+        return AsyncUtils.debounce((items, query, options) => {
             const results = BeanSearchEngine.search(items, query, options);
             onSearch(results, query);
         }, delay);
@@ -155,7 +114,7 @@ export default class BeanSearchEngine {
         const $input = $(input);
         if (!$input.length) return { cancel: () => {}, trigger: () => {} };
 
-        const debounced = debounce((query) => {
+        const debounced = AsyncUtils.debounce((query) => {
             const items = typeof getItems === 'function' ? getItems() : [];
             const results = BeanSearchEngine.search(items, query, options);
             onResults?.(results, query);

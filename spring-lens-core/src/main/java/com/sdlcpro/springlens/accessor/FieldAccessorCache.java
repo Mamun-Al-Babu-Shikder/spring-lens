@@ -41,7 +41,7 @@ public final class FieldAccessorCache {
      *
      * @param rootType  the class from which the field path is resolved
      * @param fieldPath the dot-separated path of the property to access
-     * @return a function extracting the property value from an instance
+     * @return a function extracting the property value from an bean=instance
      *         of {@code rootType}
      */
     public static Function<Object, Object> getAccessor(Class<?> rootType, String fieldPath) {

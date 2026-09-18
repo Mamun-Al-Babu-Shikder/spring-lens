@@ -15,7 +15,7 @@ import com.sdlcpro.springlens.model.bean.condition.ConditionEvaluationInfo;
 public interface ConditionEvaluationInfoCollectListener {
 
     /**
-     * Callback method invoked when a {@link ConditionEvaluationInfo} instance is collected.
+     * Callback method invoked when a {@link ConditionEvaluationInfo} bean=instance is collected.
      *
      * @param conditionEvaluationInfo the collected condition evaluation information
      */
