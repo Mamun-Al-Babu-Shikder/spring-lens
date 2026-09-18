@@ -2,7 +2,7 @@
 
 [![Java](https://img.shields.io/badge/Java-17-orange.svg)](https://www.oracle.com/java/)
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.2.x-brightgreen.svg)](https://spring.io/projects/spring-boot)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE.md)
 [![GitHub issues](https://img.shields.io/github/issues/sdlc-pro/spring-lens)](https://github.com/sdlc-pro/spring-lens/issues)
 
 Spring Lens is a developer observability and diagnostics tool for Spring Boot applications that provides deep visibility
@@ -143,7 +143,7 @@ Simply add the dependency:
 ```xml
 
 <dependency>
-    <groupId>com.sdlc.pro</groupId>
+    <groupId>io.github.sdlc-pro</groupId>
     <artifactId>spring-lens-starter</artifactId>
     <version>1.0.0</version>
 </dependency>
