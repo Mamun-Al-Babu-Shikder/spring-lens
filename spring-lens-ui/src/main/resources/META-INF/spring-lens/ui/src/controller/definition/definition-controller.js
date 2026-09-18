@@ -21,10 +21,9 @@ export class DefinitionController extends BaseController {
         this.tableWidget = definitionTableWidget;
         this.sidebarWidget = definitionSidebarWidget;
         this.modalWidget = definitionGraphModalWidget;
-        this.modalWidget.onSelectBean = (beanName) => this.selectGraphNode(beanName);
+        this._wireModalWidget();
 
         this.addDisposable(this.chartsWidget);
-        this.addDisposable(this.modalWidget);
 
         this.state = {
             appName: this.applicationState?.getAppName?.() || 'SpringLens',
@@ -76,6 +75,20 @@ export class DefinitionController extends BaseController {
             graphModalOpen: false,
             graphMode: 'lr',
             graphTargetBean: null,
+            graphTooltip: {
+                visible: false,
+                x: 0,
+                y: 0,
+                placement: 'bottom',
+                name: '',
+                type: '',
+                scope: '',
+                role: '',
+                kind: '',
+                kindClass: '',
+                meta: '',
+                loading: false
+            },
             isExportingGraph: false,
             refreshing: false
         };
@@ -103,6 +116,15 @@ export class DefinitionController extends BaseController {
 
     setState(patch) {
         if (!patch) return;
+        if ((!this.alpine || !this.alpine.$el?.isConnected) && typeof window !== 'undefined' && window.Alpine?.$data) {
+            const root = document.querySelector(`[x-data="${this.namespace}"]`) || document.querySelector('[x-data]');
+            if (root && root.isConnected) {
+                try {
+                    this.bindAlpine(window.Alpine.$data(root));
+                } catch (e) {
+                }
+            }
+        }
         if (patch.filterCriteria && typeof patch.filterCriteria === 'object') {
             this.state.filterCriteria = {
                 ...this.state.filterCriteria,
@@ -115,6 +137,18 @@ export class DefinitionController extends BaseController {
         Object.assign(this.state, patch);
         if (this.alpine) {
             Object.assign(this.alpine, patch);
+        }
+    }
+
+    _wireModalWidget() {
+        this.modalWidget.onSelectBean = (beanName) => this.selectGraphNode(beanName);
+        this.modalWidget.onTooltipChange = (tooltip) => {
+            this.setState({
+                graphTooltip: { ...(this.state.graphTooltip || {}), ...tooltip }
+            });
+        };
+        if (this.service?.beanDefinitionSearchEndpoint) {
+            this.modalWidget.findBeanEndpoint = this.service.beanDefinitionSearchEndpoint;
         }
     }
 
@@ -263,6 +297,7 @@ export class DefinitionController extends BaseController {
         await super.enter(params);
 
         try {
+            this._wireModalWidget();
             this.closeSidebar();
             this._resetFilterState();
             this._bindEventListeners();
@@ -598,6 +633,8 @@ export class DefinitionController extends BaseController {
         }
 
         if (beanData) {
+            this._wireModalWidget();
+            this.modalWidget.contextId = this.state.selectedContextId;
             this.setState({
                 graphModalOpen: true,
                 graphTargetBean: beanData,
@@ -610,7 +647,8 @@ export class DefinitionController extends BaseController {
     closeGraphModal() {
         this.setState({
             graphModalOpen: false,
-            isExportingGraph: false
+            isExportingGraph: false,
+            graphTooltip: { ...(this.state.graphTooltip || {}), visible: false }
         });
         this.modalWidget.close();
     }
@@ -665,8 +703,9 @@ export class DefinitionController extends BaseController {
 
         const success = await this.selectBeanByNameAndContextId(beanName, this.selectedContextId);
         if (success && this.selectedBean) {
+            this.modalWidget.contextId = this.selectedContextId;
             this.setState({ graphTargetBean: this.selectedBean });
-            this.modalWidget.render(this.selectedBean);
+            await this.modalWidget.open(this.selectedBean);
         } else if (!success) {
             ToastNotification.show({
                 title: 'Bean Definition Not Found',

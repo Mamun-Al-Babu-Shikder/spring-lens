@@ -11,6 +11,9 @@ export default class DefinitionGraphModalWidget {
     constructor(options = {}) {
         this.findBeanEndpoint = options.findBeanEndpoint || ENDPOINTS?.FIND_BEAN_DEFINITION;
         this.onSelectBean = options.onSelectBean;
+        this.onTooltipChange = options.onTooltipChange;
+        this.contextId = options.contextId || '';
+        this.targetBean = null;
 
         this.modalGraphMode = 'lr';
         this.canvas = null;
@@ -28,22 +31,17 @@ export default class DefinitionGraphModalWidget {
         this.hoveredNode = null;
         this.iconPath2D = (typeof Path2D !== 'undefined' && ICON) ? new Path2D(ICON) : null;
 
-        this.tooltipElement = null;
-        this.tipName = null;
-        this.tipType = null;
-        this.tipScope = null;
-        this.tipMeta = null;
-
         this.resizeObserver = null;
         this.dragStartX = 0;
         this.dragStartY = 0;
         this.isDragging = false;
+        this._windowCleanup = null;
     }
 
     initCanvas() {
         const canvasElem = document.getElementById('modal-tree-canvas');
         if (!canvasElem) return false;
-        if (this.canvas === canvasElem && this.ctx) return true;
+        if (this.canvas === canvasElem && this.ctx && canvasElem.isConnected) return true;
 
         this.canvas = canvasElem;
         this.ctx = canvasElem.getContext('2d');
@@ -58,6 +56,9 @@ export default class DefinitionGraphModalWidget {
                         this.hideTooltip();
                     }
                     this.renderCurrent();
+                })
+                .on('end', () => {
+                    this.isDragging = false;
                 });
             d3.select(this.canvas).call(this.d3Zoom);
             d3.select(this.canvas).on('dblclick.zoom', null);
@@ -70,7 +71,9 @@ export default class DefinitionGraphModalWidget {
         });
 
         this.canvas.addEventListener('mousemove', (event) => {
-            if (event.buttons !== 0) {
+            if (event.buttons === 0) {
+                this.isDragging = false;
+            } else {
                 const distance = Math.hypot(event.clientX - this.dragStartX, event.clientY - this.dragStartY);
                 if (distance > 5) {
                     this.isDragging = true;
@@ -87,6 +90,7 @@ export default class DefinitionGraphModalWidget {
         });
 
         this.canvas.addEventListener('mouseleave', () => {
+            this.isDragging = false;
             this.hoveredNode = null;
             this.hideTooltip();
             this.renderCurrent();
@@ -100,11 +104,33 @@ export default class DefinitionGraphModalWidget {
             this._handleClick(event);
         });
 
+        if (this._windowCleanup) {
+            this._windowCleanup();
+        }
+        const onDragRelease = () => {
+            this.isDragging = false;
+        };
+        window.addEventListener('mouseup', onDragRelease);
+        window.addEventListener('pointerup', onDragRelease);
+        this._windowCleanup = () => {
+            window.removeEventListener('mouseup', onDragRelease);
+            window.removeEventListener('pointerup', onDragRelease);
+        };
+
         const container = document.getElementById('modal-graph-container');
         if (container && typeof ResizeObserver !== 'undefined') {
             this.resizeObserver?.disconnect();
-            this.resizeObserver = new ResizeObserver(() => {
-                this.resize();
+            this.resizeObserver = new ResizeObserver((entries) => {
+                const entry = entries?.[0];
+                const width = entry?.contentRect?.width || container.clientWidth;
+                const height = entry?.contentRect?.height || container.clientHeight;
+                if (width > 0 && height > 0) {
+                    const needsFit = (this.width === 0 || this.width === 800 || Math.abs(this.width - width) > 10);
+                    this.resize(width, height);
+                    if (needsFit && this.modalGraphNodes?.length > 0) {
+                        this.fitView();
+                    }
+                }
             });
             this.resizeObserver.observe(container);
         }
@@ -115,28 +141,44 @@ export default class DefinitionGraphModalWidget {
     async open(targetBean) {
         if (!targetBean) return;
 
-        await this._prefetchRelatedBeans(targetBean);
+        this.hoveredNode = null;
+        this.isDragging = false;
+        this.hideTooltip();
+        this.targetBean = targetBean;
+        if (targetBean.contextId) {
+            this.contextId = targetBean.contextId;
+        }
         this.render(targetBean);
+        await this._prefetchRelatedBeans(targetBean);
     }
 
     close() {
         this.hoveredNode = null;
+        this.isDragging = false;
         this.hideTooltip();
     }
 
     render(targetBean) {
         if (!targetBean) return;
+        this.hoveredNode = null;
+        this.isDragging = false;
+        this.hideTooltip();
         this.initCanvas();
+        this.targetBean = targetBean;
+        if (targetBean.contextId) {
+            this.contextId = targetBean.contextId;
+        }
 
         const rawData = GraphTreeBuilder.buildModalGraphHierarchy(
             targetBean,
-            (depName, ctxId) => beanDataStore.findBeanByName(depName, ctxId)
+            (depName, ctxId) => beanDataStore.findBeanByName(depName, ctxId || this.contextId)
         );
         this.modalGraphData = rawData;
         this._computeLayout(rawData);
         this.resize();
         this.renderCurrent();
         requestAnimationFrame(() => this.fitView());
+        this._prefetchRelatedBeans(targetBean);
     }
 
     renderCurrent() {
@@ -213,12 +255,12 @@ export default class DefinitionGraphModalWidget {
         }
     }
 
-    resize() {
+    resize(customWidth, customHeight) {
         const container = document.getElementById('modal-graph-container');
         if (!container || !this.canvas) return;
 
-        const width = container.clientWidth;
-        const height = container.clientHeight;
+        const width = customWidth || container.clientWidth;
+        const height = customHeight || container.clientHeight;
         if (width === 0 || height === 0) return;
 
         this.width = width;
@@ -305,6 +347,10 @@ export default class DefinitionGraphModalWidget {
         this.close();
         this.resizeObserver?.disconnect();
         this.resizeObserver = null;
+        if (this._windowCleanup) {
+            this._windowCleanup();
+            this._windowCleanup = null;
+        }
         this.modalGraphData = null;
         this.modalGraphNodes = [];
         this.links = [];
@@ -314,18 +360,29 @@ export default class DefinitionGraphModalWidget {
         this.d3Zoom = null;
     }
 
-    async _prefetchRelatedBeans(targetBean) {
-        if (!this.findBeanEndpoint) return;
+    _resolveContextId(targetBean) {
+        if (targetBean?.contextId) return targetBean.contextId;
+        if (this.contextId) return this.contextId;
+        const stored = beanDataStore.findBeanByName(targetBean?.beanName || targetBean?.name);
+        if (stored?.contextId) return stored.contextId;
+        for (const bean of beanDataStore.beansMap.values()) {
+            if (bean?.contextId) return bean.contextId;
+        }
+        return '';
+    }
 
-        const ctxId = targetBean.contextId || '';
+    async _prefetchRelatedBeans(targetBean) {
+        if (!this.findBeanEndpoint || !targetBean) return;
+
+        const ctxId = this._resolveContextId(targetBean);
         const relatedNames = [...(targetBean.dependencies || []), ...(targetBean.dependents || [])];
         const missingNames = relatedNames.filter(name => !beanDataStore.findBeanByName(name, ctxId));
 
         if (missingNames.length > 0) {
             try {
-                const fetchPromises = missingNames.map(name => {
-                    const query = QueryParam.build({ contextId: ctxId, beanName: name });
-                    return httpClient.getWithQuery(this.findBeanEndpoint, query.toString());
+                const fetchPromises = missingNames.map(async (name) => {
+                    const query = new URLSearchParams({ contextId: ctxId, beanName: name }).toString();
+                    return httpClient.getWithQuery(this.findBeanEndpoint, query);
                 });
 
                 const results = await Promise.allSettled(fetchPromises);
@@ -333,7 +390,7 @@ export default class DefinitionGraphModalWidget {
                     (r.status === 'fulfilled' && r.value) ? [r.value] : []
                 );
 
-                if (fetchedBeans.length) {
+                if (fetchedBeans.length > 0) {
                     beanDataStore.addBeans(fetchedBeans);
                 }
             } catch (error) {
@@ -626,8 +683,10 @@ export default class DefinitionGraphModalWidget {
         if (!this.canvas || !this.modalGraphNodes || this.modalGraphNodes.length === 0) return;
 
         const rect = this.canvas.getBoundingClientRect();
-        const mouseX = event.clientX - rect.left;
-        const mouseY = event.clientY - rect.top;
+        const scaleX = rect.width > 0 ? (this.width / rect.width) : 1;
+        const scaleY = rect.height > 0 ? (this.height / rect.height) : 1;
+        const mouseX = (event.clientX - rect.left) * scaleX;
+        const mouseY = (event.clientY - rect.top) * scaleY;
 
         let worldX = mouseX;
         let worldY = mouseY;
@@ -643,9 +702,8 @@ export default class DefinitionGraphModalWidget {
             if (this.hoveredNode !== hitNode) {
                 this.hoveredNode = hitNode;
                 this.renderCurrent();
+                this._emitNodeTooltip(hitNode);
             }
-
-            this.showTooltip(mouseX, mouseY, hitNode);
         } else {
             this.canvas.style.cursor = '';
             if (this.hoveredNode !== null) {
@@ -656,74 +714,137 @@ export default class DefinitionGraphModalWidget {
         }
     }
 
-    showTooltip(mouseX, mouseY, node) {
-        if (!this.tooltipElement) {
-            this.tooltipElement = document.getElementById('modal-graph-tooltip');
-            this.tipName = document.getElementById('modal-tip-name');
-            this.tipType = document.getElementById('modal-tip-type');
-            this.tipScope = document.getElementById('modal-tip-scope');
-            this.tipMeta = document.getElementById('modal-tip-meta');
-        }
-        if (!this.tooltipElement) return;
-
-        const { name, fullName, meta = {} } = node;
-        const { type, scope, role, kind } = meta;
-
-        const shortType = (type && type !== 'N/A')
-            ? (type.includes('.') ? type.slice(type.lastIndexOf('.') + 1) : type)
-            : (type || 'N/A');
-        const typeLabel = `Type: ${shortType}`;
-
-        const cleanRole = (role && role !== 'N/A') ? role.replace(/^ROLE_/, '') : '';
-        const displayScope = (scope && scope !== 'N/A') ? scope : 'N/A';
-        const scopeLabel = `Scope: ${displayScope}${cleanRole ? ` · ${cleanRole}` : ''}`;
-        const kindLabel = kind ? `Role in view: ${kind.toUpperCase()}` : '';
-
-        if (this.tipName) this.tipName.textContent = fullName || name || '-';
-        if (this.tipType) this.tipType.textContent = typeLabel;
-        if (this.tipScope) this.tipScope.textContent = scopeLabel;
-        if (this.tipMeta) {
-            this.tipMeta.textContent = kindLabel;
-            this.tipMeta.style.display = kindLabel ? 'block' : 'none';
-        }
+    _emitNodeTooltip(node) {
+        if (!node) return;
 
         const container = document.getElementById('modal-graph-container');
-        const containerWidth = container?.clientWidth || 800;
-        const containerHeight = container?.clientHeight || 500;
-        const tipWidth = this.tooltipElement.offsetWidth || 260;
-        const tipHeight = this.tooltipElement.offsetHeight || 110;
+        const containerWidth = container?.clientWidth || this.width || 800;
+        const containerHeight = container?.clientHeight || this.height || 600;
 
-        let tipX = mouseX + 28;
-        let tipY = mouseY + 22;
+        const screenX = node.x * this.currentTransform.k + this.currentTransform.x;
+        const screenY = node.y * this.currentTransform.k + this.currentTransform.y;
+        const halfHeight = (NH / 2) * this.currentTransform.k;
+        const nodeSpacing = 14;
 
-        if (tipX + tipWidth > containerWidth - 12) {
-            tipX = Math.max(12, mouseX - tipWidth - 16);
+        const isNearBottom = (screenY + halfHeight + nodeSpacing + 140 > containerHeight);
+        const tipY = isNearBottom
+            ? Math.round(screenY - halfHeight - nodeSpacing)
+            : Math.round(screenY + halfHeight + nodeSpacing);
+        const placement = isNearBottom ? 'top' : 'bottom';
+        const clampedX = Math.max(160, Math.min(containerWidth - 160, Math.round(screenX)));
+
+        const name = node.fullName || node.name || node.data?.name || '-';
+        const ctxId = this.contextId || this._resolveContextId(this.targetBean);
+        const storedBean = beanDataStore.findBeanByName(name, ctxId) || beanDataStore.findBeanByName(name);
+
+        const nodeMeta = node.meta || node.data?.meta || {};
+        const type = (storedBean?.type && storedBean.type !== 'N/A') ? storedBean.type : nodeMeta.type;
+        const scope = (storedBean?.scope && storedBean.scope !== 'N/A') ? storedBean.scope : nodeMeta.scope;
+        const role = (storedBean?.role && storedBean.role !== 'N/A') ? storedBean.role : nodeMeta.role;
+        const kind = nodeMeta.kind;
+
+        const shortType = type && type !== 'N/A' ? (type.includes('.') ? type.slice(type.lastIndexOf('.') + 1) : type) : '-';
+        const cleanRole = role && role !== 'N/A' ? role.replace(/^ROLE_/, '') : '-';
+        const displayScope = scope && scope !== 'N/A' ? scope : '-';
+
+        const kindMap = {
+            target: {
+                label: 'Target',
+                badgeClass: 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/30'
+            },
+            dependency: {
+                label: 'Depends On',
+                badgeClass: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+            },
+            dependent: {
+                label: 'Used By',
+                badgeClass: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30'
+            }
+        };
+
+        const kindInfo = kindMap[kind] || {
+            label: kind ? kind.toUpperCase() : '',
+            badgeClass: 'bg-gray-500/15 text-gray-700 dark:text-gray-300 border border-gray-500/30'
+        };
+
+        const tipEl = document.getElementById('modal-graph-tooltip');
+        if (tipEl) {
+            tipEl.style.left = `${clampedX}px`;
+            tipEl.style.top = `${tipY}px`;
+            tipEl.style.transform = `translate(-50%, ${placement === 'bottom' ? '0%' : '-100%'})`;
+            tipEl.style.display = 'flex';
+            tipEl.style.opacity = '1';
+            tipEl.style.visibility = 'visible';
+            tipEl.style.pointerEvents = 'none';
+
+            const nameEl = document.getElementById('modal-tip-name');
+            if (nameEl) nameEl.textContent = name;
+
+            const typeEl = document.getElementById('modal-tip-type');
+            if (typeEl) typeEl.textContent = shortType;
+
+            const scopeEl = document.getElementById('modal-tip-scope');
+            if (scopeEl) scopeEl.textContent = displayScope;
+
+            const roleEl = document.getElementById('modal-tip-role');
+            if (roleEl) roleEl.textContent = cleanRole;
+
+            const kindEl = document.getElementById('modal-tip-kind');
+            if (kindEl) {
+                kindEl.textContent = kindInfo.label || '';
+                kindEl.className = `${kindInfo.badgeClass || ''} px-1.5 py-0.5 rounded text-[9px] font-mono uppercase font-semibold`;
+                kindEl.style.display = kindInfo.label ? 'inline-block' : 'none';
+            }
+
+            const metaEl = document.getElementById('modal-tip-meta');
+            if (metaEl) {
+                metaEl.textContent = kindInfo.label ? `Role in view: ${kindInfo.label.toUpperCase()}` : '';
+                metaEl.style.display = kindInfo.label ? 'block' : 'none';
+            }
+
+            const loadingEl = document.getElementById('modal-tip-loading');
+            if (loadingEl) {
+                loadingEl.style.display = 'none';
+            }
         }
 
-        if (tipY + tipHeight > containerHeight - 12) {
-            tipY = Math.max(12, mouseY - tipHeight - 16);
-        }
+        this.onTooltipChange?.({
+            visible: true,
+            x: clampedX,
+            y: tipY,
+            placement,
+            name,
+            type: shortType,
+            scope: displayScope,
+            role: cleanRole,
+            kind: kindInfo.label,
+            kindClass: kindInfo.badgeClass,
+            meta: kindInfo.label ? `Role in view: ${kindInfo.label.toUpperCase()}` : '',
+            loading: false
+        });
+    }
 
-        this.tooltipElement.style.left = `${Math.round(tipX)}px`;
-        this.tooltipElement.style.top = `${Math.round(tipY)}px`;
-        this.tooltipElement.classList.remove('hidden');
+    showTooltip(event, node) {
+        this._emitNodeTooltip(node);
     }
 
     hideTooltip() {
-        if (!this.tooltipElement) {
-            this.tooltipElement = document.getElementById('modal-graph-tooltip');
+        this.hoveredNode = null;
+        const tipEl = document.getElementById('modal-graph-tooltip');
+        if (tipEl) {
+            tipEl.style.display = 'none';
         }
-        if (this.tooltipElement) {
-            this.tooltipElement.classList.add('hidden');
-        }
+        this.onTooltipChange?.({ visible: false });
     }
 
     _handleClick(event) {
         if (!this.canvas || !this.modalGraphNodes) return;
 
         const rect = this.canvas.getBoundingClientRect();
-        const mouseX = event.clientX - rect.left;
-        const mouseY = event.clientY - rect.top;
+        const scaleX = rect.width > 0 ? (this.width / rect.width) : 1;
+        const scaleY = rect.height > 0 ? (this.height / rect.height) : 1;
+        const mouseX = (event.clientX - rect.left) * scaleX;
+        const mouseY = (event.clientY - rect.top) * scaleY;
 
         let worldX = mouseX;
         let worldY = mouseY;
@@ -738,7 +859,7 @@ export default class DefinitionGraphModalWidget {
     }
 
     _findNodeAt(worldX, worldY) {
-        if (!this.modalGraphNodes) return null;
+        if (!this.modalGraphNodes || this.modalGraphNodes.length === 0) return null;
 
         for (let i = this.modalGraphNodes.length - 1; i >= 0; i--) {
             const node = this.modalGraphNodes[i];
@@ -746,10 +867,10 @@ export default class DefinitionGraphModalWidget {
             const halfHeight = NH / 2;
 
             if (
-                worldX >= node.x - halfWidth &&
-                worldX <= node.x + halfWidth &&
-                worldY >= node.y - halfHeight &&
-                worldY <= node.y + halfHeight
+                worldX >= node.x - halfWidth - 4 &&
+                worldX <= node.x + halfWidth + 4 &&
+                worldY >= node.y - halfHeight - 4 &&
+                worldY <= node.y + halfHeight + 4
             ) {
                 return node;
             }

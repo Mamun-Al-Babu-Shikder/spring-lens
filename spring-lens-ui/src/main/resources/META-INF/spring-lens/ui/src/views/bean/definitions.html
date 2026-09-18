@@ -911,8 +911,8 @@
     </div>
 
     <!-- Modal: Interactive Bean Dependency Graph Preview -->
-    <div id="bean-dependency-graph-modal" x-show="graphModalOpen" x-cloak
-        @keydown.escape.window="if (graphModalOpen) closeGraphModal()" @click.self="closeGraphModal()"
+    <div id="bean-dependency-graph-modal" x-show="graphModalOpen" x-cloak @keydown.escape.window="closeGraphModal()"
+        @click.self="closeGraphModal()"
         class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 sm:p-6 transition-all duration-300">
 
         <div id="modal-graph-card" @click.away="closeGraphModal()"
@@ -1021,23 +1021,46 @@
                     </div>
                 </div>
 
-                <!-- Floating Tooltip Card -->
                 <div id="modal-graph-tooltip"
-                    class="absolute hidden min-w-[200px] max-w-[280px] p-3 rounded-2xl bg-white/95 dark:bg-slate-900/95 text-gray-900 dark:text-white text-xs shadow-2xl backdrop-blur-md pointer-events-none z-30 border border-gray-200/90 dark:border-slate-800 flex flex-col gap-1 transition-opacity duration-150">
-                    <div class="flex items-center gap-2 pb-1.5 mb-1 border-b border-gray-100 dark:border-slate-800">
-                        <div
-                            class="w-5 h-5 rounded-lg bg-primary/10 dark:bg-purple-950/40 text-primary dark:text-purple-300 flex items-center justify-center flex-shrink-0 border border-primary/20">
-                            <span class="material-symbols-outlined text-[13px]">data_object</span>
+                    style="display: none;"
+                    class="absolute min-w-[220px] max-w-[320px] p-3 rounded-2xl bg-white/95 dark:bg-slate-900/95 text-gray-900 dark:text-white text-xs shadow-2xl backdrop-blur-md pointer-events-none z-30 border border-gray-200/90 dark:border-slate-800 flex-col gap-1.5 transition-all duration-100 ease-out">
+                    <div class="flex items-center gap-2 pb-1.5 border-b border-gray-100 dark:border-slate-800">
+                        <div id="modal-tip-icon-box"
+                            class="w-6 h-6 rounded-lg bg-primary/10 dark:bg-purple-950/40 text-primary dark:text-purple-300 flex items-center justify-center flex-shrink-0 border border-primary/20">
+                            <span class="material-symbols-outlined text-[14px]">data_object</span>
                         </div>
-                        <div class="font-mono font-bold text-xs text-gray-900 dark:text-white truncate"
-                            id="modal-tip-name">-</div>
+                        <div class="min-w-0 flex-1">
+                            <div class="font-mono font-bold text-xs text-gray-900 dark:text-white truncate"
+                                id="modal-tip-name">-</div>
+                        </div>
+                        <span id="modal-tip-kind"
+                            class="px-1.5 py-0.5 rounded text-[9px] font-mono uppercase font-semibold"
+                            style="display: none;"></span>
                     </div>
-                    <div class="text-[11px] text-gray-600 dark:text-gray-300 font-mono truncate" id="modal-tip-type">-
+                    <div class="flex flex-col gap-1 text-[11px]">
+                        <div class="flex items-center gap-1.5 text-gray-600 dark:text-gray-300 font-mono">
+                            <span
+                                class="text-gray-400 dark:text-gray-500 font-sans text-[10px] uppercase font-semibold flex-shrink-0">Type:</span>
+                            <span id="modal-tip-type"
+                                class="truncate font-semibold text-gray-800 dark:text-gray-200">-</span>
+                        </div>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <span id="modal-tip-scope"
+                                class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-primary/10 text-primary dark:text-purple-300 border border-primary/20">-</span>
+                            <span id="modal-tip-role"
+                                class="px-2 py-0.5 rounded-md text-[10px] font-mono font-medium bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-slate-700">-</span>
+                        </div>
                     </div>
-                    <div class="text-[11px] text-purple-600 dark:text-purple-300 font-medium truncate mt-0.5"
-                        id="modal-tip-scope">-</div>
-                    <div class="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold mt-0.5"
-                        id="modal-tip-meta"></div>
+                    <div id="modal-tip-meta"
+                        class="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold"
+                        style="display: none;">
+                    </div>
+                    <div id="modal-tip-loading"
+                        class="text-[10px] text-primary dark:text-purple-300 items-center gap-1 font-medium pt-0.5"
+                        style="display: none;">
+                        <span class="material-symbols-outlined text-[12px] animate-spin">progress_activity</span>
+                        <span>Loading details...</span>
+                    </div>
                 </div>
             </div>
         </div>

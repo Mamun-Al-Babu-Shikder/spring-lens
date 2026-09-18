@@ -13,9 +13,14 @@ export default class BaseController {
         this._disposables = [];
         this._boundTargets = new Set();
 
-        // Automatically register Alpine component if subclass defines createAlpineState()
         if (typeof window !== 'undefined' && typeof this.createAlpineState === 'function') {
-            window.Alpine?.data(this.namespace, () => this.createAlpineState());
+            if (window.Alpine) {
+                window.Alpine.data(this.namespace, () => this.createAlpineState());
+            } else {
+                document.addEventListener('alpine:init', () => {
+                    window.Alpine.data(this.namespace, () => this.createAlpineState());
+                }, { once: true });
+            }
         }
     }
 

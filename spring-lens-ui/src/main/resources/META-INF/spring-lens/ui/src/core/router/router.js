@@ -305,20 +305,14 @@ export default class Router {
 
                     this.container.append(html);
 
-                    // Initialize Alpine.js reactivity on the newly injected template tree
-                    if (typeof window !== 'undefined' && window.Alpine?.initTree && this.container?.[0]) {
+                    const wireAlpine = () => {
+                        if (typeof window === 'undefined' || !this.container?.[0] || !controller) return;
                         try {
-                            window.Alpine.initTree(this.container[0]);
-                        } catch (e) {
-                            console.warn('Alpine initTree warning:', e);
-                        }
-                    }
-
-                    // Auto-wire Alpine.js reactive component to Controller
-                    if (typeof window !== 'undefined' && window.Alpine?.$data && this.container?.[0] && controller) {
-                        try {
+                            if (window.Alpine?.initTree) {
+                                window.Alpine.initTree(this.container[0]);
+                            }
                             const alpineRoot = this.container[0].querySelector('[x-data]');
-                            if (alpineRoot) {
+                            if (alpineRoot && window.Alpine?.$data) {
                                 const alpineData = window.Alpine.$data(alpineRoot);
                                 if (typeof controller.bindAlpine === 'function') {
                                     controller.bindAlpine(alpineData);
@@ -331,6 +325,13 @@ export default class Router {
                         } catch (e) {
                             console.warn('Alpine auto-wire warning:', e);
                         }
+                    };
+
+                    if (typeof window !== 'undefined' && window.Alpine?.$data) {
+                        wireAlpine();
+                    } else if (typeof window !== 'undefined') {
+                        document.addEventListener('alpine:init', wireAlpine, { once: true });
+                        document.addEventListener('alpine:initialized', wireAlpine, { once: true });
                     }
                 }
             } catch (error) {
