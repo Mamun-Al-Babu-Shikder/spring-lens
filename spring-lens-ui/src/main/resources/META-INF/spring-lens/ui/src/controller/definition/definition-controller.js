@@ -163,11 +163,9 @@ export class DefinitionController extends BaseController {
     }
 
     _resetFilterState() {
-        const defaultFilters = this._defaultFilterCriteria();
-
         this.setState({
             searchQuery: '',
-            filterCriteria: defaultFilters,
+            filterCriteria: this._defaultFilterCriteria(),
             itemsPerPage: 20,
             currentPage: 1,
             sortColumn: '',
@@ -177,45 +175,6 @@ export class DefinitionController extends BaseController {
             selectedContextId: null,
             selectedBean: null
         });
-
-        if (this.alpine?.filterCriteria) {
-            Object.assign(this.alpine.filterCriteria, defaultFilters);
-        }
-
-        const searchInput = document.getElementById('bean-definition-search-input');
-        if (searchInput) {
-            searchInput.value = '';
-        }
-
-        const contextFilter = document.getElementById('bean-definition-filter-context');
-        if (contextFilter) {
-            contextFilter.value = '';
-        }
-
-        const scopeFilter = document.getElementById('bean-definition-filter-scope');
-        if (scopeFilter) {
-            scopeFilter.value = '';
-        }
-
-        const roleFilter = document.getElementById('bean-definition-filter-role');
-        if (roleFilter) {
-            roleFilter.value = '';
-        }
-
-        const primaryFilter = document.getElementById('bean-definition-filter-primary');
-        if (primaryFilter) {
-            primaryFilter.value = '';
-        }
-
-        const lazyFilter = document.getElementById('bean-definition-filter-lazy');
-        if (lazyFilter) {
-            lazyFilter.value = '';
-        }
-
-        const sizeFilter = document.getElementById('bean-definition-filter-size');
-        if (sizeFilter) {
-            sizeFilter.value = '20';
-        }
     }
 
     createAlpineState() {
@@ -258,19 +217,9 @@ export class DefinitionController extends BaseController {
         const targetContextId = QueryParam.get(queryParams, 'contextId', 'context') || '';
 
         const patch = {};
-        if (targetBean) {
-            patch.searchQuery = targetBean;
-            const searchInput = document.getElementById('bean-definition-search-input');
-            if (searchInput) {
-                searchInput.value = targetBean;
-            }
-        }
+        if (targetBean) patch.searchQuery = targetBean;
         if (targetContextId) {
             patch.filterCriteria = { ...this.state.filterCriteria, contextId: targetContextId };
-            const contextFilter = document.getElementById('bean-definition-filter-context');
-            if (contextFilter) {
-                contextFilter.value = targetContextId;
-            }
         }
         if (Object.keys(patch).length > 0) {
             this.setState(patch);
@@ -561,10 +510,6 @@ export class DefinitionController extends BaseController {
             searchQuery: '',
             currentPage: 1
         });
-        const searchInput = document.getElementById('bean-definition-search-input');
-        if (searchInput) {
-            searchInput.value = '';
-        }
         this.fetchTableData();
     }
 

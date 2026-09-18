@@ -969,11 +969,11 @@
                                                 class="px-1.5 py-0.2 rounded text-[9px] font-mono font-medium bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200/50"
                                                 x-text="adv.shortName" :title="adv.fullName"></span>
                                         </template>
-                                        <span x-show="(!proxyInfo?.advices || proxyInfo.advices.length === 0)"
+                                        <span x-show="!proxyInfo?.advices?.length"
                                             class="text-[10px] text-gray-400 italic">None</span>
-                                        <span x-show="proxyInfo?.advices?.length > 3"
+                                        <span x-show="(proxyInfo?.advices?.length || 0) > 3"
                                             class="text-[9px] font-mono text-gray-400"
-                                            x-text="'+' + (proxyInfo.advices.length - 3) + ' more'"></span>
+                                            x-text="'+' + ((proxyInfo?.advices?.length || 0) - 3) + ' more'"></span>
                                     </div>
                                 </div>
                             </div>
@@ -1234,7 +1234,7 @@
                                                     x-text="adv.badge">Advice</span>
                                             </div>
                                         </template>
-                                        <div x-show="!proxyInfo?.advices || proxyInfo.advices.length === 0"
+                                        <div x-show="!proxyInfo?.advices?.length"
                                             class="text-[10px] text-gray-400 dark:text-gray-500 italic py-0.5">
                                             No custom advices attached
                                         </div>
@@ -1267,7 +1267,7 @@
                                                     x-text="iface.badge">Interface</span>
                                             </div>
                                         </template>
-                                        <div x-show="!proxyInfo?.proxiedInterfaces || proxyInfo.proxiedInterfaces.length === 0"
+                                        <div x-show="!proxyInfo?.proxiedInterfaces?.length"
                                             class="text-[10px] text-gray-400 dark:text-gray-500 italic py-0.5">
                                             No interfaces proxied (CGLIB class proxy)
                                         </div>

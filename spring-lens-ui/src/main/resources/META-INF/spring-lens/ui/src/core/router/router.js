@@ -488,17 +488,20 @@ export default class Router {
                 return subPage && (subPage === normalizedActive || normalizedActive.endsWith(subPage));
             }).length > 0;
 
-            if (!isParent && pageAttr) {
+            if (isParent) {
+                const isParentActive = hasActiveChild || Boolean(isActive);
+                $link.toggleClass(parent.active, isParentActive)
+                    .toggleClass(parent.inactive, !isParentActive);
+
+                if (hasActiveChild) {
+                    this._toggleSubmenu($submenu, $link, true);
+                }
+            } else if (pageAttr) {
                 $link.toggleClass(parent.active, isActive)
                     .toggleClass(parent.inactive, !isActive);
             }
-
-            if (hasActiveChild && isParent) {
-                this._toggleSubmenu($submenu, $link, true);
-            }
         });
 
-        // Auto-collapse inactive submenus
         $('.submenu').each((_, element) => {
             const $submenu = $(element);
             const hasActiveChild = $submenu.find('a').filter((_, a) => {
@@ -507,7 +510,10 @@ export default class Router {
             }).length > 0;
 
             if (!hasActiveChild) {
-                this._toggleSubmenu($submenu, $submenu.prev('.parent-link'), false);
+                const $parent = $submenu.prev('.parent-link');
+                this._toggleSubmenu($submenu, $parent, false);
+                $parent.toggleClass(parent.active, false)
+                    .toggleClass(parent.inactive, true);
             }
         });
     }

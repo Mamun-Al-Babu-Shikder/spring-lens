@@ -940,6 +940,7 @@ export class DependencyGraphController extends BaseController {
         this.clearFocusedNode();
         this.selectedNodeRef = null;
         this.clearSearch();
+        this.canvasWidget.destroy();
 
         super.leave();
     }

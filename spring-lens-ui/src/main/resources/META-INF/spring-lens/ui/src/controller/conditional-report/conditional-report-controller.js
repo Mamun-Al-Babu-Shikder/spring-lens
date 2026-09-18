@@ -79,7 +79,6 @@ export class ConditionalReportController extends BaseController {
     }
 
     setState(patch) {
-        if (!patch) return;
         Object.assign(this.state, patch);
         if (this.alpine) {
             Object.assign(this.alpine, patch);
@@ -112,6 +111,7 @@ export class ConditionalReportController extends BaseController {
     }
 
     _resetFilterState() {
+        const tabCounts = this.tabsWidget.computeTabCounts(this.conditionReportMetrics, '', null);
         this.setState({
             currentPage: 1,
             pageSize: 10,
@@ -122,7 +122,10 @@ export class ConditionalReportController extends BaseController {
             sortBy: 'source',
             sortDir: 'ASC',
             selectedCondition: null,
-            selectedConditionDetails: null
+            selectedConditionDetails: null,
+            countAll: tabCounts.allCount,
+            countMatched: tabCounts.matchedCount,
+            countUnmatched: tabCounts.unmatchedCount
         });
 
         const $searchInput = document.getElementById('condition-search-input');
@@ -131,7 +134,7 @@ export class ConditionalReportController extends BaseController {
         }
     }
 
-    async enter(params) {
+    async enter(params, context = null) {
         await super.enter(params);
 
         try {
@@ -236,7 +239,7 @@ export class ConditionalReportController extends BaseController {
             if (!this.state.outcomeFilter) {
                 const totalElements = pagination.totalElements;
                 const tabCounts = this.tabsWidget.computeTabCounts(
-                    this.rawMetrics,
+                    this.conditionReportMetrics,
                     this.state.searchQuery,
                     totalElements
                 );
@@ -248,7 +251,7 @@ export class ConditionalReportController extends BaseController {
                 this.service.fetchSearchTotalCount(this.state.searchQuery).then(count => {
                     if (count !== null) {
                         const tabCounts = this.tabsWidget.computeTabCounts(
-                            this.rawMetrics,
+                            this.conditionReportMetrics,
                             this.state.searchQuery,
                             count
                         );
@@ -259,6 +262,25 @@ export class ConditionalReportController extends BaseController {
                     }
                 });
             }
+        } else {
+            if (!this.state.outcomeFilter && pagination?.totalElements !== undefined) {
+                if (!this.conditionReportMetrics) {
+                    this.conditionReportMetrics = { totalConditionSources: pagination.totalElements };
+                } else if (!this.conditionReportMetrics.totalConditionSources) {
+                    this.conditionReportMetrics.totalConditionSources = pagination.totalElements;
+                }
+            }
+            const tabCounts = this.tabsWidget.computeTabCounts(
+                this.conditionReportMetrics,
+                '',
+                null
+            );
+            this.setState({
+                searchTotalCount: null,
+                countAll: tabCounts.allCount,
+                countMatched: tabCounts.matchedCount,
+                countUnmatched: tabCounts.unmatchedCount
+            });
         }
 
         const rows = this.tableWidget.formatTableRows(content, {
@@ -429,9 +451,25 @@ export class ConditionalReportController extends BaseController {
 
     onSearchInput(event) {
         const query = (event?.target?.value ?? this.state.searchQuery ?? '').trim();
-        console.log(query);
-        this.searchQuery = query;
-        this.searchTotalCount = null;
+        if (!query) {
+            this._debouncedSearch?.cancel?.();
+            const tabCounts = this.tabsWidget.computeTabCounts(this.conditionReportMetrics, '', null);
+            this.setState({
+                searchQuery: '',
+                searchTotalCount: null,
+                currentPage: 1,
+                countAll: tabCounts.allCount,
+                countMatched: tabCounts.matchedCount,
+                countUnmatched: tabCounts.unmatchedCount
+            });
+            this.fetchConditionEvaluationData();
+            return;
+        }
+
+        this.setState({
+            searchQuery: query,
+            searchTotalCount: null
+        });
         this._debouncedSearch();
     }
 
@@ -440,10 +478,16 @@ export class ConditionalReportController extends BaseController {
     }
 
     clearSearch() {
-        this._debouncedSearch.cancel?.();
-        this.searchQuery = '';
-        this.searchTotalCount = null;
-        this.currentPage = 1;
+        this._debouncedSearch?.cancel?.();
+        const tabCounts = this.tabsWidget.computeTabCounts(this.conditionReportMetrics, '', null);
+        this.setState({
+            searchQuery: '',
+            searchTotalCount: null,
+            currentPage: 1,
+            countAll: tabCounts.allCount,
+            countMatched: tabCounts.matchedCount,
+            countUnmatched: tabCounts.unmatchedCount
+        });
         const $searchInput = document.getElementById('condition-search-input');
         if ($searchInput) {
             $searchInput.value = '';
@@ -477,7 +521,6 @@ export class ConditionalReportController extends BaseController {
         this.closeDetail();
         this._resetFilterState();
         this.rawConditions = [];
-        this.rawMetrics = null;
         super.leave();
     }
 }

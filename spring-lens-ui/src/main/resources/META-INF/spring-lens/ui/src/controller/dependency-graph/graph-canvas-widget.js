@@ -55,6 +55,15 @@ export class GraphCanvasWidget {
         this.canvas = canvasElem;
         this.getRootNode = getRootNodeFn;
 
+        this.tooltipElement = null;
+        this.tipName = null;
+        this.tipType = null;
+        this.tipScope = null;
+        this.tipRole = null;
+        this.tipMeta = null;
+        this.tipKind = null;
+        this.tipTypeRow = null;
+
         this.canvasRenderer = new CanvasTreeRenderer(canvasElem, {
             onNodeClick: (event, node) => this.options.onNodeClick?.(event, node),
             onToggleClick: (event, node) => this.options.onToggleClick?.(event, node),
@@ -368,24 +377,25 @@ export class GraphCanvasWidget {
     }
 
     showTip(event, node) {
-        if (!this.tooltipElement) {
+        if (!this.tooltipElement || !this.tooltipElement.isConnected) {
             this.tooltipElement = document.getElementById('graph-tooltip');
             this.tipName = document.getElementById('tip-name');
             this.tipType = document.getElementById('tip-type');
             this.tipScope = document.getElementById('tip-scope');
+            this.tipRole = document.getElementById('tip-role');
             this.tipMeta = document.getElementById('tip-meta');
+            this.tipKind = document.getElementById('tip-kind');
+            this.tipTypeRow = document.getElementById('tip-type-row');
         }
         if (!this.tooltipElement) return;
 
         const { data, depth, _children = [] } = node;
         const { name, meta = {} } = data;
-        const { type, scope, role, deps, dependents } = meta;
+        const { type, scope, role, deps, dependents, kind } = meta;
 
         const childrenCount = _children?.length;
         const shortType = type ? (type.includes('.') ? type.slice(type.lastIndexOf('.') + 1) : type) : '';
-
-        const typeLabel = shortType ? `Type: ${shortType}` : '';
-        const scopeLabel = scope ? `Scope: ${scope}${role ? ` · ${role}` : ''}` : '';
+        const cleanRole = role ? (role.startsWith('ROLE_') ? role.replace('ROLE_', '') : role) : '';
 
         let metaText = `Leaf · depth ${depth}`;
         if (deps !== undefined) {
@@ -396,16 +406,24 @@ export class GraphCanvasWidget {
 
         if (this.tipName) this.tipName.textContent = name || '-';
         if (this.tipType) {
-            this.tipType.textContent = typeLabel;
-            this.tipType.style.display = typeLabel ? 'block' : 'none';
+            this.tipType.textContent = shortType || '-';
+            if (this.tipTypeRow) {
+                this.tipTypeRow.style.display = shortType ? 'flex' : 'none';
+            }
         }
         if (this.tipScope) {
-            this.tipScope.textContent = scopeLabel;
-            this.tipScope.style.display = scopeLabel ? 'block' : 'none';
+            this.tipScope.textContent = scope || 'singleton';
+        }
+        if (this.tipRole) {
+            this.tipRole.textContent = cleanRole;
+            this.tipRole.classList.toggle('hidden', !cleanRole);
+        }
+        if (this.tipKind) {
+            this.tipKind.textContent = kind || '';
+            this.tipKind.classList.toggle('hidden', !kind);
         }
         if (this.tipMeta) {
             this.tipMeta.textContent = metaText;
-            this.tipMeta.style.display = metaText ? 'block' : 'none';
         }
 
         const container = document.getElementById('beanGraph');
@@ -416,8 +434,8 @@ export class GraphCanvasWidget {
         const mouseX = event.clientX - rect.left;
         const mouseY = event.clientY - rect.top;
 
-        const tipWidth = this.tooltipElement.offsetWidth || 260;
-        const tipHeight = this.tooltipElement.offsetHeight || 110;
+        const tipWidth = this.tooltipElement.offsetWidth || 280;
+        const tipHeight = this.tooltipElement.offsetHeight || 120;
 
         let tipX = mouseX + 28;
         let tipY = mouseY + 22;
@@ -436,7 +454,7 @@ export class GraphCanvasWidget {
     }
 
     hideTip() {
-        if (!this.tooltipElement) {
+        if (!this.tooltipElement || !this.tooltipElement.isConnected) {
             this.tooltipElement = document.getElementById('graph-tooltip');
         }
         if (this.tooltipElement) {
@@ -573,5 +591,14 @@ export class GraphCanvasWidget {
             this.canvasRenderer = null;
         }
         this.hideTip();
+        this.tooltipElement = null;
+        this.tipName = null;
+        this.tipType = null;
+        this.tipScope = null;
+        this.tipRole = null;
+        this.tipMeta = null;
+        this.tipKind = null;
+        this.tipTypeRow = null;
+        this.canvas = null;
     }
 }

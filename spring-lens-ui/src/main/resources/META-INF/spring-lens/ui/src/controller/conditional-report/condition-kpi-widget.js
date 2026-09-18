@@ -4,12 +4,13 @@
  */
 export default class ConditionKpiWidget {
     computeMetrics(summary = {}) {
+        const metrics = summary || {};
         const {
             totalConditionSources = 0,
             matchedConditionSources = 0,
             unmatchedConditionSources = 0,
             totalEvaluatedConditions = 0
-        } = summary;
+        } = metrics;
 
         const matchedPct = totalConditionSources > 0 ? ((matchedConditionSources / totalConditionSources) * 100).toFixed(1) : '0';
         const unmatchedPct = totalConditionSources > 0 ? ((unmatchedConditionSources / totalConditionSources) * 100).toFixed(1) : '0';
