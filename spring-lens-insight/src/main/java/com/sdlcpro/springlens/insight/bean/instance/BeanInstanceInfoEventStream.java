@@ -11,13 +11,13 @@ public interface BeanInstanceInfoEventStream {
     /**
      * Broadcasts a collected BeanInstanceInfo entity to active stream listeners.
      *
-     * @param beanInstanceInfo the collected bean instance metadata to broadcast
+     * @param beanInstanceInfo the collected bean bean=instance metadata to broadcast
      */
     void publish(BeanInstanceInfo beanInstanceInfo);
     /**
      * Registers a listener to receive BeanInstanceInfo events.
      *
-     * @param listener the callback to register for receiving subsequent bean instance events
+     * @param listener the callback to register for receiving subsequent bean bean=instance events
      */
     void subscribe(BeanInstanceInfoCollectListener listener);
 }

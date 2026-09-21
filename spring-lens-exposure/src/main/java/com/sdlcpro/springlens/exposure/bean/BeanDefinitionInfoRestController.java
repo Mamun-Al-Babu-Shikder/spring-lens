@@ -115,17 +115,17 @@ public class BeanDefinitionInfoRestController {
         var beanDefinitionInfoKey = new BeanInfoCompositeKey(contextId, beanName);
         return ApiResponseHandler.handle(
                 () -> this.beanDefinitionInfoRepository.findById(beanDefinitionInfoKey),
-                "No bean definition found with name '%s' in application context '%s'".formatted(beanName, contextId)
+                "No bean bean-definition found with name '%s' in application context '%s'".formatted(beanName, contextId)
         );
     }
 
     /**
-     * Retrieves aggregated bean definition summary metrics.
+     * Retrieves aggregated bean bean-definition summary metrics.
      *
-     * <p>The summary contains aggregated bean definition distributions,
+     * <p>The summary contains aggregated bean bean-definition distributions,
      * including context, scope, role, loading mode, and total counts.</p>
      *
-     * @return an HTTP response containing the bean definition summary
+     * @return an HTTP response containing the bean bean-definition summary
      * wrapped by the standardized {@link ResponseEntity}
      */
     @GetMapping(value = "/summary", produces = MediaType.APPLICATION_JSON_VALUE)

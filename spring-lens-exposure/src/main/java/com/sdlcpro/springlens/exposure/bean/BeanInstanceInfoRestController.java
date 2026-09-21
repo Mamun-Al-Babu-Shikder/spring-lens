@@ -18,11 +18,11 @@ import org.springframework.web.bind.annotation.RestController;
 import static com.sdlcpro.springlens.query.Filters.*;
 
 /**
- * REST controller that exposes runtime bean instance metadata collected by
+ * REST controller that exposes runtime bean bean=instance metadata collected by
  * Spring Lens.
  *
  * <p>The controller provides filtered, sorted, paginated access to bean
- * instance records and lookup by the composite application-context and bean
+ * bean=instance records and lookup by the composite application-context and bean
  * name key. Page sizes are constrained to {@value #MAX_PAGE_SIZE} to prevent
  * clients from requesting excessively large response payloads.</p>
  *
@@ -41,17 +41,17 @@ public class BeanInstanceInfoRestController {
 
     /**
      * Creates a controller backed by the repository holding collected runtime
-     * bean instance records.
+     * bean bean=instance records.
      *
      * @param beanInstanceInfoRepository the repository used to query bean
-     *                                   instance information
+     *                                   bean=instance information
      */
     public BeanInstanceInfoRestController(BeanInstanceInfoRepository beanInstanceInfoRepository) {
         this.beanInstanceInfoRepository = beanInstanceInfoRepository;
     }
 
     /**
-     * Returns a filtered page of collected bean instance records.
+     * Returns a filtered page of collected bean bean=instance records.
      *
      * @param contextId  optional Spring application context identifier
      * @param beanName   optional bean name
@@ -68,7 +68,7 @@ public class BeanInstanceInfoRestController {
      * @param sortBy     property used for sorting; defaults to {@code beanName}
      * @param sortDir    sorting direction, {@code ASC} or {@code DESC}; defaults
      *                   to {@code ASC}
-     * @return an HTTP response containing the requested page of bean instance
+     * @return an HTTP response containing the requested page of bean bean=instance
      * records, wrapped by {@link ApiResponseHandler}
      */
     @GetMapping(produces = MediaType.APPLICATION_JSON_VALUE)
@@ -108,7 +108,7 @@ public class BeanInstanceInfoRestController {
 
 
     /**
-     * Returns one bean instance record identified by its application context and
+     * Returns one bean bean=instance record identified by its application context and
      * bean name.
      *
      * @param contextId the Spring application context identifier
@@ -123,12 +123,12 @@ public class BeanInstanceInfoRestController {
         var beanInstanceInfoKey = new BeanInfoCompositeKey(contextId, beanName);
         return ApiResponseHandler.handle(
                 () -> this.beanInstanceInfoRepository.findById(beanInstanceInfoKey),
-                "No bean instance found with name '%s' in application context '%s'".formatted(beanName, contextId)
+                "No bean bean=instance found with name '%s' in application context '%s'".formatted(beanName, contextId)
         );
     }
 
     /**
-     * Returns single bean instance proxy information according to the given contextId and beanName
+     * Returns single bean bean=instance proxy information according to the given contextId and beanName
      *
      * @param contextId the Spring application context identifier
      * @param beanName  the bean name within the application context
@@ -143,17 +143,17 @@ public class BeanInstanceInfoRestController {
         return ApiResponseHandler.handle(() -> {
             var key = new BeanInfoCompositeKey(contextId, beanName);
             return this.beanInstanceInfoRepository.findProxyInfoById(key).orElseThrow(
-                    () -> new DataNotFoundException("Bean instance proxy information not found for " + key)
+                    () -> new DataNotFoundException("Bean bean=instance proxy information not found for " + key)
             );
         });
     }
 
     /**
-     * Retrieves aggregated bean instance summary metrics.
+     * Retrieves aggregated bean bean=instance summary metrics.
      *
-     * <p>The summary contains aggregated bean instance data,
+     * <p>The summary contains aggregated bean bean=instance data,
      * including total created instances, context distribution, scope distribution,
-     * instance having definition count etc</p>
+     * bean=instance having bean-definition count etc</p>
      *
      * @return an HTTP response containing the {@link com.sdlcpro.springlens.model.bean.instance.BeanInstanceSummary}
      * wrapped by the standardized {@link ResponseEntity}

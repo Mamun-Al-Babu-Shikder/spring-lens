@@ -7,7 +7,7 @@ public interface BeanDefinitionInfoCollectListener {
     /**
      * Callback method triggered when BeanDefinitionInfo is collected.
      *
-     * @param beanDefinitionInfo the collected bean definition metadata
+     * @param beanDefinitionInfo the collected bean bean-definition metadata
      */
     void onBeanDefinitionInfoCollect(BeanDefinitionInfo beanDefinitionInfo);
 }

@@ -12,7 +12,7 @@ import com.sdlcpro.springlens.repository.PageableRepository;
 /**
  * Repository for accessing {@link BeanDefinitionInfo} instances.
  *
- * <p>Provides CRUD and pagination capabilities for bean definition information,
+ * <p>Provides CRUD and pagination capabilities for bean bean-definition information,
  * as well as aggregated summary metrics.</p>
  */
 public interface BeanDefinitionInfoRepository extends PageableRepository<BeanDefinitionInfo, BeanInfoCompositeKey> {

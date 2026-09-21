@@ -14,10 +14,10 @@ import java.util.Optional;
 public interface BeanInstanceInfoRepository extends PageableRepository<BeanInstanceInfo, BeanInfoCompositeKey> {
 
     /**
-     * Returns proxy metadata for the bean instance matching the given key.
+     * Returns proxy metadata for the bean bean=instance matching the given key.
      *
-     * @param key context ID + bean name identifying the instance
-     * @return proxy info, or null if no matching instance exists
+     * @param key context ID + bean name identifying the bean=instance
+     * @return proxy info, or null if no matching bean=instance exists
      */
     Optional<BeanInstanceProxyInfo> findProxyInfoById(BeanInfoCompositeKey key);
 

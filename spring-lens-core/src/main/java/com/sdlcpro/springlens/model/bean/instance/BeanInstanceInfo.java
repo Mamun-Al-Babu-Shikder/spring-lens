@@ -5,7 +5,7 @@ import com.sdlcpro.springlens.util.Preconditions;
 import java.time.Instant;
 
 /**
- * Carries metadata and telemetry information regarding a concrete Spring bean instance.
+ * Carries metadata and telemetry information regarding a concrete Spring bean bean=instance.
  */
 public record BeanInstanceInfo(
         String contextId,

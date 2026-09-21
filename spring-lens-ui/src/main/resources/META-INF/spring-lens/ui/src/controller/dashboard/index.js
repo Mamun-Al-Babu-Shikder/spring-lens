@@ -1,0 +1,10 @@
+export { default as BaseController } from '../base-controller.js';
+export { DashboardController, DashboardController as Dashboard, DashboardController as default } from './dashboard-controller.js';
+export { default as DashboardService } from './dashboard-service.js';
+export { default as heroWidget } from './hero-widget.js';
+export { default as chartWidget } from './definition-chart-widget.js';
+export { default as bottlenecksWidget } from './bottlenecks-widget.js';
+export { default as conditionsWidget } from './conditions-widget.js';
+export { default as hubsWidget } from './hubs-widget.js';
+export { default as radialTreeWidget } from './radial-tree-widget.js';
+export { default as quickSearchWidget } from './quick-search-widget.js';

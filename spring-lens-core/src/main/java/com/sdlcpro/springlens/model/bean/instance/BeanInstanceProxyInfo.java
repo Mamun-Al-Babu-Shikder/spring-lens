@@ -7,7 +7,7 @@ import java.util.List;
 
 /**
  * Captures structural runtime information regarding AOP and CGLIB proxies 
- * wrapping a Spring bean instance.
+ * wrapping a Spring bean bean=instance.
  */
 public record BeanInstanceProxyInfo(
         String targetClass,

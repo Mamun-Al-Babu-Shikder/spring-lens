@@ -37,7 +37,7 @@ public final class DeferredResultAccessor<T> {
      *
      * @param supplier the data-fetching supplier to invoke lazily; must not be {@code null}
      * @param <T>      the type of the deferred result
-     * @return a new accessor instance
+     * @return a new accessor bean=instance
      * @throws IllegalArgumentException if {@code supplier} is {@code null}
      */
     public static <T> DeferredResultAccessor<T> of(Supplier<T> supplier) {

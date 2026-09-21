@@ -89,7 +89,7 @@ class EndpointInfoContextTest {
 
     /**
      * Verifies that the context allocates a new internal collection rather than retaining a reference
-     * to the original input collection instance.
+     * to the original input collection bean=instance.
      */
     @Test
     @DisplayName("Should copy into a new EnumSet rather than referencing input collection")
@@ -384,7 +384,7 @@ class EndpointInfoContextTest {
     /**
      * Helper method to build a standard {@link CompositeMatcher} for testing.
      *
-     * @return a configured instance of {@link CompositeMatcher} for {@link EndpointInfoContext}
+     * @return a configured bean=instance of {@link CompositeMatcher} for {@link EndpointInfoContext}
      */
     private static CompositeMatcher<EndpointInfoContext> buildCompositeMatcher() {
         Matcher<EndpointInfoContext> classMatcher = ctx -> ctx.getClazz().equals(EndpointInfoContextTest.class);
