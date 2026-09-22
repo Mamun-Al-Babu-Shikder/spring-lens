@@ -131,6 +131,30 @@
         </dependency>
     </dependencies>
 
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>${maven-gpg-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
     <build>
         <pluginManagement>
             <plugins>
@@ -236,21 +260,6 @@
                 <configuration>
                     <publishingServerId>central</publishingServerId>
                 </configuration>
-            </plugin>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-gpg-plugin</artifactId>
-                <version>${maven-gpg-plugin.version}</version>
-                <executions>
-                    <execution>
-                        <id>sign-artifacts</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>sign</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
