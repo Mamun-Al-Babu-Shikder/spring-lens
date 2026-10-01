@@ -29,7 +29,7 @@ jobs:
           server-password-env-var: CENTRAL_PASSWORD
 
       - name: Publish to Maven Central
-        run: mvn --batch-mode --no-transfer-progress clean deploy -Dgpg.signer=bc
+        run: mvn --batch-mode --no-transfer-progress clean deploy -P release -Dgpg.signer=bc
         env:
           CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
           CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}

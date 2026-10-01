@@ -1,17 +1,21 @@
 import httpClient from '../../helper/http-client.js';
-import { QueryParam, DomUtils } from '../../helper/index.js';
+import { QueryParam, DomUtils, Guard } from '../../helper/index.js';
 
 export class InstanceService {
-    constructor(endpoints = {}) {
-        this.beanInstanceApi = endpoints.BEAN_INSTANCE;
-        this.beanInstanceFindApi = endpoints.FIND_BEAN_INSTANCE;
-        this.beanInstanceSummaryApi = endpoints.SUMMARY_BEAN_INSTANCE;
-        this.beanInstanceProxyApi = endpoints.PROXY_BEAN_INSTANCE;
+    constructor(ENDPOINTS = {}) {
+        this.endpoints = {
+            instances   : ENDPOINTS.BEAN_INSTANCE,
+            find        : ENDPOINTS.FIND_BEAN_INSTANCE,
+            summary     : ENDPOINTS.SUMMARY_BEAN_INSTANCE,
+            proxy       : ENDPOINTS.PROXY_BEAN_INSTANCE
+        };
     }
 
-    async fetchSummaryData() {
-        if (!this.beanInstanceSummaryApi) return null;
-        return httpClient.get(this.beanInstanceSummaryApi);
+    async fetchBeanInstanceSummary() {
+        return httpClient.get(this.endpoints.summary).catch(error => {
+            console.error('Error fetching bean instance summary:', error);
+            return null;
+        });
     }
 
     async fetchInstanceData(queryOptions = {}) {
@@ -24,27 +28,25 @@ export class InstanceService {
         });
 
         return httpClient.getWithQuery(
-            this.beanInstanceApi,
+            this.endpoints.instances,
             queryParams.toString()
         );
     }
 
     async findBeanInstance(contextId, beanName) {
-        if (!this.beanInstanceFindApi || !beanName) return null;
         const queryParams = QueryParam.build({ contextId, beanName });
-        return httpClient.getWithQuery(
-            this.beanInstanceFindApi,
-            queryParams.toString()
-        );
+        return httpClient.getWithQuery(this.endpoints.find, queryParams.toString()).catch(err => {
+            console.warn('Could not fetch single bean instance details:', err);
+            return null;
+        });
     }
 
     async fetchProxyInfo(contextId, beanName) {
-        if (!this.beanInstanceProxyApi || !beanName) return null;
         const queryParams = QueryParam.build({ contextId, beanName });
-        return httpClient.getWithQuery(
-            this.beanInstanceProxyApi,
-            queryParams.toString()
-        );
+        return httpClient.getWithQuery(this.endpoints.proxy, queryParams.toString()).catch(err => {
+            console.warn('Failed to fetch proxy info:', err);
+            return null;
+        });
     }
 
     downloadReport(filename, reportData) {

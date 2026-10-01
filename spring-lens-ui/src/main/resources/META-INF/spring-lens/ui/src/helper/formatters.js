@@ -36,7 +36,7 @@ export class Formatter {
      * @returns {string}
      */
     static formatDuration(nanos) {
-        if (nanos === undefined || nanos === null || isNaN(nanos)) return '0µs';
+        if (nanos === undefined || nanos === null || Number.isNaN(nanos)) return '0µs';
         const n = Number(nanos);
         if (n >= 1_000_000_000) return (n / 1e9).toFixed(2) + 's';
         const ms = n / 1e6;
@@ -47,6 +47,39 @@ export class Formatter {
         if (n >= 10_000) return (n / 1e3).toFixed(1) + 'µs';
         if (n >= 1_000) return (n / 1e3).toFixed(2) + 'µs';
         return n + 'ns';
+    }
+
+    static ISO_DURATION_REGEX = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:([\d.]+)S)?$/;
+
+    static formatIsoDuration(duration) {
+        if (!duration) return '--';
+
+        const match = Formatter.ISO_DURATION_REGEX.exec(duration);
+        if (!match) return String(duration);
+
+        const hours   = Number.parseFloat(match[1] || 0);
+        const minutes = Number.parseFloat(match[2] || 0);
+        const seconds = Number.parseFloat(match[3] || 0);
+        const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+
+        return totalSeconds < 1
+            ? `${Math.round(totalSeconds * 1000)}ms`
+            : `${totalSeconds.toFixed(2)}s`;
+    }
+
+    static formatUptime(diffMs) {
+        if (!Number.isFinite(diffMs) || diffMs < 0) return 'Just started';
+
+        const totalSec = Math.floor(diffMs / 1000);
+        const days = Math.floor(totalSec / 86400);
+        const hrs  = Math.floor((totalSec % 86400) / 3600);
+        const mins = Math.floor((totalSec % 3600) / 60);
+        const secs = totalSec % 60;
+
+        if (days > 0) return `${days}d ${hrs}h ${mins}m`;
+        if (hrs > 0)  return `${hrs}h ${mins}m ${secs}s`;
+        if (mins > 0) return `${mins}m ${secs}s`;
+        return `${secs}s`;
     }
 
     /**

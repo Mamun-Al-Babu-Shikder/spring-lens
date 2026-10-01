@@ -151,9 +151,9 @@
                     </button>
                 </div>
 
-                <!-- Load All Mode Button (Triggers Warning Modal) -->
+                <!-- Load All Mode Button (Triggers Warning Modal if > 500 remaining beans) -->
                 <div class="flex items-center pl-1 border-l border-gray-200 dark:border-slate-800">
-                    <button type="button" id="btn-load-all-beans" @click="openLoadAllModal()"
+                    <button type="button" id="btn-load-all-beans" @click="(remainingBeansCount || 0) > 500 ? openLoadAllModal() : confirmLoadAll()"
                         :disabled="!hasMoreBeans || isLoadingMore || isLoadingAll"
                         class="flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 border border-amber-300/80 dark:border-amber-700/60 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shadow-2xs"
                         :title="hasMoreBeans ? 'Load all remaining bean dependencies into graph' : 'All beans already loaded in graph'">
