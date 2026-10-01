@@ -22,7 +22,7 @@ import java.util.Set;
 import static com.sdlcpro.springlens.constant.SpringLensConstants.SPRING_LENS_BASE_PACKAGE_PATTERN;
 
 @SpringLensInternalComponent
-public class ConditionEvaluationInfoCollector implements SmartInitializingSingleton {
+public final class ConditionEvaluationInfoCollector implements SmartInitializingSingleton {
     private static final Logger logger = LoggerFactory.getLogger(ConditionEvaluationInfoCollector.class);
 
     private final ApplicationContext context;
