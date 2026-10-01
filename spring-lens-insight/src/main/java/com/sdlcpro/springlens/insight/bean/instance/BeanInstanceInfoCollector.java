@@ -93,10 +93,9 @@ public final class BeanInstanceInfoCollector implements BeanPostProcessor {
     @Override
     public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
         try {
-            boolean hasDefinition = context.containsBeanDefinition(beanName);
-            String scope = hasDefinition ? resolveBeanScope(this.context.getBeanFactory(), beanName) : "unknown";
-
             if (this.isEligibleToCollectInfo(bean, beanName)) {
+                boolean hasDefinition = context.containsBeanDefinition(beanName);
+                String scope = hasDefinition ? resolveBeanScope(this.context.getBeanFactory(), beanName) : "unknown";
                 String key = beanNamePrefix.concat(beanName);
                 var builder = BeanInstanceInfoBuilder.init(this.contextId, beanName)
                         .type(resolveRuntimeBeanType(bean))
