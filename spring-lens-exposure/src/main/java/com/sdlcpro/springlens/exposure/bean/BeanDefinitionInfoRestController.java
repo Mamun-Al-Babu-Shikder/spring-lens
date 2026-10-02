@@ -115,7 +115,7 @@ public class BeanDefinitionInfoRestController {
         var beanDefinitionInfoKey = new BeanInfoCompositeKey(contextId, beanName);
         return ApiResponseHandler.handle(
                 () -> this.beanDefinitionInfoRepository.findById(beanDefinitionInfoKey),
-                "No bean bean-definition found with name '%s' in application context '%s'".formatted(beanName, contextId)
+                "No bean-definition info found with name '%s' in application context '%s'".formatted(beanName, contextId)
         );
     }
 

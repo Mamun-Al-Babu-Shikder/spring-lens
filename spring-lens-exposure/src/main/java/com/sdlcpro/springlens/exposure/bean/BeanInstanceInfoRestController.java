@@ -123,7 +123,7 @@ public class BeanInstanceInfoRestController {
         var beanInstanceInfoKey = new BeanInfoCompositeKey(contextId, beanName);
         return ApiResponseHandler.handle(
                 () -> this.beanInstanceInfoRepository.findById(beanInstanceInfoKey),
-                "No bean bean=instance found with name '%s' in application context '%s'".formatted(beanName, contextId)
+                "No bean-instance info found with name '%s' in application context '%s'".formatted(beanName, contextId)
         );
     }
 
