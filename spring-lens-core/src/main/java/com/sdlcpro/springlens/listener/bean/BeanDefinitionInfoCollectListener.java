@@ -9,5 +9,5 @@ public interface BeanDefinitionInfoCollectListener {
      *
      * @param beanDefinitionInfo the collected bean bean-definition metadata
      */
-    void onBeanDefinitionInfoCollect(BeanDefinitionInfo beanDefinitionInfo);
+    void onBeanDefinitionInfoCollected(BeanDefinitionInfo beanDefinitionInfo);
 }

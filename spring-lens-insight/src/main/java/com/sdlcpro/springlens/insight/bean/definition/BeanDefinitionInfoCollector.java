@@ -124,7 +124,7 @@ public final class BeanDefinitionInfoCollector implements SmartInitializingSingl
             SafeListenerInvoker.invoke(
                     this.beanDefinitionInfoCollectListenerProvider,
                     definitionInfo,
-                    BeanDefinitionInfoCollectListener::onBeanDefinitionInfoCollect
+                    BeanDefinitionInfoCollectListener::onBeanDefinitionInfoCollected
             );
         }
     }

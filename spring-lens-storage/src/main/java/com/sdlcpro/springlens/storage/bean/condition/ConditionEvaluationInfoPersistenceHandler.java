@@ -35,7 +35,7 @@ public class ConditionEvaluationInfoPersistenceHandler implements ConditionEvalu
      * @param conditionEvaluationInfo the collected condition evaluation info, ignored when null
      */
     @Override
-    public void onConditionEvaluationInfoCollect(ConditionEvaluationInfo conditionEvaluationInfo) {
+    public void onConditionEvaluationInfoCollected(ConditionEvaluationInfo conditionEvaluationInfo) {
         if(conditionEvaluationInfo != null) {
             this.conditionEvaluationInfoRepository.save(conditionEvaluationInfo);
         }
