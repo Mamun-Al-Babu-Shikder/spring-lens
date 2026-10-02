@@ -92,7 +92,7 @@ class BeanDefinitionInfoCollectorConfigurationTest {
 
                     context.getBean(BeanDefinitionInfoCollector.class).afterSingletonsInstantiated();
 
-                    verify(listener, atLeastOnce()).onBeanDefinitionInfoCollect(any(BeanDefinitionInfo.class));
+                    verify(listener, atLeastOnce()).onBeanDefinitionInfoCollected(any(BeanDefinitionInfo.class));
                 });
     }
 

@@ -114,7 +114,7 @@ public final class ConditionEvaluationInfoCollector implements SmartInitializing
             SafeListenerInvoker.invoke(
                     this.conditionEvaluationInfoCollectListenerProvider,
                     conditionEvaluationInfo,
-                    ConditionEvaluationInfoCollectListener::onConditionEvaluationInfoCollect
+                    ConditionEvaluationInfoCollectListener::onConditionEvaluationInfoCollected
             );
         }
     }

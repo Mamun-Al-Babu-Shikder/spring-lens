@@ -51,7 +51,7 @@ class BeanDefinitionInfoPersistenceHandlerTest {
         );
 
         // when
-        persistenceHandler.onBeanDefinitionInfoCollect(beanDefinitionInfo);
+        persistenceHandler.onBeanDefinitionInfoCollected(beanDefinitionInfo);
 
         // then
         verify(beanDefinitionInfoRepository, times(1)).save(beanDefinitionInfo);

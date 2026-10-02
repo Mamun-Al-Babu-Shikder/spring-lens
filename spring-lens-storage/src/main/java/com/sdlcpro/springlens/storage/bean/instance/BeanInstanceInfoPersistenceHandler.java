@@ -20,7 +20,7 @@ public class BeanInstanceInfoPersistenceHandler implements BeanInstanceInfoColle
     }
 
     @Override
-    public void onBeanInstanceInfoCollect(BeanInstanceInfo beanInstanceInfo) {
+    public void onBeanInstanceInfoCollected(BeanInstanceInfo beanInstanceInfo) {
         if (beanInstanceInfo != null) {
             beanInstanceInfoRepository.save(beanInstanceInfo);
         }
