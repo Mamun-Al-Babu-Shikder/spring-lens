@@ -33,14 +33,14 @@ class ConditionEvaluationInfoPersistenceHandlerTest {
                 List.of()
         );
 
-        persistenceHandler.onConditionEvaluationInfoCollect(conditionEvaluationInfo);
+        persistenceHandler.onConditionEvaluationInfoCollected(conditionEvaluationInfo);
 
         verify(conditionEvaluationInfoRepository).save(conditionEvaluationInfo);
     }
 
     @Test
     void shouldNotSaveWhenConditionEvaluationInfoIsNull() {
-        persistenceHandler.onConditionEvaluationInfoCollect(null);
+        persistenceHandler.onConditionEvaluationInfoCollected(null);
 
         verifyNoInteractions(conditionEvaluationInfoRepository);
     }

@@ -19,5 +19,5 @@ public interface ConditionEvaluationInfoCollectListener {
      *
      * @param conditionEvaluationInfo the collected condition evaluation information
      */
-    void onConditionEvaluationInfoCollect(ConditionEvaluationInfo conditionEvaluationInfo);
+    void onConditionEvaluationInfoCollected(ConditionEvaluationInfo conditionEvaluationInfo);
 }

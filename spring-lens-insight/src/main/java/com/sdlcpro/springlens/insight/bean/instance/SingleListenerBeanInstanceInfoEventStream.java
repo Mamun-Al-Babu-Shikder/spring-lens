@@ -93,7 +93,7 @@ public final class SingleListenerBeanInstanceInfoEventStream implements BeanInst
         SafeListenerInvoker.invoke(
                 Collections.singleton(this.listener),
                 info,
-                BeanInstanceInfoCollectListener::onBeanInstanceInfoCollect
+                BeanInstanceInfoCollectListener::onBeanInstanceInfoCollected
         );
     }
 
