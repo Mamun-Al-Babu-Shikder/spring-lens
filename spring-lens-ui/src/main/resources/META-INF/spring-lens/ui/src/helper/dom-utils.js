@@ -21,7 +21,7 @@ class DomUtils {
 
     static downloadJson(filename, data) {
         if (Guard.isBlank(data)) return;
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' });
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/vnd.sdlc-pro.spring-lens.v2+json;charset=utf-8' });
         this.downloadBlob(filename, blob);
     }
 }
